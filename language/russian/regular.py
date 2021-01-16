@@ -1,5 +1,5 @@
 # encoding: utf-8
-from pathlib import Path
+from collections import deque
 from pprint import pprint
 from typing import Union
 
@@ -10,43 +10,34 @@ from natasha import (
     NewsEmbedding,
     NewsMorphTagger,
     NewsSyntaxParser,
-    NewsNERTagger,
 
     Doc
 )
-from natasha.doc import DocToken
+from natasha.doc import DocToken, DocSent
+from razdel.segmenters.punct import DASHES
+
+from language.russian.common.constants import NAME_EXCEPTIONS, SPECIAL_VERBS
+from language.russian.common.natasha_span import NatashaSpan
+from language.span import Span
 
 
 def process_doc(text: str):
     doc = Doc(text)
+    emb = NewsEmbedding()
 
     segmenter = Segmenter()
-    morph_vocab = MorphVocab()
-
-    emb = NewsEmbedding()
-    morph_tagger = NewsMorphTagger(emb)
-    syntax_parser = NewsSyntaxParser(emb)
-    ner_tagger = NewsNERTagger(emb)
-
     doc.segment(segmenter)
+
+    morph_tagger = NewsMorphTagger(emb)
     doc.tag_morph(morph_tagger)
 
+    morph_vocab = MorphVocab()
     for token in doc.tokens:
         token.lemmatize(morph_vocab)
 
+    syntax_parser = NewsSyntaxParser(emb)
     doc.parse_syntax(syntax_parser)
-    doc.tag_ner(ner_tagger)
     return doc
-
-
-document = process_doc("""
-Кровь выступала вокруг грязного лезвия.
-– Перережь себе глотку, – приказал Тук.
-– Хватит, Тук! – Амарк вскочил. – Я тут не…
-– Да заткнись ты. – (Теперь на представление смотрели уже почти все посетители.) – Сам все увидишь. Курп, перережь себе глотку.
-– Мне запрещено отнимать собственную жизнь, – тихо проговорил Сзет на бавском языке. – Поскольку я неправедник, природа моего страдания такова, что я не имею права познать смерть от собственной руки.
-Амарк снова сел, вид у него был глуповатый.
-""")
 
 
 def sentence_by_span(doc: Doc, index: int):
@@ -70,28 +61,8 @@ def token_by_span(doc: Doc, index: int):
     return None
 
 
-class Span:
-    def __init__(self, speaker, tokens):
-        self.speaker = speaker
-        self.tokens = tokens
-
-    def __repr__(self):
-        s = (self.speaker.text
-             if isinstance(self.speaker, DocToken)
-             else self.speaker)
-        return f'{s}: {" ".join([t.text for t in self.tokens])}'
-
-
-DASHES = {'-', '–'}
-NAME_EXCEPTIONS = {'пиво-то'}
-SPECIAL_VERBS: list[str]
-
-with open(Path('.') / 'special_verbs_ru-RU.txt', "r") as f:
-    SPECIAL_VERBS = [line.strip() for line in f]
-
-
-def extract_phrases(doc: Doc) -> list[Span]:
-    result = []
+def extract_replicas(doc: Doc) -> list[Span]:
+    replicas = []
     take_token = False
     # split text into replicas
     for i_s, sent in enumerate(doc.sents):
@@ -110,16 +81,16 @@ def extract_phrases(doc: Doc) -> list[Span]:
                 # exceptional case 1:
                 # "author text"... - ...character speech
                 if token.text in DASHES \
-                        and i_t + 1 < len(sent.tokens) \
-                        and sent.tokens[i_t + 1].text == '…':
+                    and i_t + 1 < len(sent.tokens) \
+                    and sent.tokens[i_t + 1].text == '…':
                     offset = i_t + 1
                     take_token = True
                     break
                 # exceptional case 2:
                 # author text: - Character speech
                 if token.text == ':' \
-                        and i_t + 1 < len(sent.tokens) \
-                        and sent.tokens[i_t + 1].text in DASHES:
+                    and i_t + 1 < len(sent.tokens) \
+                    and sent.tokens[i_t + 1].text in DASHES:
                     offset = i_t + 2
                     take_token = True
                     break
@@ -129,9 +100,9 @@ def extract_phrases(doc: Doc) -> list[Span]:
             person_speech_tokens = []
             for i_t, token in enumerate(sent.tokens[offset:]):
                 if start_dash \
-                        and token.text in DASHES \
-                        and (i_t - 1 < 0
-                             or sent.tokens[i_t + offset - 1].rel == 'punct'):
+                    and token.text in DASHES \
+                    and (i_t - 1 < 0
+                         or sent.tokens[i_t + offset - 1].rel == 'punct'):
                     # author's speech alternates with person's through dash
                     take_token = not take_token
                     continue
@@ -141,8 +112,8 @@ def extract_phrases(doc: Doc) -> list[Span]:
             if len(person_speech_tokens) == 0:
                 continue
             # here we have a clean speech text
-            result.append(Span(None, person_speech_tokens))
-    return result
+            replicas.append(NatashaSpan(None, person_speech_tokens))
+    return replicas
 
 
 def is_name(t: DocToken, linked_verb_feats: dict = None):
@@ -164,8 +135,8 @@ def is_names_verb(t: DocToken, linked_name_feats: dict = None):
 
 
 def get_speaker(
-        tokens: list[DocToken],
-        speaker: DocToken = None
+    tokens: list[DocToken],
+    speaker: DocToken = None
 ) -> Union[DocToken, str]:
     possible_new_speaker = None
     state = ''
@@ -213,47 +184,74 @@ def get_speaker(
     return speaker
 
 
-def classify_speakers(doc: Doc, entries: list[Span]):
-    last_speaker = None
-    for entry in entries:
-        sentence_idx = sentence_index_by_span(document, entry.tokens[0].start)
+Speaker = Union[DocToken, str, None]
+
+
+def classify_speakers(doc: Doc, replicas: list[Span]):
+    last_speaker: Speaker = None
+    speakers_queue: deque[DocToken] = deque()
+    for i_e, replica in enumerate(replicas):
+        sentence_idx = sentence_index_by_span(doc, replica.tokens[0].start)
         sentence = doc.sents[sentence_idx]
         pprint(sentence.tokens)
         sentence.syntax.print()
 
-        sentence_next = (doc.sents[sentence_idx + 1]
-                         if sentence_idx + 1 < len(doc.sents)
-                         else None)
-        sentence_prev = (doc.sents[sentence_idx - 1]
-                         if sentence_idx - 1 > 0
-                         else None)
+        replica_next: Span = (replicas[i_e + 1]
+                              if i_e + 1 < len(replicas) else None)
+        replica_prev: Span = (replicas[i_e - 1]
+                              if i_e - 1 > 0 else None)
+        sentence_next: DocSent = (doc.sents[sentence_idx + 1]
+                                  if sentence_idx + 1 < len(doc.sents)
+                                  else None)
+        sentence_prev: DocSent = (doc.sents[sentence_idx - 1]
+                                  if sentence_idx - 1 > 0
+                                  else None)
         newline_before = (sentence_prev is not None
                           and doc.text[sentence_prev.stop] == '\n')
         newline_after = (doc.text[sentence.stop] == '\n')
 
-        speaker = None
+        speaker: Speaker = None
 
-        if not newline_before and sentence_prev is not None:
+        if newline_before and len(speakers_queue) > 1:
+            speakers_queue.rotate(1)
+
+        if (speaker is None
+            and not newline_after
+            # next sentence is not replica
+            and replica_next
+            and sentence_next.tokens[1].start != replica_next.tokens[0].start):
+
+            new_speaker = get_speaker(sentence_next.tokens)
+            if new_speaker is not None:
+                speaker = new_speaker
+
+        if (not newline_before
+            # prev sentence is not replica
+            and replica_prev
+            and sentence_prev.tokens[1].start != replica_prev.tokens[0].start):
+
             new_speaker = get_speaker(sentence_prev.tokens, last_speaker)
             if new_speaker is not None:
                 speaker = new_speaker
 
         if speaker is None:
-            speaker = get_speaker(sentence.tokens)
-
-        if speaker is None and not newline_after and sentence_next is not None:
-            new_speaker = get_speaker(sentence_next.tokens)
+            new_speaker = get_speaker(sentence.tokens)
             if new_speaker is not None:
                 speaker = new_speaker
 
+        if speaker is None and len(speakers_queue) > 0:
+            speaker = speakers_queue[-1]
+
+        if (isinstance(speaker, DocToken)
+            and speaker.lemma not in [t.lemma for t in speakers_queue]):
+            if len(speakers_queue) == 2:
+                speakers_queue.pop()
+            speakers_queue.append(speaker)
+
+        print([t.text for t in speakers_queue])
+
         last_speaker = speaker
-        entry.speaker = last_speaker
-        print(entry)
+        replica.speaker = last_speaker
+        print(replica)
 
-    return entries
-
-
-es = extract_phrases(document)
-es = classify_speakers(document, es)
-print()
-print('\n'.join(str(e) for e in es))
+    return replicas
