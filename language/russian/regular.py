@@ -144,7 +144,6 @@ def get_speaker(
     long_speaker_len = 0
     feats = None
     while i < len(tokens):
-        prev_token = tokens[i - 1] if i - 1 > 0 else None
         token = tokens[i]
         if token.text in DASHES:
             long_speaker_len = 0
@@ -160,10 +159,7 @@ def get_speaker(
                 return '!generic'
         elif state == 'after_verb':
             long_speaker_len = 0
-            if prev_token and prev_token.lemma in SPECIAL_VERBS:
-                state = 'after_special_verb'
-                continue
-            elif is_name(token, linked_verb_feats=feats):
+            if is_name(token, linked_verb_feats=feats):
                 speaker = token
         elif state == 'after_name':
             long_speaker_len = 0
@@ -175,6 +171,9 @@ def get_speaker(
                 feats = token.feats
                 possible_new_speaker = token
                 state = 'after_name'
+            elif token.lemma in SPECIAL_VERBS:
+                feats = token.feats
+                state = 'after_special_verb'
             elif is_names_verb(token):
                 feats = token.feats
                 state = 'after_verb'
