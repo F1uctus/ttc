@@ -88,9 +88,9 @@ def extract_replicas(doc: Doc) -> list[Span]:
                     break
                 # exceptional case 2:
                 # author text: - Character speech
-                if token.text == ':' \
-                    and i_t + 1 < len(sent.tokens) \
-                    and sent.tokens[i_t + 1].text in DASHES:
+                if (token.text == ':'
+                    and i_t + 1 < len(sent.tokens)
+                    and sent.tokens[i_t + 1].text in DASHES):
                     offset = i_t + 2
                     take_token = True
                     break
