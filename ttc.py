@@ -49,9 +49,9 @@ def extract_replicas(
         language,
         exact
     )
-    document = process_doc(text)
-    replicas = extract_replicas(document)
-    replicas = classify_speakers(document, replicas)
+    doc = process_doc(text)
+    replicas = extract_replicas(doc)
+    replicas = classify_speakers(doc, replicas)
     return replicas
 
 
@@ -64,7 +64,7 @@ def extract_speakers(
         language,
         exact
     )
-    document = process_doc(text)
-    replicas = extract_replicas(document)
-    replicas = classify_speakers(document, replicas)
+    doc = process_doc(text)
+    replicas = extract_replicas(doc)
+    replicas = classify_speakers(doc, replicas)
     return replicas
