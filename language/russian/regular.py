@@ -51,10 +51,10 @@ def sentence_index_by_span(doc: Doc, index: int):
     for i, sentence in enumerate(doc.sents):
         if sentence.start <= index <= sentence.stop:
             return i
-    return None
+    return -1
 
 
-def token_by_span(doc: Doc, index: int):
+def token_by_span(doc: Doc, index: int) -> Optional[DocToken]:
     for token in doc.tokens:
         if token.start <= index <= token.stop:
             return token
@@ -80,9 +80,9 @@ def extract_replicas(doc: Doc) -> list[Span]:
             for i_t, token in enumerate(sent.tokens):
                 # exceptional case 1:
                 # "author text"... - ...character speech
-                if token.text in DASHES \
-                    and i_t + 1 < len(sent.tokens) \
-                    and sent.tokens[i_t + 1].text == '…':
+                if (token.text in DASHES
+                    and i_t + 1 < len(sent.tokens)
+                    and sent.tokens[i_t + 1].text == '…'):
                     offset = i_t + 1
                     take_token = True
                     break
@@ -99,10 +99,10 @@ def extract_replicas(doc: Doc) -> list[Span]:
             take_token = take_token != start_dash
             person_speech_tokens = []
             for i_t, token in enumerate(sent.tokens[offset:]):
-                if start_dash \
-                    and token.text in DASHES \
+                if (start_dash
+                    and token.text in DASHES
                     and (i_t - 1 < 0
-                         or sent.tokens[i_t + offset - 1].rel == 'punct'):
+                         or sent.tokens[i_t + offset - 1].rel == 'punct')):
                     # author's speech alternates with person's through dash
                     take_token = not take_token
                     continue
