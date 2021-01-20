@@ -1,7 +1,7 @@
 # encoding: utf-8
 from collections import deque
 from pprint import pprint
-from typing import Union
+from typing import Union, Optional
 
 from natasha import (
     Segmenter,
