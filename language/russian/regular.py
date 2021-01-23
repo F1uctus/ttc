@@ -1,256 +1,212 @@
 # encoding: utf-8
 from collections import deque
-from pprint import pprint
-from typing import Union, Optional
+from typing import Union, Optional, overload
 
-from natasha import (
-    Segmenter,
-    MorphVocab,
+import spacy
+from spacy.tokens import Doc, Token, Span, MorphAnalysis
 
-    NewsEmbedding,
-    NewsMorphTagger,
-    NewsSyntaxParser,
-
-    Doc
+from language.russian.common.constants import (
+    NAME_EXCEPTIONS,
+    SPECIAL_VERBS,
+    DASHES,
+    GENERIC_NAMES
 )
-from natasha.doc import DocToken, DocSent
-from razdel.segmenters.punct import DASHES
-
-from language.russian.common.constants import NAME_EXCEPTIONS, SPECIAL_VERBS
-from language.russian.common.natasha_span import NatashaSpan
-from language.span import Span
+from language.replica import Replica
 
 
 def process_doc(text: str):
-    doc = Doc(text)
-    emb = NewsEmbedding()
-
-    segmenter = Segmenter()
-    doc.segment(segmenter)
-
-    morph_tagger = NewsMorphTagger(emb)
-    doc.tag_morph(morph_tagger)
-
-    morph_vocab = MorphVocab()
-    for token in doc.tokens:
-        token.lemmatize(morph_vocab)
-
-    syntax_parser = NewsSyntaxParser(emb)
-    doc.parse_syntax(syntax_parser)
-    return doc
+    nlp = spacy.load('ru_core_news_md')
+    return nlp(text)
 
 
-def sentence_by_span(doc: Doc, index: int):
-    for sentence in doc.sents:
-        if sentence.start <= index <= sentence.stop:
-            return sentence
-    return None
-
-
-def sentence_index_by_span(doc: Doc, index: int):
-    for i, sentence in enumerate(doc.sents):
-        if sentence.start <= index <= sentence.stop:
+def sentence_index_by_span(sents: list[Span], index: int):
+    for i, sentence in enumerate(sents):
+        if sentence.start_char <= index <= sentence.end_char:
             return i
     return -1
 
 
-def token_by_span(doc: Doc, index: int) -> Optional[DocToken]:
-    for token in doc.tokens:
-        if token.start <= index <= token.stop:
-            return token
-    return None
+@overload
+def next_non_empty(
+    doc_piece: list[Span], idx: int, *, step: int = 1
+) -> tuple[Optional[Span], int]: ...
 
 
-def extract_replicas(doc: Doc) -> list[Span]:
-    replicas = []
-    take_token = False
-    # split text into replicas
-    for i_s, sent in enumerate(doc.sents):
-        prev_sent = None if i_s < 1 else doc.sents[i_s - 1]
+@overload
+def next_non_empty(
+    doc_piece: Span, idx: int, *, step: int = 1
+) -> tuple[Optional[Token], int]: ...
 
-        # newline usually begins a new speaker's replica
-        if prev_sent and doc.text[prev_sent.stop] == '\n':
-            take_token = False
 
-        offset = 0
-        start_dash = sent.tokens[0].text in DASHES
-        if start_dash:
-            offset = 1
-        else:
-            for i_t, token in enumerate(sent.tokens):
-                # exceptional case 1:
-                # "author text"... - ...character speech
-                if (token.text in DASHES
-                    and i_t + 1 < len(sent.tokens)
-                    and sent.tokens[i_t + 1].text == '…'):
-                    offset = i_t + 1
-                    take_token = True
-                    break
-                # exceptional case 2:
-                # author text: - Character speech
-                if (token.text == ':'
-                    and i_t + 1 < len(sent.tokens)
-                    and sent.tokens[i_t + 1].text in DASHES):
-                    offset = i_t + 2
-                    take_token = True
-                    break
+def next_non_empty(
+    doc_piece: Union[Span, list[Span]], idx: int, *, step: int = 1
+) -> tuple[Union[Span, Token, None], int]:
+    delta = 0
+    sub_piece = None
+    while 0 <= idx + delta < len(doc_piece):
+        sub_piece = doc_piece[idx + delta]
+        if len(sub_piece.text.strip()) > 0:
+            break
+        delta += step
+    return sub_piece, delta
 
-        if take_token or start_dash:
-            take_token = take_token != start_dash
-            person_speech_tokens = []
-            for i_t, token in enumerate(sent.tokens[offset:]):
-                if (start_dash
-                    and token.text in DASHES
-                    and (i_t - 1 < 0
-                         or sent.tokens[i_t + offset - 1].rel == 'punct')):
-                    # author's speech alternates with person's through dash
-                    take_token = not take_token
-                    continue
-                if take_token:
-                    person_speech_tokens.append(token)
 
-            if len(person_speech_tokens) == 0:
-                continue
-            # here we have a clean speech text
-            replicas.append(NatashaSpan(None, person_speech_tokens))
+def extract_replicas(doc: Doc) -> list[Replica]:
+    doc_length = len(doc)
+    replicas: list[Replica] = []
+    character_speech: list[Token] = []
+
+    def prev_token() -> Optional[Token]:
+        return doc[i_t - 1] if i_t - 1 >= 0 else None
+
+    def token() -> Token:
+        return doc[i_t]
+
+    def speaker_text():
+        if i_t >= doc_length: return
+        nonlocal character_speech
+        character_speech.append(token())
+
+    def author_text():
+        nonlocal character_speech
+        # flush speaker tokens
+        if len(character_speech) > 0:
+            replicas.append(Replica(None, character_speech))
+        character_speech = []
+
+    transitions = {
+        'speaker-text': speaker_text,
+        'newline': author_text
+    }
+
+    state = 'author-text'
+    i_t = 0
+    while i_t < doc_length:
+        if '\n' in token().text:
+            state = 'newline'
+        elif token().text in DASHES:
+            if state == 'newline':
+                # "\n -" begins a replica
+                state = 'speaker-text'
+                i_t += 1
+            elif prev_token().dep_ == 'punct':
+                if state == 'speaker-text':
+                    # replica break
+                    state = 'author-text'
+                elif state == 'author-text' and len(character_speech) > 0:
+                    # character replica after author speech
+                    state = 'speaker-text'
+                    i_t += 1
+        elif state == 'newline':
+            state = 'author-text'
+
+        transitions.get(state, lambda: ...)()
+
+        i_t += 1
+
     return replicas
 
 
-def is_name(t: DocToken, linked_verb_feats: dict = None):
-    return (t.pos == 'PROPN'
+def is_name(t: Token, linked_verb_morph: MorphAnalysis = None):
+    return (t.pos_ in ['NOUN', 'PROPN', 'ADJ']
             and t.lemma not in NAME_EXCEPTIONS
             and t.text[0].isupper()
-            and (linked_verb_feats is None
-                 or linked_verb_feats.get('Number', None)
-                 == t.feats.get('Number', None)
-                 ))
+            and (linked_verb_morph is None
+                 or linked_verb_morph.get('Number') == t.morph.get('Number')))
 
 
-def is_names_verb(t: DocToken, linked_name_feats: dict = None):
-    return (t.pos == 'VERB'
-            and (linked_name_feats is None
-                 or linked_name_feats.get('Number', None)
-                 == t.feats.get('Number', None)
-                 ))
+def is_names_verb(t: Token, linked_name_morph: MorphAnalysis = None):
+    return (t.pos_ == 'VERB'
+            and (linked_name_morph is None
+                 or linked_name_morph.get('Number') == t.morph.get('Number')))
 
 
-def get_speaker(
-    tokens: list[DocToken],
-    speaker: DocToken = None
-) -> Union[DocToken, str]:
+def get_speaker(span: list[Token], speaker: Token = None) -> Union[Token, str]:
     possible_new_speaker = None
-    state = ''
-    i = 0
     long_speaker_len = 0
-    feats = None
-    while i < len(tokens):
-        token = tokens[i]
+    morph = None
+    state = ''
+    for token in span:
         if token.text in DASHES:
             long_speaker_len = 0
             state = ''
         elif state == 'after_special_verb':
-            if token.rel == 'punct':
+            if token.dep_ == 'punct':
                 break
             speaker = token
             if is_name(token):
                 break
             long_speaker_len += 1
             if long_speaker_len > 1:
+                # multi-word names are most probably indicate secondary character.
                 return '!generic'
         elif state == 'after_verb':
             long_speaker_len = 0
-            if is_name(token, linked_verb_feats=feats):
+            if is_name(token, linked_verb_morph=morph):
                 speaker = token
         elif state == 'after_name':
             long_speaker_len = 0
-            if is_names_verb(token, linked_name_feats=feats):
+            if is_names_verb(token, linked_name_morph=morph):
                 speaker = possible_new_speaker
         else:
             long_speaker_len = 0
             if is_name(token):
-                feats = token.feats
+                morph = token.morph
                 possible_new_speaker = token
                 state = 'after_name'
-            elif token.lemma in SPECIAL_VERBS:
-                feats = token.feats
+            elif token.lemma_ in SPECIAL_VERBS:
+                morph = token.morph
                 state = 'after_special_verb'
             elif is_names_verb(token):
-                feats = token.feats
+                morph = token.morph
                 state = 'after_verb'
 
-        i += 1
+    if speaker and speaker.lemma_ in GENERIC_NAMES:
+        return '!generic'
 
     return speaker
 
 
-Speaker = Union[DocToken, str, None]
+def classify_speakers(doc: Doc, replicas: list[Replica]):
+    sents = [s for s in doc.sents]
+    speakers_queue: deque[Token] = deque()
 
-
-def classify_speakers(doc: Doc, replicas: list[Span]):
-    last_speaker: Speaker = None
-    speakers_queue: deque[DocToken] = deque()
     for i_e, replica in enumerate(replicas):
-        sentence_idx = sentence_index_by_span(doc, replica.tokens[0].start)
-        sentence = doc.sents[sentence_idx]
-        pprint(sentence.tokens)
-        sentence.syntax.print()
+        sent_idx = sentence_index_by_span(sents, replica.tokens[0].idx)
 
-        replica_next: Span = (replicas[i_e + 1]
-                              if i_e + 1 < len(replicas) else None)
-        replica_prev: Span = (replicas[i_e - 1]
-                              if i_e - 1 > 0 else None)
-        sentence_next: DocSent = (doc.sents[sentence_idx + 1]
-                                  if sentence_idx + 1 < len(doc.sents)
-                                  else None)
-        sentence_prev: DocSent = (doc.sents[sentence_idx - 1]
-                                  if sentence_idx - 1 > 0
-                                  else None)
-        newline_before = (sentence_prev is not None
-                          and doc.text[sentence_prev.stop] == '\n')
-        newline_after = (doc.text[sentence.stop] == '\n')
+        sent: Span = sents[sent_idx]
+        sent_prev, _ = next_non_empty(sents, sent_idx - 1, step=-1)
+        sent_next, _ = next_non_empty(sents, sent_idx + 1)
 
-        speaker: Speaker = None
+        newline_after = (sent.text[-1] == '\n'
+                         or (sent_next and '\n' in sent_next[0].text))
 
-        if newline_before and len(speakers_queue) > 1:
-            speakers_queue.rotate(1)
+        speaker = get_speaker([t for t in sent if t not in replica.tokens])
+        if speaker is None and not newline_after:
+            speaker = get_speaker([t for t in sent_next if t not in replica.tokens])
 
-        if (speaker is None
-            and not newline_after
-            # next sentence is not replica
-            and replica_next
-            and sentence_next.tokens[1].start != replica_next.tokens[0].start):
+        if isinstance(speaker, Token):
+            if sent_prev and speaker.lemma_ in {'он', 'она'}:
+                # extract possible source names from previous sentence
+                src_speakers = [t for t in sent_prev
+                                if t not in replica.tokens and is_name(t)]
+                if len(src_speakers) > 0:
+                    speaker = src_speakers[-1]
 
-            new_speaker = get_speaker(sentence_next.tokens)
-            if new_speaker is not None:
-                speaker = new_speaker
+        # if isinstance(speaker, Token):
+        #     if speaker.lemma_ not in speakers_queue:
+        #         speakers_queue.append(speaker.lemma_)
+        # else:
+        #     speaker = speakers_queue[-1]
+        #
+        # if len(speakers_queue) > 2:
+        #     while len(speakers_queue) > 1:
+        #         speakers_queue.popleft()
+        # else:
+        #     speakers_queue.rotate()
+        #
+        # print(speakers_queue)
 
-        if (not newline_before
-            # prev sentence is not replica
-            and replica_prev
-            and sentence_prev.tokens[1].start != replica_prev.tokens[0].start):
-
-            new_speaker = get_speaker(sentence_prev.tokens, last_speaker)
-            if new_speaker is not None:
-                speaker = new_speaker
-
-        if speaker is None:
-            new_speaker = get_speaker(sentence.tokens)
-            if new_speaker is not None:
-                speaker = new_speaker
-
-        if speaker is None and len(speakers_queue) > 0:
-            speaker = speakers_queue[-1]
-
-        if (isinstance(speaker, DocToken)
-            and speaker.lemma not in [t.lemma for t in speakers_queue]):
-            if len(speakers_queue) == 2:
-                speakers_queue.pop()
-            speakers_queue.append(speaker)
-
-        print([t.text for t in speakers_queue])
-
-        last_speaker = speaker
-        replica.speaker = last_speaker
-        print(replica)
+        replica.speaker = speaker
 
     return replicas
