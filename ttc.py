@@ -1,70 +1,50 @@
 from typing import Callable, Optional, Any
 
-from language.span import Span
+from language.replica import Replica
 
 
-def get_functions(language: str, exact: bool) -> tuple[
+def get_functions(language: str) -> tuple[
     Callable[[str], Optional[Any]],
-    Callable[[Any], list[Span]],
-    Callable[[Any, list[Span]], list[Span]],
+    Callable[[Any], list[Replica]],
+    Callable[[Any, list[Replica]], list[Replica]],
 ]:
     language = language.strip().lower()
     if language in ['ru', 'russian']:
-        if exact:
-            from language.russian.exact import (
-                process_doc,
-                extract_replicas,
-                classify_speakers
-            )
-        else:
-            from language.russian.regular import (
-                process_doc,
-                extract_replicas,
-                classify_speakers
-            )
+        from language.russian.regular import (
+            process_doc,
+            extract_replicas,
+            classify_speakers
+        )
     else:
         # TODO: fallback converter
-        if exact:
-            from language.universal.exact import (
-                process_doc,
-                extract_replicas,
-                classify_speakers
-            )
-        else:
-            from language.universal.regular import (
-                process_doc,
-                extract_replicas,
-                classify_speakers
-            )
+        from language.universal.regular import (
+            process_doc,
+            extract_replicas,
+            classify_speakers
+        )
 
     return process_doc, extract_replicas, classify_speakers
 
 
 def extract_replicas(
     text: str,
-    language: str,
-    exact: bool = False
-) -> list[Span]:
-    process_doc, extract_replicas, classify_speakers = get_functions(
-        language,
-        exact
+    language: str
+) -> list[Replica]:
+    _process_doc, _extract_replicas, _ = get_functions(
+        language
     )
-    doc = process_doc(text)
-    replicas = extract_replicas(doc)
-    replicas = classify_speakers(doc, replicas)
-    return replicas
+    doc = _process_doc(text)
+    return _extract_replicas(doc)
 
 
 def extract_speakers(
     text: str,
-    language: str,
-    exact: bool = False
-) -> list[Span]:
-    process_doc, extract_replicas, classify_speakers = get_functions(
-        language,
-        exact
+    language: str
+) -> list[Replica]:
+    _process_doc, _extract_replicas, _classify_speakers = get_functions(
+        language
     )
-    doc = process_doc(text)
-    replicas = extract_replicas(doc)
-    replicas = classify_speakers(doc, replicas)
+    doc = _process_doc(text)
+    replicas = _extract_replicas(doc)
+    replicas = _classify_speakers(doc, replicas)
     return replicas
