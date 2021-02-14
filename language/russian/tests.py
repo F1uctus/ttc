@@ -118,7 +118,7 @@ class RussianTestCase(unittest.TestCase):
             "ru",
         )
 
-        self.assertEqual("сзету", replicas[-1].speaker.lemma_)
+        self.assertEqual("сзету", replicas[-1].speaker.text)
 
     def test_speakers_sanderson_band_of_robbers(self):
         replicas = extract_speakers(
@@ -156,20 +156,20 @@ class RussianTestCase(unittest.TestCase):
 
         self.assertListEqual(
             [
-                "!generic[один из разбойников]",
+                "!g[один из разбойников]",
                 "Другой",
                 "Человек",
                 "Другой",
                 "второй",
-                "!generic[первый разбойник]",
-                "!generic[один из них]",
-                "Другой",
-                "второй",
-                "Другой",
-                "!generic[кто - то из членов шайки]",
+                "!g[первый разбойник]",
+                "!g[один из них]",
+                "!g[первый разбойник]",
+                "!g[один из них]",
+                "!g[первый разбойник]",
+                "!g[кто - то из членов шайки]",
                 "Сзет",
-                "!generic[один из бандитов]",
-                "второй",
+                "!g[один из бандитов]",
+                "!g[один из бандитов]",
                 "Сзет",
                 "бандит",
                 "Сзет",
