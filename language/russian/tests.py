@@ -3,7 +3,7 @@ import unittest
 from ttc import extract_replicas, extract_speakers
 
 
-class TTCTestCase(unittest.TestCase):
+class RussianTestCase(unittest.TestCase):
     def test_replicas_count_1(self):
         replicas = extract_replicas(
             """
