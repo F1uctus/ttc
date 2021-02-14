@@ -1,9 +1,5 @@
 DASHES = "‑–—−-"
 
-NAME_EXCEPTIONS = {}
-
-GENERIC_NAMES = {}
-
 SPECIAL_VERBS = {
     "брякнуть",
     "буркнуть",
@@ -117,6 +113,7 @@ SPECIAL_VERBS = {
     "хмыкнуть",
     "шепелявить",
 }
+
 SPECIAL_VERBS_APPENDIX = set()
 for verb in SPECIAL_VERBS:
     if verb.startswith("про"):
