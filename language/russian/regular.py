@@ -5,10 +5,16 @@ from typing import Union, Optional, overload
 import spacy
 from spacy import Language
 from spacy.matcher import Matcher
-from spacy.tokens import Doc, Token, Span, MorphAnalysis
+from spacy.tokens import Doc, Token, Span
 
 from language.replica import Replica
-from language.russian.common.constants import SPECIAL_VERBS, DASHES
+from language.russian.common.constants import DASHES, REFERENCE_NAMES
+from language.russian.common.token_checks import (
+    is_name,
+    is_name_weak,
+    is_special_verb,
+    is_names_verb,
+)
 
 
 class Processor:
@@ -116,44 +122,24 @@ def extract_replicas(processor: Processor) -> list[Replica]:
     return replicas
 
 
-def is_name_weak(t: Token):
-    return (
-        t.pos_ in ["NOUN", "PROPN", "ADJ", "PRON"]
-        and t.dep_ not in ["obl"]
-        and "mod" not in t.dep_
-    )
+class Speaker:
+    def __init__(self, tokens: list[Token]):
+        if len(tokens) > 1:
+            # multi-word names are most probably indicate secondary character.
+            self.text = f"!g[{' '.join(t.text for t in tokens)}]"
+        else:
+            self.text = tokens[0].text
+        self.tokens = tokens
+
+    @property
+    def first_token(self) -> Token:
+        return None if len(self.tokens) == 0 else self.tokens[0]
+
+    def __repr__(self) -> str:
+        return self.text
 
 
-def is_name(t: Token, linked_verb_morph: MorphAnalysis = None):
-    return (
-        t.pos_ in ["NOUN", "PROPN", "ADJ", "PRON"]
-        and t.text[0].isupper()
-        and (
-            linked_verb_morph is None
-            or linked_verb_morph.get("Number") == t.morph.get("Number")
-        )
-    )
-
-
-def is_special_verb(t: Token):
-    return t.lemma_ in SPECIAL_VERBS and t.morph.get("VerbForm")[0] not in [
-        "Conv",
-        "Part",
-    ]
-
-
-def is_names_verb(t: Token, linked_name_morph: MorphAnalysis = None):
-    return (
-        t.pos_ == "VERB"
-        and t.morph.get("VerbForm")[0] not in ["Conv", "Part"]
-        and (
-            linked_name_morph is None
-            or linked_name_morph.get("Number") == t.morph.get("Number")
-        )
-    )
-
-
-def get_speaker(span: list[Token]) -> Union[Token, str, None]:
+def get_speaker(span: list[Token]) -> Optional[Speaker]:
     speaker_tokens = []
     morph = None
     state = ""
@@ -199,11 +185,7 @@ def get_speaker(span: list[Token]) -> Union[Token, str, None]:
     if len(speaker_tokens) == 0:
         return None
 
-    if len(speaker_tokens) == 1:
-        return speaker_tokens[0]
-
-    # multi-word names are most probably indicate secondary character.
-    return f'!generic[{" ".join(t.text for t in speaker_tokens)}]'
+    return Speaker(speaker_tokens)
 
 
 def classify_speakers(processor: Processor, replicas: list[Replica]):
@@ -213,7 +195,7 @@ def classify_speakers(processor: Processor, replicas: list[Replica]):
     (doc, nlp, matcher) = processor
 
     sents = [s for s in doc.sents]
-    speakers_queue: deque[Token] = deque()
+    speakers_queue: deque[Speaker] = deque()
     replica_tokens = {t for r in replicas for t in r.tokens}
 
     if "Replica1" not in matcher:
@@ -229,10 +211,7 @@ def classify_speakers(processor: Processor, replicas: list[Replica]):
         sent: Span = sents[sent_idx]
 
         sent_prev, _ = next_non_empty(sents, sent_idx - 1, step=-1)
-        # piece_prev = doc[sent_prev[0].i : replica.tokens[0].i - 1]
-
         sent_next, _ = next_non_empty(sents, sent_idx + 1)
-        # piece_next = doc[replica.tokens[-1].i + 1 : sent_next[-1].i + 1]
 
         newline_after = sent.text[-1] == "\n" or (
             sent_next and "\n" in sent_next[0].text
@@ -242,22 +221,23 @@ def classify_speakers(processor: Processor, replicas: list[Replica]):
 
         sent_non_replica = [t for t in sent if t not in replica_tokens]
         speaker = get_speaker(sent_non_replica)
-        if speaker is None and not newline_after:
-            # First check for [DASH VERB NOUN] pattern
+        if not speaker and not newline_after:
+            # First check for [DASH VERB NOUN+] pattern
             matches = matcher(sent_next)
             for match_id, start, end in matches:
                 string_id = nlp.vocab.strings[match_id]
                 if string_id == "Replica1":
                     span = sent_next[start:end]
                     if span[2] not in replica_tokens:
-                        speaker = f"[{' '.join(t.lemma_ for t in span[2:])}]"
+                        speaker = Speaker(span[2:])
 
-            if speaker is None:
+            if not speaker:
                 sent_next_non_replica = [
                     t for t in sent_next if t not in replica_tokens
                 ]
                 speaker = get_speaker(sent_next_non_replica)
-        if speaker is None and sent_prev:
+
+        if not speaker and sent_prev:
             pt = list(sent_prev)
             if sum("\n" in t.text for t in sent) > 1:
                 pt += list(sent)
@@ -266,27 +246,31 @@ def classify_speakers(processor: Processor, replicas: list[Replica]):
             if not prev_is_replica:
                 do_rotate = False
 
-        if isinstance(speaker, Token):
-            if sent_prev and speaker.lemma_ in {"он", "она", "мужчина", "женщина"}:
-                # extract possible source names from previous sentence
-                speakers = [
-                    t
-                    for t in [t for t in sent_prev] + list(speakers_queue)[::-1]
-                    if isinstance(t, Token)
-                    and t not in replica.tokens
+        if sent_prev and speaker and speaker.text in REFERENCE_NAMES:
+            # extract possible source names from previous sentence
+            speaker_morph = speaker.first_token.morph
+            possible_speakers: list[Speaker] = []
+            for t in sent_prev:
+                if (
+                    t not in replica.tokens
                     and is_name_weak(t)
-                    and t.morph.get("Case") == speaker.morph.get("Case")
-                    and t.morph.get("Number") == speaker.morph.get("Number")
-                ]
-                if len(speakers) > 0:
-                    speaker = speakers[-1]
+                    and t.morph.get("Case") == speaker_morph.get("Case")
+                    and t.morph.get("Number") == speaker_morph.get("Number")
+                ):
+                    possible_speakers.append(Speaker([t]))
 
-        if isinstance(speaker, Token):
-            if hasattr(speaker, "lemma_") and speaker.lemma_ not in [
-                s.lemma_ if isinstance(s, Token) else s for s in speakers_queue
-            ]:
-                speakers_queue.append(speaker)
-                do_rotate = False
+            for s in speakers_queue:
+                if s.first_token.morph.get("Case") == speaker_morph.get(
+                    "Case"
+                ) and s.first_token.morph.get("Number") == speaker_morph.get("Number"):
+                    possible_speakers.append(s)
+
+            if len(possible_speakers) > 0:
+                speaker = possible_speakers[-1]
+
+        if speaker and speaker.text not in {s.text for s in speakers_queue}:
+            speakers_queue.append(speaker)
+            do_rotate = False
 
         if len(speakers_queue) > 2:
             while len(speakers_queue) > 2:
