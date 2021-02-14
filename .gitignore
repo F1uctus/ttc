@@ -128,4 +128,4 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-language/russian/common/navec_hudlit_v1_12B_500K_300d_100q.tar
+texts/
