@@ -1,4 +1,5 @@
 from pathlib import Path
+from pprint import pprint
 from typing import Final
 
 import pytest
@@ -50,7 +51,8 @@ def test_text_to_play(cc, file_name):
     text, expected_speakers = load_test(TEXTS_PATH, file_name)
     play = cc.connect_play(cc.extract_dialogue(text))
     actual_speakers = [str(spk.text) for spk in play.content.values()]
-    print("\n" * 2 + "\n".join(str(spk) for spk in play.content.values()))
+    print()
+    pprint(play.content)
     assert expected_speakers == actual_speakers
 
 
