@@ -11,7 +11,7 @@ from ttc.language.russian.constants import DASHES, OPEN_QUOTES, CLOSE_QUOTES
 
 @dataclass(slots=True)
 class RussianConversationClassifier(ConversationClassifier):
-    token_extensions = {
+    token_predicates = {
         "is_dash": lambda t: t.text in DASHES,
         "is_newline": lambda t: "\n" in t.text,
         "is_open_quote": lambda t: t.text in OPEN_QUOTES,
@@ -19,9 +19,9 @@ class RussianConversationClassifier(ConversationClassifier):
     }
 
     def extract_dialogue(self, text: str) -> Dialogue:
-        for name, f in RussianConversationClassifier.token_extensions.items():
+        for name, pred in RussianConversationClassifier.token_predicates.items():
             if not Token.has_extension(name):
-                Token.set_extension(name, getter=f)
+                Token.set_extension(name, getter=pred)
 
         return Dialogue(self.language, extract_replicas(self.language(text)))
 
