@@ -1,0 +1,56 @@
+[tool.poetry]
+name = "ttc"
+version = "0.1.0"
+description = "A Text-To-Conversation toolkit."
+authors = ["Ilya Nikitin <f1uctus@mail.ru>"]
+license = "GPL-3.0+"
+readme = "README.md"
+repository = "https://github.com/f1uctus/ttc"
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.11"
+numpy = "^1.21.4"
+spacy = ">=3.2.0,<3.3.0"
+mypy = { extras = ["d"], version = "^0.920" }
+black = { extras = ["d"], version = "^21.12b0" }
+
+[tool.poetry.dependencies.ru_core_news_md]
+url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_md-3.2.0/ru_core_news_md-3.2.0.tar.gz"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.5"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.mypy]
+python_version = "3.10"
+implicit_reexport = true
+show_error_context = true
+show_column_numbers = true
+show_error_codes = true
+warn_return_any = true
+warn_unused_configs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+strict_optional = true
+
+    [[tool.mypy.overrides]]
+    module = "tests.*"
+    ignore_errors = true
+
+[tool.black]
+line-length = 88
+exclude = '''
+
+(
+  /(
+      \.git
+    | \.mypy_cache
+    | \.pytest_cache
+    | \.venv
+    | build
+  )
+)
+'''

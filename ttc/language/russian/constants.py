@@ -1,6 +1,12 @@
 DASHES = "‑–—−-"
 
-REFERENCE_NAMES = {"он", "она", "мужчина", "женщина"}
+OPEN_QUOTES = "«\"'"
+CLOSE_QUOTES = "»\"'"
+QUOTES = frozenset(OPEN_QUOTES + CLOSE_QUOTES)
+
+REFERRAL_PRON = {"он", "она", "мужчина", "женщина"}
+
+PERSONAL_PRON = {"Fem": {"женщина"}, "Masc": {"мужчина"}}
 
 SPECIAL_VERBS = {
     "брякнуть",
@@ -27,6 +33,8 @@ SPECIAL_VERBS = {
     "загнуть",
     "заикаться",
     "закончить",
+    "заключать",
+    "заключить",
     "закричать",
     "заметить",
     "запротестовать",
