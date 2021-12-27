@@ -1,14 +1,15 @@
-from attr import attrs, attrib
+from dataclasses import dataclass
+
 from spacy import Language
 from spacy.tokens import Doc
 
 from .replica import Replica
 
 
-@attrs(slots=True, repr=False)
+@dataclass(slots=True)
 class Dialogue:
-    nlp: Language = attrib()
-    replicas: list[Replica] = attrib()
+    language: Language
+    replicas: list[Replica]
 
     @property
     def doc(self) -> Doc:

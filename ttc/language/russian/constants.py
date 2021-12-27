@@ -1,5 +1,7 @@
 DASHES = "‑–—−-"
 
+SENT_ENDS = ".!?"
+
 OPEN_QUOTES = "«\"'"
 CLOSE_QUOTES = "»\"'"
 QUOTES = frozenset(OPEN_QUOTES + CLOSE_QUOTES)

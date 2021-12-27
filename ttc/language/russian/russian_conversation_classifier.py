@@ -6,12 +6,13 @@ from ttc.language.conversation_classifier import ConversationClassifier
 from ttc.language.dialogue import Dialogue
 from ttc.language.play import Play
 from ttc.language.russian import extract_replicas, classify_speakers
-from ttc.language.russian.constants import DASHES, OPEN_QUOTES, CLOSE_QUOTES
+from ttc.language.russian.constants import DASHES, OPEN_QUOTES, CLOSE_QUOTES, SENT_ENDS
 
 
 @dataclass(slots=True)
 class RussianConversationClassifier(ConversationClassifier):
     token_predicates = {
+        "is_sent_end": lambda t: any(c in SENT_ENDS for c in t.text),
         "is_dash": lambda t: t.text in DASHES,
         "is_newline": lambda t: "\n" in t.text,
         "is_open_quote": lambda t: t.text in OPEN_QUOTES,

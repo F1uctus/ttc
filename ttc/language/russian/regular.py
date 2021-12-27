@@ -41,20 +41,20 @@ def main_speaker_by_reference(
 
 @overload
 def next_non_empty(
-    doc_like: list[Span], idx: int, *, step: int = 1
+    doc_like: list[Span], idx: int = 0, *, step: int = 1
 ) -> tuple[Optional[Span], int]:
     ...
 
 
 @overload
 def next_non_empty(
-    doc_like: Span, idx: int, *, step: int = 1
+    doc_like: Span, idx: int = 0, *, step: int = 1
 ) -> tuple[Optional[Token], int]:
     ...
 
 
 def next_non_empty(
-    doc_like: Union[Span, list[Span]], idx: int, *, step: int = 1
+    doc_like: Union[Span, list[Span]], idx: int = 0, *, step: int = 1
 ) -> tuple[Union[Span, Token, None], int]:
     delta = 0
     sub_piece = None
@@ -71,46 +71,68 @@ def next_non_empty(
 def extract_replicas(doc: Doc) -> list[Replica]:
     doc_length = len(doc)
 
-    # noinspection PyPep8Naming
-    State = Literal[
-        "author",
-        "author_insertion",
-        "replica_newline_dash",
-        "replica_colon_quote",
-        "replica_quote",
-    ]
-
     replicas: list[Replica] = []
     tokens: list[Token] = []
 
-    state: State = "author"
+    states: deque[
+        Literal[
+            "author",
+            "author_insertion",
+            "replica_newline_dash",
+            "replica_colon_quote",
+            "replica_quote",
+        ]
+    ] = deque(maxlen=3)
+    states.append("author")
+
     ti = -1  # token index
     while ti + 1 < doc_length:
         ti += 1
+
         pt: Optional[Token] = doc[ti - 1] if ti - 1 >= 0 else None
         nt: Optional[Token] = doc[ti + 1] if ti + 1 < len(doc) else None
         t: Token = doc[ti]
 
+        state = states[-1]
         if state == "replica_quote":
-            if t._.is_close_quote and nt and nt._.is_dash:
+            if t._.is_close_quote:
                 if len(tokens) > 0:
                     replicas.append(Replica(tokens))
                     tokens = []
-                state = "author"
-                continue
-            tokens.append(t)
-        elif state == "replica_newline_dash":
-            if t._.is_newline and t.is_sent_end:
-                if len(tokens) > 0:
-                    replicas.append(Replica(tokens))
-                    tokens = []
-                state = "author"
-                continue
+                    states.append("author")
+                    continue
             elif t.is_punct and nt and nt._.is_dash:
                 tokens.append(t)
                 replicas.append(Replica(tokens))
                 tokens = []
-                state = "author_insertion"
+                states.append("author_insertion")
+                ti += 1
+                continue
+            tokens.append(t)
+        elif state == "replica_colon_quote":
+            if t._.is_close_quote and len(tokens) > 0:
+                replicas.append(Replica(tokens))
+                tokens = []
+                states.append("author")
+                continue
+            tokens.append(t)
+        elif state == "replica_newline_dash":
+            if t._.is_newline:
+                if len(tokens) > 0:
+                    replicas.append(Replica(tokens))
+                    tokens = []
+                states.append("author")
+                continue
+            elif (
+                # sentence starts with dash
+                (t._.is_sent_end or next_non_empty(t.sent)[0]._.is_dash)
+                and nt
+                and nt._.is_dash
+            ):
+                tokens.append(t)
+                replicas.append(Replica(tokens))
+                tokens = []
+                states.append("author_insertion")
                 ti += 1
                 continue
             tokens.append(t)
@@ -118,26 +140,29 @@ def extract_replicas(doc: Doc) -> list[Replica]:
             if len(tokens) > 0:
                 replicas.append(Replica(tokens))
                 tokens = []
-                state = "author"
+                states.append("author")
                 continue
             tokens.append(t)
         else:  # author -> ?
-            prev_state = state
             if (pt is None or pt._.is_newline) and t._.is_dash:
-                state = "replica_newline_dash"  # [Автор:]\n— Реплика
+                states.append("replica_newline_dash")  # [Автор:]\n— Реплика
             elif pt and ":" in pt.text and t._.is_open_quote:
-                state = "replica_colon_quote"  # Автор: "Реплика" | Автор: «Реплика»
+                # Автор: "Реплика" | Автор: «Реплика»
+                states.append("replica_colon_quote")
             elif t._.is_open_quote:
-                state = "replica_quote"  # "Реплика" — автор
-            if prev_state == "author_insertion":
-                if state == prev_state and t.is_sent_end:
+                states.append("replica_quote")  # "Реплика" — автор
+            if len(states) > 1 and states[-1] == "author_insertion":
+                if states[-1] == states[-2] and t.is_sent_end:
                     # not a replica continuation, sentence ended
-                    state = "author"
-                if nt and nt._.is_dash:
+                    states.append("author")
+                if t.is_punct and nt and nt._.is_dash:
                     # — Реплика, — автор. — Реплика
                     #                       ^
-                    state = "replica_newline_dash"
+                    states.append(states[-2])
                     ti += 1
+
+    if len(tokens) > 0 and "replica" in states[-1]:
+        replicas.append(Replica(tokens))
 
     return replicas
 
@@ -225,8 +250,8 @@ def classify_speakers(
         speaker = get_speaker(sent_non_replica)
         if sent_next and not speaker and not newline_after:
             # First check for [DASH VERB NOUN+] pattern
-            matches: list[tuple[int, int, int]] = matcher(sent_next)
-            for match_id, start, end in matches:
+            results: list[tuple[int, int, int]] = matcher(sent_next)
+            for match_id, start, end in results:
                 string_id = language.vocab.strings[match_id]
                 if string_id == Patterns.DASH_VERB_NOUN.name:
                     span = sent_next[start:end]
