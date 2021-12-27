@@ -125,7 +125,7 @@ def extract_replicas(doc: Doc) -> list[Replica]:
                 continue
             elif (
                 # sentence starts with dash
-                (t._.is_sent_end or next_non_empty(t.sent)[0]._.is_dash)
+                (t._.is_sent_end or t.is_punct and next_non_empty(t.sent)[0]._.is_dash)
                 and nt
                 and nt._.is_dash
             ):
@@ -145,19 +145,21 @@ def extract_replicas(doc: Doc) -> list[Replica]:
             tokens.append(t)
         else:  # author -> ?
             if (pt is None or pt._.is_newline) and t._.is_dash:
-                states.append("replica_newline_dash")  # [Автор:]\n— Реплика
+                # [Автор:]\n— Реплика
+                states.append("replica_newline_dash")
             elif pt and ":" in pt.text and t._.is_open_quote:
                 # Автор: "Реплика" | Автор: «Реплика»
                 states.append("replica_colon_quote")
             elif t._.is_open_quote:
-                states.append("replica_quote")  # "Реплика" — автор
+                # "Реплика" — автор
+                states.append("replica_quote")
             if len(states) > 1 and states[-1] == "author_insertion":
                 if states[-1] == states[-2] and t.is_sent_end:
                     # not a replica continuation, sentence ended
                     states.append("author")
                 if t.is_punct and nt and nt._.is_dash:
-                    # — Реплика, — автор. — Реплика
-                    #                       ^
+                    # — Реплика, — автор<punct> — Реплика
+                    #                             ^
                     states.append(states[-2])
                     ti += 1
 
