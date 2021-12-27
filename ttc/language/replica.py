@@ -32,4 +32,4 @@ class Replica:
         return hash(repr(self))
 
     def __repr__(self) -> str:
-        return "".join(t.text_with_ws for t in self.tokens)
+        return str.strip("".join(t.text_with_ws for t in self.tokens))
