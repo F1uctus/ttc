@@ -85,6 +85,12 @@ def extract_replicas(doc: Doc) -> list[Replica]:
     ] = deque(maxlen=3)
     states.append("author")
 
+    def flush_replica():
+        nonlocal tokens
+        if len(tokens) > 0:
+            replicas.append(Replica(tokens))
+            tokens = []
+
     ti = -1  # token index
     while ti + 1 < doc_length:
         ti += 1
@@ -96,33 +102,25 @@ def extract_replicas(doc: Doc) -> list[Replica]:
         state = states[-1]
         if state == "replica_quote":
             if t._.is_close_quote:
-                if len(tokens) > 0:
-                    replicas.append(Replica(tokens))
-                    tokens = []
-                    states.append("author")
-                    continue
+                flush_replica()
+                states.append("author")
             elif t.is_punct and nt and nt._.is_dash:
                 tokens.append(t)
-                replicas.append(Replica(tokens))
-                tokens = []
+                flush_replica()
                 states.append("author_insertion")
                 ti += 1
-                continue
-            tokens.append(t)
+            else:
+                tokens.append(t)
         elif state == "replica_colon_quote":
-            if t._.is_close_quote and len(tokens) > 0:
-                replicas.append(Replica(tokens))
-                tokens = []
+            if t._.is_close_quote:
+                flush_replica()
                 states.append("author")
-                continue
-            tokens.append(t)
+            else:
+                tokens.append(t)
         elif state == "replica_newline_dash":
             if t._.is_newline:
-                if len(tokens) > 0:
-                    replicas.append(Replica(tokens))
-                    tokens = []
+                flush_replica()
                 states.append("author")
-                continue
             elif (
                 # sentence starts with dash
                 (t._.is_sent_end or t.is_punct and next_non_empty(t.sent)[0]._.is_dash)
@@ -130,19 +128,14 @@ def extract_replicas(doc: Doc) -> list[Replica]:
                 and nt._.is_dash
             ):
                 tokens.append(t)
-                replicas.append(Replica(tokens))
-                tokens = []
+                flush_replica()
                 states.append("author_insertion")
                 ti += 1
-                continue
-            tokens.append(t)
+            else:
+                tokens.append(t)
         elif t._.is_close_quote:
-            if len(tokens) > 0:
-                replicas.append(Replica(tokens))
-                tokens = []
-                states.append("author")
-                continue
-            tokens.append(t)
+            flush_replica()
+            states.append("author")
         else:  # author -> ?
             if (pt is None or pt._.is_newline) and t._.is_dash:
                 # [Автор:]\n— Реплика
