@@ -14,8 +14,8 @@ spacy = ">=3.2.0,<3.3.0"
 mypy = { extras = ["d"], version = "^0.920" }
 black = { extras = ["d"], version = "^21.12b0" }
 
-[tool.poetry.dependencies.ru_core_news_md]
-url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_md-3.2.0/ru_core_news_md-3.2.0.tar.gz"
+[tool.poetry.dependencies.ru_core_news_sm]
+url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_sm-3.2.0/ru_core_news_sm-3.2.0.tar.gz"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
