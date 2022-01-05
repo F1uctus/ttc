@@ -32,7 +32,9 @@ def sentence_index_by_char_index(sentences: list[Span], index: int) -> int:
 
 
 def main_speaker_by_reference(
-    sentences: list[Span], ref: Speaker, idx: Optional[int] = None
+    sentences: list[Span],
+    ref: Speaker,
+    idx: Optional[int] = None,
 ) -> Generator[Speaker, None, None]:
     idx = idx or len(sentences) - 1
     for t in sentences[idx]:
@@ -142,8 +144,8 @@ def extract_replicas(doc: Doc, matchers: dict[MatcherClass, Matcher]) -> list[Re
                     start=pt.i,
                 )[1]
                 results = [
-                    cast(Span, m)
-                    for m in matchers["AUTHOR_INSERTION"](
+                    cast(Span, match)
+                    for match in matchers["AUTHOR_INSERTION"](
                         doc[pt.i : par_end_idx + 1], as_spans=True
                     )
                 ]
@@ -158,8 +160,8 @@ def extract_replicas(doc: Doc, matchers: dict[MatcherClass, Matcher]) -> list[Re
                 else:
                     # checking for author ending
                     results = [
-                        cast(Span, m)
-                        for m in matchers["AUTHOR_ENDING"](
+                        cast(Span, match)
+                        for match in matchers["AUTHOR_ENDING"](
                             doc[pt.i : par_end_idx + 1], as_spans=True
                         )
                     ]
@@ -252,7 +254,8 @@ def get_speaker(span: list[Token]) -> Optional[Speaker]:
 
 
 def classify_speakers(
-    language: Language, dialogue: Dialogue
+    language: Language,
+    dialogue: Dialogue,
 ) -> dict[Replica, Optional[Speaker]]:
     matcher = Matcher(language.vocab)
 
