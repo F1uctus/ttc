@@ -40,6 +40,10 @@ PERSONAL_PRON = {"Fem": {"женщина"}, "Masc": {"мужчина"}}
 
 AUTHOR_INSERTION_MAX_LENGTH = 50
 
+MISPREDICTED_VERBS = {
+    "бормочет",
+}
+
 SPECIAL_VERBS = {
     "бормо",
     "брякну",
