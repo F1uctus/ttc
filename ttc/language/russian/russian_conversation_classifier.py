@@ -12,6 +12,7 @@ from ttc.language.russian.constants import (
     CLOSE_QUOTES,
     SPECIAL_VERBS,
 )
+from ttc.language.russian.pipelines import setup_language
 
 
 @dataclass(slots=True)
@@ -26,6 +27,8 @@ class RussianConversationClassifier(ConversationClassifier):
     }
 
     def extract_dialogue(self, text: str) -> Dialogue:
+        setup_language(self.language)
+
         for name, pred in RussianConversationClassifier.token_predicates.items():
             if not Token.has_extension(name):
                 Token.set_extension(name, getter=pred)
