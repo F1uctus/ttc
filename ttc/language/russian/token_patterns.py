@@ -13,6 +13,7 @@ INSERTION_1 = [
     {
         "POS": {"IN": ["NOUN", "PROPN", "PRON", "ADJ", "NUM"]},
         "MORPH": {"INTERSECTS": ["Case=Nom", "Case=Acc"]},
+        "_": {"is_not_second_person": True},
         "OP": "+",
     },
     {"OP": "*"},
@@ -23,7 +24,7 @@ INSERTION_2 = [
     {
         "POS": {"IN": ["NOUN", "PROPN", "PRON", "ADJ", "NUM"]},
         "MORPH": {"INTERSECTS": ["Case=Nom", "Case=Acc"]},
-        "_": {"is_sent_end": False},
+        "_": {"is_sent_end": False, "is_not_second_person": True},
         "OP": "+",
     },
     {"_": {"is_sent_end": False}, "OP": "*"},

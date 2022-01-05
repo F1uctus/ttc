@@ -31,6 +31,7 @@ class RussianConversationClassifier(ConversationClassifier):
         "is_open_quote": lambda t: t.text in OPEN_QUOTES,
         "is_close_quote": lambda t: t.text in CLOSE_QUOTES,
         "is_author_verb": lambda t: any(v in t.lemma_ for v in SPECIAL_VERBS),
+        "is_not_second_person": lambda t: "Person=Second" not in t.morph,
     }
     matchers: dict[MatcherClass, Matcher] = dataclasses.field(default_factory=dict)
 
