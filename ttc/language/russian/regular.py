@@ -1,6 +1,6 @@
 from collections import deque
 from enum import Enum
-from typing import Union, Optional, overload, Generator, Literal
+from typing import Optional, Generator, Literal, Callable, cast
 
 from spacy import Language
 from spacy.matcher import Matcher
@@ -9,8 +9,12 @@ from spacy.tokens import Token, Span, Doc
 from ttc.language import Deps, Morphs, Replica
 from ttc.language import Speaker
 from ttc.language.dialogue import Dialogue
-from ttc.language.russian import Patterns
-from ttc.language.russian.constants import DASHES, REFERRAL_PRON, PERSONAL_PRON
+from ttc.language.russian import TokenPatterns
+from ttc.language.russian.constants import (
+    DASHES,
+    REFERRAL_PRON,
+    PERSONAL_PRON,
+)
 from ttc.language.russian.token_checks import (
     is_name,
     maybe_name,
@@ -39,31 +43,36 @@ def main_speaker_by_reference(
             yield Speaker([t])
 
 
-@overload
-def next_non_empty(
-    doc_like: list[Span], idx: int = 0, *, step: int = 1
-) -> tuple[Optional[Span], int]:
-    ...
-
-
-@overload
-def next_non_empty(
-    doc_like: Span, idx: int = 0, *, step: int = 1
+def next_matching(
+    doc_like: Span | Doc,
+    predicate: Callable[[Token], bool],
+    *,
+    start: int = 0,
+    step: int = 1
 ) -> tuple[Optional[Token], int]:
-    ...
-
-
-def next_non_empty(
-    doc_like: Union[Span, list[Span]], idx: int = 0, *, step: int = 1
-) -> tuple[Union[Span, Token, None], int]:
     delta = 0
     sub_piece = None
-    while 0 <= idx + delta < len(doc_like):
-        sub_piece = doc_like[idx + delta]
-        if len(sub_piece.text.strip()) > 0:
+    while 0 <= start + delta < len(doc_like):
+        checked = doc_like[start + delta]
+        if predicate(checked):
+            sub_piece = checked
             break
         delta += step
-    return sub_piece, idx + delta
+    return sub_piece, start + delta
+
+
+def next_non_empty_s(
+    doc_like: list[Span], start: int = 0, *, step: int = 1
+) -> tuple[Optional[Span], int]:
+    delta = 0
+    sub_piece = None
+    while 0 <= start + delta < len(doc_like):
+        checked = doc_like[start + delta]
+        if len(checked.text.strip()) > 0:
+            sub_piece = checked
+            break
+        delta += step
+    return sub_piece, start + delta
 
 
 # noinspection PyProtectedMember
@@ -74,22 +83,30 @@ def extract_replicas(doc: Doc) -> list[Replica]:
     replicas: list[Replica] = []
     tokens: list[Token] = []
 
-    states: deque[
-        Literal[
-            "author",
-            "author_insertion",
-            "replica_newline_dash",
-            "replica_colon_quote",
-            "replica_quote",
-        ]
-    ] = deque(maxlen=3)
-    states.append("author")
-
     def flush_replica():
         nonlocal tokens
         if len(tokens) > 0:
             replicas.append(Replica(tokens))
             tokens = []
+
+    a_ins_matcher = Matcher(doc.vocab)
+    a_end_matcher = Matcher(doc.vocab)
+    for name, value in TokenPatterns.entries():
+        if name.startswith("AUTHOR_INSERTION"):
+            a_ins_matcher.add(name, [value])
+        elif name.startswith("AUTHOR_ENDING"):
+            a_end_matcher.add(name, [value])
+
+    states: deque[
+        Literal[
+            "author",
+            "author_insertion",
+            "replica_dash_after_newline",
+            "replica_quote_after_colon",
+            "replica_quote_before_dash",
+        ]
+    ] = deque(maxlen=3)
+    states.append("author")
 
     ti = -1  # token index
     while ti + 1 < doc_length:
@@ -100,64 +117,94 @@ def extract_replicas(doc: Doc) -> list[Replica]:
         t: Token = doc[ti]
 
         state = states[-1]
-        if state == "replica_quote":
+
+        if state == "replica_quote_before_dash":
             if t._.is_close_quote:
-                flush_replica()
+                if nt and (nt._.is_dash or nt._.is_newline):
+                    flush_replica()
+                else:
+                    # skip, just a quoted author speech
+                    tokens = []
                 states.append("author")
-            elif t.is_punct and nt and nt._.is_dash:
-                tokens.append(t)
+            elif pt and pt.is_punct and t._.is_dash:
                 flush_replica()
                 states.append("author_insertion")
-                ti += 1
             else:
                 tokens.append(t)
-        elif state == "replica_colon_quote":
+
+        elif state == "replica_quote_after_colon":
             if t._.is_close_quote:
                 flush_replica()
                 states.append("author")
             else:
                 tokens.append(t)
-        elif state == "replica_newline_dash":
+
+        elif state == "replica_dash_after_newline":
             if t._.is_newline:
                 flush_replica()
                 states.append("author")
-            elif (
-                # sentence starts with dash
-                (t._.is_sent_end or t.is_punct and next_non_empty(t.sent)[0]._.is_dash)
-                and nt
-                and nt._.is_dash
-            ):
-                tokens.append(t)
-                flush_replica()
-                states.append("author_insertion")
-                ti += 1
+            elif pt and pt.is_punct and t._.is_dash:
+                # checking for author insertion
+                par_end_idx = next_matching(  # paragraph ending index
+                    doc,
+                    lambda x: x._.is_newline or x.i == len(doc) - 1,
+                    start=pt.i,
+                )[1]
+                results = [
+                    cast(Span, m)
+                    for m in a_ins_matcher(doc[pt.i : par_end_idx + 1], as_spans=True)
+                    if cast(Span, m)[0].i == pt.i
+                ]
+                if len(results) > 0:
+                    flush_replica()
+                    # skip to the end of author insertion
+                    ti = results[0][:-2].end
+                elif pt.text not in (",", ";"):
+                    # certainly not a complex sentence construct
+                    flush_replica()
+                    states.append("author_insertion")
+                else:
+                    # checking for author ending
+                    results = [
+                        cast(Span, m)
+                        for m in a_end_matcher(
+                            doc[pt.i : par_end_idx + 1], as_spans=True
+                        )
+                        if cast(Span, m)[0].i == pt.i
+                    ]
+                    for m in results:
+                        if m.end >= len(doc) - 1 or doc[m.end]._.is_newline:
+                            flush_replica()
+                            states.append("author")
+                            # skip to the end of author ending
+                            ti = m.end
+                            break
+                    else:
+                        tokens.append(t)
             else:
                 tokens.append(t)
-        elif t._.is_close_quote:
-            flush_replica()
-            states.append("author")
-        else:  # author -> ?
-            if (pt is None or pt._.is_newline) and t._.is_dash:
-                # [Автор:]\n— Реплика
-                states.append("replica_newline_dash")
-            elif pt and ":" in pt.text and t._.is_open_quote:
-                # Автор: "Реплика" | Автор: «Реплика»
-                states.append("replica_colon_quote")
-            elif t._.is_open_quote:
-                # "Реплика" — автор
-                states.append("replica_quote")
-            if len(states) > 1 and states[-1] == "author_insertion":
-                if states[-1] == states[-2] and t.is_sent_end:
-                    # not a replica continuation, sentence ended
-                    states.append("author")
-                if t.is_punct and nt and nt._.is_dash:
-                    # — Реплика, — автор<punct> — Реплика
-                    #                             ^
-                    states.append(states[-2])
-                    ti += 1
 
-    if len(tokens) > 0 and "replica" in states[-1]:
-        replicas.append(Replica(tokens))
+        # author* -> replica* transitions
+        elif (pt is None or pt._.is_newline) and t._.is_dash:
+            # [Автор:]\n— Реплика
+            states.append("replica_dash_after_newline")
+
+        elif pt and ":" in pt.text and t._.is_open_quote:
+            # Автор: "Реплика" | Автор: «Реплика»
+            states.append("replica_quote_after_colon")
+
+        elif t._.is_open_quote:
+            # "Реплика" — автор
+            states.append("replica_quote_before_dash")
+
+        elif state == "author_insertion" and pt and pt.is_punct and t._.is_dash:
+            # — автор<punct> — [Рр]еплика
+            #                 ^
+            # return to the state preceding the author insertion
+            states.append(states[-2])
+
+    if "replica" in states[-1]:
+        flush_replica()  # may have a trailing replica
 
     return replicas
 
@@ -218,22 +265,22 @@ def classify_speakers(
 ) -> dict[Replica, Optional[Speaker]]:
     matcher = Matcher(language.vocab)
 
+    for name, value in TokenPatterns.entries():
+        if name not in matcher:
+            matcher.add(name, [value])
+
     relations: dict[Replica, Optional[Speaker]] = {}
 
     sents = [s for s in dialogue.doc.sents]
     speakers_queue: deque[Speaker] = deque()
     replica_tokens = {t for r in dialogue.replicas for t in r.tokens}
 
-    for name, value in Patterns.entries():
-        if name not in matcher:
-            matcher.add(name, [value])
-
     for i_r, replica in enumerate(dialogue.replicas):
         sent_idx = sentence_index_by_char_index(sents, replica.tokens[0].idx)
         sent: Span = sents[sent_idx]
 
-        sent_prev, sent_prev_idx = next_non_empty(sents, sent_idx - 1, step=-1)
-        sent_next, _ = next_non_empty(sents, sent_idx + 1)
+        sent_prev, sent_prev_idx = next_non_empty_s(sents, sent_idx - 1, step=-1)
+        sent_next, _ = next_non_empty_s(sents, sent_idx + 1)
 
         newline_after = sent.text.endswith("\n") or (
             sent_next and "\n" in sent_next[0].text
@@ -248,7 +295,7 @@ def classify_speakers(
             results: list[tuple[int, int, int]] = matcher(sent_next)
             for match_id, start, end in results:
                 string_id = language.vocab.strings[match_id]
-                if string_id == Patterns.DASH_VERB_NOUN.name:
+                if string_id == TokenPatterns.DASH_VERB_NOUN.name:
                     span = sent_next[start:end]
                     if span[2] not in replica_tokens:
                         speaker = Speaker(span[2:])
