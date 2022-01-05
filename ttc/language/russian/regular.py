@@ -9,7 +9,6 @@ from spacy.tokens import Token, Span, Doc
 from ttc.language import Deps, Morphs, Replica
 from ttc.language import Speaker
 from ttc.language.dialogue import Dialogue
-from ttc.language.russian import TokenPatterns
 from ttc.language.russian.constants import (
     DASHES,
     REFERRAL_PRON,
@@ -22,6 +21,7 @@ from ttc.language.russian.token_checks import (
     is_names_verb,
     morph_equals,
 )
+from ttc.language.russian.token_patterns import TokenPatterns, MatcherClass
 
 
 def sentence_index_by_char_index(sentences: list[Span], index: int) -> int:
@@ -77,9 +77,7 @@ def next_non_empty_s(
 
 # noinspection PyProtectedMember
 # (spaCy extensions)
-def extract_replicas(doc: Doc) -> list[Replica]:
-    doc_length = len(doc)
-
+def extract_replicas(doc: Doc, matchers: dict[MatcherClass, Matcher]) -> list[Replica]:
     replicas: list[Replica] = []
     tokens: list[Token] = []
 
@@ -88,14 +86,6 @@ def extract_replicas(doc: Doc) -> list[Replica]:
         if len(tokens) > 0:
             replicas.append(Replica(tokens))
             tokens = []
-
-    a_ins_matcher = Matcher(doc.vocab)
-    a_end_matcher = Matcher(doc.vocab)
-    for name, value in TokenPatterns.entries():
-        if name.startswith("AUTHOR_INSERTION"):
-            a_ins_matcher.add(name, [value])
-        elif name.startswith("AUTHOR_ENDING"):
-            a_end_matcher.add(name, [value])
 
     states: deque[
         Literal[
@@ -109,6 +99,7 @@ def extract_replicas(doc: Doc) -> list[Replica]:
     states.append("author")
 
     ti = -1  # token index
+    doc_length = len(doc)
     while ti + 1 < doc_length:
         ti += 1
 
@@ -152,8 +143,9 @@ def extract_replicas(doc: Doc) -> list[Replica]:
                 )[1]
                 results = [
                     cast(Span, m)
-                    for m in a_ins_matcher(doc[pt.i : par_end_idx + 1], as_spans=True)
-                    if cast(Span, m)[0].i == pt.i
+                    for m in matchers["AUTHOR_INSERTION"](
+                        doc[pt.i : par_end_idx + 1], as_spans=True
+                    )
                 ]
                 if len(results) > 0:
                     flush_replica()
@@ -167,17 +159,16 @@ def extract_replicas(doc: Doc) -> list[Replica]:
                     # checking for author ending
                     results = [
                         cast(Span, m)
-                        for m in a_end_matcher(
+                        for m in matchers["AUTHOR_ENDING"](
                             doc[pt.i : par_end_idx + 1], as_spans=True
                         )
-                        if cast(Span, m)[0].i == pt.i
                     ]
-                    for m in results:
-                        if m.end >= len(doc) - 1 or doc[m.end]._.is_newline:
+                    for match in results:
+                        if match.end >= len(doc) - 1 or doc[match.end]._.is_newline:
                             flush_replica()
                             states.append("author")
                             # skip to the end of author ending
-                            ti = m.end
+                            ti = match.end
                             break
                     else:
                         tokens.append(t)
