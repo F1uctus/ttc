@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from ttc.language.russian.constants import DASHES, M_DOTS
 
@@ -33,6 +33,16 @@ INSERTION_2 = [
     },
     {"OP": "*"},
 ]
+
+MatcherClass = Literal[
+    "AUTHOR_INSERTION",
+    "AUTHOR_ENDING",
+]
+
+MATCHER_CLASSES: set[MatcherClass] = {
+    "AUTHOR_INSERTION",
+    "AUTHOR_ENDING",
+}
 
 
 class TokenPatterns(Enum):
