@@ -24,27 +24,6 @@ from ttc.language.russian.token_checks import (
 from ttc.language.russian.token_patterns import TokenPatterns, MatcherClass
 
 
-def sentence_index_by_char_index(sentences: list[Span], index: int) -> int:
-    for i, sentence in enumerate(sentences):
-        if sentence.start_char <= index <= sentence.end_char:
-            return i
-    return -1
-
-
-def main_speaker_by_reference(
-    sentences: list[Span],
-    ref: Speaker,
-    idx: Optional[int] = None,
-) -> Generator[Speaker, None, None]:
-    idx = idx or len(sentences) - 1
-    for t in sentences[idx]:
-        if t.lemma_ in REFERRAL_PRON:
-            if idx - 1 > 0:
-                yield from main_speaker_by_reference(sentences, ref, idx - 1)
-        elif maybe_name(t):
-            yield Speaker([t])
-
-
 def next_matching(
     doc_like: Span | Doc,
     predicate: Callable[[Token], bool],
@@ -57,20 +36,6 @@ def next_matching(
     while 0 <= start + delta < len(doc_like):
         checked = doc_like[start + delta]
         if predicate(checked):
-            sub_piece = checked
-            break
-        delta += step
-    return sub_piece, start + delta
-
-
-def next_non_empty_s(
-    doc_like: list[Span], start: int = 0, *, step: int = 1
-) -> tuple[Optional[Span], int]:
-    delta = 0
-    sub_piece = None
-    while 0 <= start + delta < len(doc_like):
-        checked = doc_like[start + delta]
-        if len(checked.text.strip()) > 0:
             sub_piece = checked
             break
         delta += step
@@ -202,6 +167,41 @@ def extract_replicas(doc: Doc, matchers: dict[MatcherClass, Matcher]) -> list[Re
     return replicas
 
 
+def next_non_empty_s(
+    doc_like: list[Span], start: int = 0, *, step: int = 1
+) -> tuple[Optional[Span], int]:
+    delta = 0
+    sub_piece = None
+    while 0 <= start + delta < len(doc_like):
+        checked = doc_like[start + delta]
+        if len(checked.text.strip()) > 0:
+            sub_piece = checked
+            break
+        delta += step
+    return sub_piece, start + delta
+
+
+def sentence_index_by_char_index(sentences: list[Span], index: int) -> int:
+    for i, sentence in enumerate(sentences):
+        if sentence.start_char <= index <= sentence.end_char:
+            return i
+    return -1
+
+
+def main_speaker_by_reference(
+    sentences: list[Span],
+    ref: Speaker,
+    idx: Optional[int] = None,
+) -> Generator[Speaker, None, None]:
+    idx = idx or len(sentences) - 1
+    for t in sentences[idx]:
+        if t.lemma_ in REFERRAL_PRON:
+            if idx - 1 > 0:
+                yield from main_speaker_by_reference(sentences, ref, idx - 1)
+        elif maybe_name(t):
+            yield Speaker([t])
+
+
 def get_speaker(span: list[Token]) -> Optional[Speaker]:
     speaker_tokens = []
     linked_token = None
@@ -260,7 +260,7 @@ def classify_speakers(
     matcher = Matcher(language.vocab)
 
     for name, value in TokenPatterns.entries():
-        if name not in matcher:
+        if name == TokenPatterns.DASH_VERB_NOUN.name:
             matcher.add(name, [value])
 
     relations: dict[Replica, Optional[Speaker]] = {}
