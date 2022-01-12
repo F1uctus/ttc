@@ -4,9 +4,7 @@ from dataclasses import dataclass
 from spacy.matcher import Matcher
 from spacy.tokens import Token
 
-from ttc.language.conversation_classifier import ConversationClassifier
-from ttc.language.dialogue import Dialogue
-from ttc.language.play import Play
+from ttc.language import ConversationClassifier, Dialogue, Play
 from ttc.language.russian.constants import (
     DASHES,
     OPEN_QUOTES,
