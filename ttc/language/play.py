@@ -1,13 +1,12 @@
 from dataclasses import dataclass
-from typing import Optional
 
 from spacy import Language
 
-from .replica import Replica
-from .speaker import Speaker
+from ttc.language.replica import Replica
+from ttc.language.speaker import Speaker
 
 
 @dataclass
 class Play:
     language: Language
-    content: dict[Replica, Optional[Speaker]]
+    content: dict[Replica, Speaker | None]

@@ -1,1 +1,3 @@
-from .russian_conversation_classifier import RussianConversationClassifier
+from ttc.language.russian.russian_conversation_classifier import (
+    RussianConversationClassifier,
+)
