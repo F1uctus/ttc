@@ -1,19 +1,17 @@
-from dataclasses import dataclass
-
+from attr import attrs
 from spacy import Language
-from spacy.tokens import Doc
-
-from .replica import Replica
+from spacy.tokens import Token, Span, Doc
 
 
-@dataclass(slots=True)
+@attrs(init=False, repr=False)
 class Dialogue:
-    language: Language
-    replicas: list[Replica]
+    def __init__(self, language: Language, replicas: list[Span]):
+        self.language = language
+        self.replicas = replicas
+        self.doc: Doc = self.replicas[0].doc
 
-    @property
-    def doc(self) -> Doc:
-        return self.replicas[0].doc
+    def __contains__(self, item: Token):
+        return any(item in r for r in self.replicas)
 
     def __repr__(self) -> str:
         return "\n\n".join(repr(r) for r in self.replicas)

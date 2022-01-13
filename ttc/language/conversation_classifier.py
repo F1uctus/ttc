@@ -9,6 +9,10 @@ from ttc.language.play import Play
 
 @dataclass(slots=True)  # type: ignore
 class ConversationClassifier(ABC):
+    """
+    Topmost abstraction over low-level conversation classification logic done by NLP libs.
+    """
+
     language: Language
 
     @abstractmethod
