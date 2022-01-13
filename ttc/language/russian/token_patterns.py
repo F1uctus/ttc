@@ -35,18 +35,18 @@ INSERTION_2 = [
     {"OP": "*"},
 ]
 
-MatcherClass = Literal[
+TokenMatcherClass = Literal[
     "AUTHOR_INSERTION",
     "AUTHOR_ENDING",
 ]
 
-MATCHER_CLASSES: set[MatcherClass] = {
+TOKEN_MATCHER_CLASSES: set[TokenMatcherClass] = {
     "AUTHOR_INSERTION",
     "AUTHOR_ENDING",
 }
 
 
-class TokenPatterns(Enum):
+class TokenPattern(Enum):
     DASH_VERB_NOUN = [
         {"TEXT": {"IN": list(DASHES)}},
         {"POS": "VERB"},

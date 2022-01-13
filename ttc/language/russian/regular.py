@@ -1,27 +1,22 @@
 from collections import deque
-from enum import Enum
-from typing import Optional, Generator, Literal, Callable, cast
+from typing import Literal, Callable, cast
 
 from spacy import Language
-from spacy.matcher import Matcher
+from spacy.matcher import Matcher, DependencyMatcher
 from spacy.tokens import Token, Span, Doc
 
-from ttc.language import Deps, Morphs, Replica
-from ttc.language import Speaker
-from ttc.language.dialogue import Dialogue
-from ttc.language.russian.constants import (
-    DASHES,
-    REFERRAL_PRON,
-    PERSONAL_PRON,
+from ttc.iterables import (
+    iter_by_triples,
+    canonical_int_enumeration,
 )
-from ttc.language.russian.token_checks import (
-    is_name,
-    maybe_name,
-    is_special_verb,
-    is_names_verb,
-    morph_equals,
+from ttc.language import Speaker, Dialogue
+from ttc.language.russian.constants import REFERRAL_PRON
+from ttc.language.russian.dependency_patterns import (
+    SPEAKER_TO_SPECIAL_VERB,
+    SPEAKER_TO_VERB_CONJ_SPECIAL_VERB,
 )
-from ttc.language.russian.token_patterns import TokenPatterns, MatcherClass
+from ttc.language.russian.token_checks import morph_equals
+from ttc.language.russian.token_patterns import TokenMatcherClass
 
 
 def next_matching(
@@ -30,7 +25,7 @@ def next_matching(
     *,
     start: int = 0,
     step: int = 1
-) -> tuple[Optional[Token], int]:
+) -> tuple[Token | None, int]:
     delta = 0
     sub_piece = None
     while 0 <= start + delta < len(doc_like):
@@ -43,15 +38,18 @@ def next_matching(
 
 
 # noinspection PyProtectedMember
-# (spaCy extensions)
-def extract_replicas(doc: Doc, matchers: dict[MatcherClass, Matcher]) -> list[Replica]:
-    replicas: list[Replica] = []
+# (spaCy "._." extensions)
+def extract_replicas(
+    doc: Doc,
+    matchers: dict[TokenMatcherClass, Matcher],
+) -> list[Span]:
+    replicas: list[Span] = []
     tokens: list[Token] = []
 
     def flush_replica():
         nonlocal tokens
         if len(tokens) > 0:
-            replicas.append(Replica(tokens))
+            replicas.append(doc[tokens[0].i : tokens[-1].i + 1])
             tokens = []
 
     states: deque[
@@ -70,8 +68,8 @@ def extract_replicas(doc: Doc, matchers: dict[MatcherClass, Matcher]) -> list[Re
     while ti + 1 < doc_length:
         ti += 1
 
-        pt: Optional[Token] = doc[ti - 1] if ti - 1 >= 0 else None
-        nt: Optional[Token] = doc[ti + 1] if ti + 1 < len(doc) else None
+        pt: Token | None = doc[ti - 1] if ti - 1 >= 0 else None
+        nt: Token | None = doc[ti + 1] if ti + 1 < len(doc) else None
         t: Token = doc[ti]
 
         state = states[-1]
@@ -167,200 +165,106 @@ def extract_replicas(doc: Doc, matchers: dict[MatcherClass, Matcher]) -> list[Re
     return replicas
 
 
-def next_non_empty_s(
-    doc_like: list[Span], start: int = 0, *, step: int = 1
-) -> tuple[Optional[Span], int]:
-    delta = 0
-    sub_piece = None
-    while 0 <= start + delta < len(doc_like):
-        checked = doc_like[start + delta]
-        if len(checked.text.strip()) > 0:
-            sub_piece = checked
-            break
-        delta += step
-    return sub_piece, start + delta
+def find_by_reference(span: Span, reference: Token) -> Span | None:
+    """
+    Inside the given span, find a noun chunk that might be
+    a definition of given reference token.
 
-
-def sentence_index_by_char_index(sentences: list[Span], index: int) -> int:
-    for i, sentence in enumerate(sentences):
-        if sentence.start_char <= index <= sentence.end_char:
-            return i
-    return -1
-
-
-def main_speaker_by_reference(
-    sentences: list[Span],
-    ref: Speaker,
-    idx: Optional[int] = None,
-) -> Generator[Speaker, None, None]:
-    idx = idx or len(sentences) - 1
-    for t in sentences[idx]:
-        if t.lemma_ in REFERRAL_PRON:
-            if idx - 1 > 0:
-                yield from main_speaker_by_reference(sentences, ref, idx - 1)
-        elif maybe_name(t):
-            yield Speaker([t])
-
-
-def get_speaker(span: list[Token]) -> Optional[Speaker]:
-    speaker_tokens = []
-    linked_token = None
-
-    class State(Enum):
-        START, AFTER_VERB, AFTER_SPECIAL_VERB, AFTER_NAME = range(4)
-
-    state = State.START
-    for t in span:
-        if t.text in DASHES:
-            if state and len(t.text) == len(t.text_with_ws):
-                speaker_tokens.append(t)
-            else:
-                speaker_tokens.clear()
-                state = State.START
-        elif state == State.AFTER_SPECIAL_VERB:
-            if t.dep_ in [Deps.PUNCT, Deps.CC]:
-                break
-            if len(speaker_tokens) == 0 and t.dep_ == Deps.ADVMOD:
-                continue
-            speaker_tokens.append(t)
-            if is_name(t):
-                break
-        elif state == State.AFTER_VERB:
-            speaker_tokens.clear()
-            if is_name(t, linked_verb=linked_token):
-                speaker_tokens.append(t)
-        elif state == State.AFTER_NAME:
-            if is_names_verb(t, linked_name=linked_token):
-                break
-            elif maybe_name(t) or t.dep_ == Deps.CASE:
-                speaker_tokens.append(t)
-        else:
-            speaker_tokens.clear()
-            if maybe_name(t) and t.morph.get(Morphs.CASE)[0] != "Dat":
-                linked_token = t
-                speaker_tokens.append(t)
-                state = State.AFTER_NAME
-            elif is_special_verb(t):
-                linked_token = t
-                state = State.AFTER_SPECIAL_VERB
-            elif is_names_verb(t):
-                linked_token = t
-                state = State.AFTER_VERB
-
-    if len(speaker_tokens) == 0:
-        return None
-
-    return Speaker(speaker_tokens)
+    Parameters:
+        span: sentence or other doc-like span to search definition in.
+        reference: reference to some speaker (e.g. он, она, оно, ...)
+    """
+    for nc in span.noun_chunks:
+        if any(morph_equals(t, reference, "Gender", "Number") for t in nc):
+            return nc
+    return None
 
 
 def classify_speakers(
     language: Language,
     dialogue: Dialogue,
-) -> dict[Replica, Optional[Speaker]]:
-    matcher = Matcher(language.vocab)
+) -> dict[Span, Speaker | None]:
+    relations: dict[Span, Speaker | None] = {}
 
-    for name, value in TokenPatterns.entries():
-        if name == TokenPatterns.DASH_VERB_NOUN.name:
-            matcher.add(name, [value])
+    sents = list(dialogue.doc.sents)
 
-    relations: dict[Replica, Optional[Speaker]] = {}
+    # - Go through each extracted replica;
+    # - Look into the next sentence after the replica -
+    #   (most commonly there will be a speaker specification);
+    # - Look into the previous sentence;
+    # - Then go with next-previous alternation (same as above) until we hit one of:
+    #       - Start of text;
+    #       - Previous replica;
+    #       - Next replica;
+    #       - End of text.
+    # - If speaker was still not found, try to get the forward/backward reference of
+    #   second interlocutor from the nearest (prev/next) replicas.
 
-    sents = [s for s in dialogue.doc.sents]
-    speakers_queue: deque[Speaker] = deque()
-    replica_tokens = {t for r in dialogue.replicas for t in r.tokens}
+    for prev_replica, replica, next_replica in iter_by_triples(dialogue.replicas):
+        # "p_" - previous; "n_" - next; "r_" - replica
+        r_start_sent_i = sents.index(replica[0].sent)
+        r_start_sent = sents[r_start_sent_i]
+        r_end_sent_i = sents.index(replica[-1].sent)
+        p_r_sent_i = sents.index(prev_replica[-1].sent) if prev_replica else None
+        n_r_sent_i = sents.index(next_replica[0].sent) if next_replica else None
 
-    for i_r, replica in enumerate(dialogue.replicas):
-        sent_idx = sentence_index_by_char_index(sents, replica.tokens[0].idx)
-        sent: Span = sents[sent_idx]
+        back_first = any(
+            abs(replica[0].i - t.i) < 4 and t.lemma_ == ":" for t in r_start_sent
+        )  # replica is after colon - means back-first speaker search
 
-        sent_prev, sent_prev_idx = next_non_empty_s(sents, sent_idx - 1, step=-1)
-        sent_next, _ = next_non_empty_s(sents, sent_idx + 1)
+        sent_backward_done = sent_forward_done = False
 
-        newline_after = sent.text.endswith("\n") or (
-            sent_next and "\n" in sent_next[0].text
-        )
+        for offset in canonical_int_enumeration():
+            # Iterate over sentences near the current replica.
+            # They have "up-down" indices
+            # (e.g i + 0, i + 1, i - 1, i + 2, i - 2, ... if it's forward-first);
+            # (and i + 0, i - 1, i + 1, i - 2, i + 2, ... if it's backward-first).
+            sent_i = r_start_sent_i - offset if back_first else r_end_sent_i + offset
 
-        rotate_speakers = True
+            sent_backward_done = sent_backward_done or sent_i == p_r_sent_i
+            sent_forward_done = sent_forward_done or sent_i == n_r_sent_i
 
-        sent_non_replica = [t for t in sent if t not in replica_tokens]
-        speaker = get_speaker(sent_non_replica)
-        if sent_next and not speaker and not newline_after:
-            # First check for [DASH VERB NOUN+] pattern
-            results: list[tuple[int, int, int]] = matcher(sent_next)
-            for match_id, start, end in results:
-                string_id = language.vocab.strings[match_id]
-                if string_id == TokenPatterns.DASH_VERB_NOUN.name:
-                    span = sent_next[start:end]
-                    if span[2] not in replica_tokens:
-                        speaker = Speaker(span[2:])
+            if sent_backward_done and sent_forward_done:
+                # We've got up to the sentences containing
+                # the previous AND next replicas -> cannot find
+                # the speaker this way, use alternative method.
+                break
 
-            if not speaker:
-                sent_next_non_replica = [
-                    t for t in sent_next if t not in replica_tokens
-                ]
-                speaker = get_speaker(sent_next_non_replica)
+            sent = sents[sent_i]
+            prev_sent = sents[sent_i - 1] if sent_i > 0 else None
+            next_sent = sents[sent_i + 1] if sent_i < len(sents) - 1 else None
 
-        if not speaker and sent_prev:
-            pt = list(sent_prev)
-            if sum("\n" in t.text for t in sent) > 1:
-                pt += list(sent)
-            # if prev sent was not replica, it is probably not an alteration
-            prev_is_replica = any(t in pt for t in replica_tokens)
-            if not prev_is_replica:
-                rotate_speakers = False
-
-        if sent_prev and speaker and speaker.lemma in REFERRAL_PRON:
-            # extract possible source names from previous sentence
-            possible_speakers = list(
-                main_speaker_by_reference(
-                    sents,
-                    speaker,
-                    sent_prev_idx,
-                )
+            # First, look for obvious references, such as
+            # ... verb ... noun ... || ... noun ... verb ...
+            # where verb and noun are syntactically related.
+            dep_matcher = DependencyMatcher(language.vocab)
+            dep_matcher.add(
+                "SPEAKER_TO_SPECIAL_VERB",
+                [SPEAKER_TO_SPECIAL_VERB],
+            )
+            dep_matcher.add(
+                "SPEAKER_TO_VERB_CONJ_SPECIAL_VERB",
+                [SPEAKER_TO_VERB_CONJ_SPECIAL_VERB],
             )
 
-            # If last 2 speakers have same gender & there is a reference to other with
-            # gender pronoun, then the speaker is meant to be the 1st of them.
-            if len(speakers_queue) == 2:
-                gender1 = speakers_queue[0].gender
-                gender2 = speakers_queue[1].gender
-                if gender1 == gender2 and speaker.lemma in PERSONAL_PRON.get(gender1):
-                    speakers = speakers_queue[::-1]
+            for match_id, token_ids in dep_matcher(sent):
+                # for this matcher speaker is the top token in pattern
+                token: Token = sent[token_ids[0]]
+                if prev_sent and token.lemma_ in REFERRAL_PRON:
+                    speaker = find_by_reference(prev_sent, token)
                 else:
-                    speakers = deque()
-            else:
-                speakers = speakers_queue
+                    # increase speaker "breadth" using noun chunks
+                    for nc in sent.noun_chunks:
+                        if token in nc:
+                            speaker = nc
+                            break
+                    else:
+                        speaker = dialogue.doc[token.i : token.i]  # TODO check
+                relations[replica] = Speaker(list(speaker) if speaker else [token])
+                if replica in relations:
+                    break
 
-            for s in speakers:
-                if morph_equals(Morphs.GENDER, s, speaker) and morph_equals(
-                    Morphs.NUMBER, s, speaker
-                ):
-                    possible_speakers.append(s)
-
-            cap_names = []
-            for i, ps in enumerate(possible_speakers):
-                if ps.text[0].isupper():
-                    cap_names.append(i)
-            if len(cap_names) == 1:
-                speaker = possible_speakers[cap_names[0]]
-            elif len(possible_speakers) > 0:
-                speaker = possible_speakers[-1]
-
-        if speaker and speaker.text not in {s.text for s in speakers_queue}:
-            speakers_queue.append(speaker)
-            rotate_speakers = False
-
-        if len(speakers_queue) > 2:
-            while len(speakers_queue) > 2:
-                speakers_queue.popleft()
-        elif rotate_speakers:
-            speakers_queue.rotate()
-
-        if not speaker and len(speakers_queue) > 0:
-            speaker = speakers_queue[-1]
-
-        # print(speakers_queue)
-
-        relations[replica] = speaker
+            if replica in relations:
+                break
 
     return relations

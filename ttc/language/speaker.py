@@ -3,7 +3,7 @@ from typing import Optional
 
 from spacy.tokens import Token, MorphAnalysis
 
-from ttc.language.morphs import Morphs
+from ttc.language.lang_typing import Morph
 
 
 @dataclass(slots=True)
@@ -25,7 +25,7 @@ class Speaker:
         self.lemma = " ".join(t.lemma_ for t in self.tokens)
         self.first_token = None if len(self.tokens) == 0 else self.tokens[0]
         self.morph = self.first_token.morph if self.first_token else None
-        self.gender = self.morph.get(Morphs.GENDER)[0] if self.morph else None
+        self.gender = self.morph.get("Gender")[0] if self.morph else None
 
     def __repr__(self):
         return self.text
