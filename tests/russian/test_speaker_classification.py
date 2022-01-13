@@ -26,26 +26,26 @@ def cc():
     yield ttc.load("ru")
 
 
+def test_name_reference(cc):
+    dialogue = cc.extract_dialogue(
+        """
+– …и вот тогда он поклялся служить мне, – завершил Тук. – И с той поры со мной.
+Слушатели повернулись к Сзету.
+– Это правда, – подтвердил он, как было приказано заранее. – До последнего слова.
+"""
+    )
+    play = cc.connect_play(dialogue)
+
+    assert "сзету" == list(play.content.values())[-1].first_token.lemma_
+
+
 @pytest.mark.parametrize("file_name", find_test_texts(TEXTS_PATH))
 def test_text_to_play(cc, file_name):
     text, expected_speakers = load_test(TEXTS_PATH, file_name)
     print()
     dialogue = cc.extract_dialogue(text)
     pprint(dialogue)
-    # play = cc.connect_play(dialogue)
-    # actual_speakers = [str(spk.text) for spk in play.content.values()]
-    # pprint(play.content)
-    # assert expected_speakers == actual_speakers
-
-
-# def test_name_reference(cc):
-#     dialogue = cc.extract_dialogue(
-#         """
-# – …и вот тогда он поклялся служить мне, – завершил Тук. – И с той поры со мной.
-# Слушатели повернулись к Сзету.
-# – Это правда, – подтвердил он, как было приказано заранее. – До последнего слова.
-# """
-#     )
-#     play = cc.connect_play(dialogue)
-#
-#     assert "сзету" == list(play.content.values())[-1].first_token.lemma_
+    play = cc.connect_play(dialogue)
+    actual_speakers = [str(spk.text) for spk in play.content.values()]
+    pprint(play.content)
+    assert expected_speakers == actual_speakers
