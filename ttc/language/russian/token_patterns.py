@@ -47,12 +47,6 @@ TOKEN_MATCHER_CLASSES: set[TokenMatcherClass] = {
 
 
 class TokenPattern(Enum):
-    DASH_VERB_NOUN = [
-        {"TEXT": {"IN": list(DASHES)}},
-        {"POS": "VERB"},
-        {"POS": {"IN": ["NOUN", "PROPN", "PRON", "ADJ"]}, "OP": "+"},
-    ]
-
     AUTHOR_ENDING_1 = [
         # p, — <AUTHOR>.
         {"TEXT": ","},
