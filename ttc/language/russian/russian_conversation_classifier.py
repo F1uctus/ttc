@@ -8,7 +8,7 @@ from ttc.language.russian.constants import (
     DASHES,
     OPEN_QUOTES,
     CLOSE_QUOTES,
-    SPECIAL_VERBS,
+    SPEAKING_VERBS,
 )
 from ttc.language.russian.pipelines import setup_language
 from ttc.language.russian.regular import extract_replicas, classify_speakers
@@ -27,7 +27,7 @@ class RussianConversationClassifier(ConversationClassifier):
         "is_newline": lambda t: "\n" in t.text,
         "is_open_quote": lambda t: t.text in OPEN_QUOTES,
         "is_close_quote": lambda t: t.text in CLOSE_QUOTES,
-        "is_author_verb": lambda t: any(v in t.lemma_ for v in SPECIAL_VERBS),
+        "is_speaking_verb": lambda t: any(v in t.lemma_ for v in SPEAKING_VERBS),
         "is_not_second_person": lambda t: "Person=Second" not in t.morph,
     }
     token_matchers: dict[TokenMatcherClass, Matcher] = field(default_factory=dict)

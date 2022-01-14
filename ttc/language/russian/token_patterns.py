@@ -7,7 +7,7 @@ INSERTION_1 = [
     {"_": {"is_sent_end": False}, "OP": "*"},
     {
         "POS": "VERB",
-        "_": {"is_sent_end": False, "is_author_verb": True},
+        "_": {"is_sent_end": False, "is_speaking_verb": True},
     },
     {"_": {"is_sent_end": False}, "OP": "*"},
     {
@@ -30,7 +30,7 @@ INSERTION_2 = [
     {"_": {"is_sent_end": False}, "OP": "*"},
     {
         "POS": "VERB",
-        "_": {"is_author_verb": True},
+        "_": {"is_speaking_verb": True},
     },
     {"OP": "*"},
 ]

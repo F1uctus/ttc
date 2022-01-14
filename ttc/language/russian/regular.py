@@ -12,8 +12,8 @@ from ttc.iterables import (
 from ttc.language import Speaker, Dialogue
 from ttc.language.russian.constants import REFERRAL_PRON
 from ttc.language.russian.dependency_patterns import (
-    SPEAKER_TO_SPECIAL_VERB,
-    SPEAKER_TO_VERB_CONJ_SPECIAL_VERB,
+    SPEAKER_TO_SPEAKING_VERB,
+    SPEAKER_CONJUNCT_SPEAKING_VERB,
 )
 from ttc.language.russian.token_checks import morph_equals
 from ttc.language.russian.token_patterns import TokenMatcherClass
@@ -187,7 +187,7 @@ def find_by_reference(span: Span, reference: Token) -> Span | None:
 def replica_fills_line(replica: Span) -> bool:
     return (
         replica.start - 3 >= 0
-        and replica.end + 3 < len(replica.doc)
+        and replica.end + 3 < len(replica.doc)  # TODO: Check end-of-doc case
         and any(t._.is_newline for t in replica.doc[replica.start - 3 : replica.start])
         and any(t._.is_newline for t in replica.doc[replica.end : replica.end + 3])
     )
@@ -201,8 +201,11 @@ def classify_speakers(
 ) -> dict[Span, Speaker | None]:
     doc = dialogue.doc
     relations: dict[Span, Speaker | None] = {}
-
     sents = list(doc.sents)
+
+    dep_matcher = DependencyMatcher(language.vocab)
+    dep_matcher.add("*", [SPEAKER_TO_SPEAKING_VERB])
+    dep_matcher.add("**", [SPEAKER_CONJUNCT_SPEAKING_VERB])
 
     # Handles speakers alteration case
     sp_queue: dict[str, Speaker] = {}
@@ -239,6 +242,10 @@ def classify_speakers(
                 # the previous AND next replicas -> cannot find
                 # the speaker this way, use alternative method.
                 break
+            if sent_backward_done and offset < 0:
+                continue
+            if sent_forward_done and offset > 0:
+                continue
 
             sent = sents[sent_i]
             prev_sent = sents[sent_i - 1] if sent_i > 0 else None
@@ -263,16 +270,6 @@ def classify_speakers(
             # Look for obvious references, such as
             # ... verb ... noun ... || ... noun ... verb ...
             # where verb and noun are syntactically related.
-            dep_matcher = DependencyMatcher(language.vocab)
-            dep_matcher.add(
-                "SPEAKER_TO_SPECIAL_VERB",
-                [SPEAKER_TO_SPECIAL_VERB],
-            )
-            dep_matcher.add(
-                "SPEAKER_TO_VERB_CONJ_SPECIAL_VERB",
-                [SPEAKER_TO_VERB_CONJ_SPECIAL_VERB],
-            )
-
             for match_id, token_ids in dep_matcher(sent):
                 # For this matcher speaker is the top token in pattern
                 token: Token = sent[token_ids[0]]
@@ -286,12 +283,14 @@ def classify_speakers(
                             break
                     else:
                         speaker_span = doc[token.i : token.i + 1]  # TODO check
+
                 sp = Speaker(list(speaker_span) if speaker_span else [token])
                 if sp.lemma in sp_queue:
                     # Reinsert speaker to the end of queue
                     sp_queue[sp.lemma] = relations[replica] = sp_queue.pop(sp.lemma)
                 else:
                     sp_queue[sp.lemma] = relations[replica] = sp
+
                 if replica in relations:
                     break  # dependency matching if speaker was found
 
