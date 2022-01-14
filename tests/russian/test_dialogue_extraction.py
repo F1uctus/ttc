@@ -3,7 +3,7 @@ import pytest
 import ttc
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def cc():
     yield ttc.load("ru")
 
