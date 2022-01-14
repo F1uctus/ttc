@@ -3,8 +3,6 @@ from typing import Optional
 
 from spacy.tokens import Token, MorphAnalysis
 
-from ttc.language.lang_typing import Morph
-
 
 @dataclass(slots=True)
 class Speaker:
@@ -17,11 +15,7 @@ class Speaker:
 
     def __init__(self, tokens: list[Token]):
         self.tokens = tokens
-        if len(self.tokens) > 1:
-            # multi-word names are most probably indicate secondary character.
-            self.text = f"!g[{' '.join(t.text for t in self.tokens)}]"
-        else:
-            self.text = self.tokens[0].text
+        self.text = "".join(t.text_with_ws for t in self.tokens)
         self.lemma = " ".join(t.lemma_ for t in self.tokens)
         self.first_token = None if len(self.tokens) == 0 else self.tokens[0]
         self.morph = self.first_token.morph if self.first_token else None
