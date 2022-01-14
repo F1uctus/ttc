@@ -20,7 +20,7 @@ MISPREDICTED_VERBS = {
     "бормочет",
 }
 
-SPECIAL_VERBS = {
+SPEAKING_VERBS = {
     "бормо",
     "брякну",
     "бубне",
