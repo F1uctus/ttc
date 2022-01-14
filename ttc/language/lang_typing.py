@@ -1,11 +1,15 @@
 from typing import Literal
 
 Morph = Literal[
-    "Number",
-    "Gender",
+    "Aspect",
     "Case",
-    "Person",
-    "VerbForm",
+    "Degree",
+    "Gender",
     "Mood",
+    "Number",
+    "Person",
+    "StyleVariant",
     "Tense",
+    "VerbForm",
+    "Voice",
 ]
