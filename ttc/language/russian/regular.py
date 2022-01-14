@@ -46,6 +46,8 @@ def extract_replicas(
     replicas: list[Span] = []
     tokens: list[Token] = []
 
+    # noinspection PyProtectedMember
+    # (spaCy "._." extensions)
     def flush_replica():
         nonlocal tokens
         if len(tokens) > 0:
@@ -180,6 +182,8 @@ def find_by_reference(span: Span, reference: Token) -> Span | None:
     return None
 
 
+# noinspection PyProtectedMember
+# (spaCy "._." extensions)
 def classify_speakers(
     language: Language,
     dialogue: Dialogue,
