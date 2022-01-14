@@ -36,7 +36,7 @@ def test_name_reference(cc):
     )
     play = cc.connect_play(dialogue)
 
-    assert "сзету" == list(play.content.values())[-1].first_token.lemma_
+    assert "к Сзету" == list(play.content.values())[-1].text
 
 
 @pytest.mark.parametrize("file_name", find_test_texts(TEXTS_PATH))
@@ -46,6 +46,6 @@ def test_text_to_play(cc, file_name):
     dialogue = cc.extract_dialogue(text)
     pprint(dialogue)
     play = cc.connect_play(dialogue)
-    actual_speakers = [str(spk.text) for spk in play.content.values()]
+    actual_speakers = [str(spk.lemma) for spk in play.content.values()]
     pprint(play.content)
     assert expected_speakers == actual_speakers
