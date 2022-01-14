@@ -21,7 +21,7 @@ def load_test(path: Path, file_name: str, delimiter="-" * 20):
     return "\n" + content[0], [s for s in content[1].split("\n") if s.strip()]
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def cc():
     yield ttc.load("ru")
 
