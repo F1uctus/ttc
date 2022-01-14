@@ -10,13 +10,13 @@ from ttc.language.russian.constants import (
     CLOSE_QUOTES,
     SPECIAL_VERBS,
 )
+from ttc.language.russian.pipelines import setup_language
+from ttc.language.russian.regular import extract_replicas, classify_speakers
 from ttc.language.russian.token_patterns import (
     TokenPattern,
     TOKEN_MATCHER_CLASSES,
     TokenMatcherClass,
 )
-from ttc.language.russian.pipelines import setup_language
-from ttc.language.russian.regular import extract_replicas, classify_speakers
 
 
 @dataclass(slots=True)
