@@ -191,11 +191,14 @@ def find_by_reference(spans: list[Span], reference: Token, misses=0) -> Span | N
 # noinspection PyProtectedMember
 # (spaCy "._." extensions)
 def replica_fills_line(replica: Span) -> bool:
+    doc = replica.doc
     return (
         replica.start - 3 >= 0
-        and replica.end + 3 < len(replica.doc)  # TODO: Check end-of-doc case
-        and any(t._.is_newline for t in replica.doc[replica.start - 3 : replica.start])
-        and any(t._.is_newline for t in replica.doc[replica.end : replica.end + 3])
+        and replica.end + 3 < len(doc)  # TODO: Check end-of-doc case
+        and any(t._.is_newline for t in doc[replica.start - 3 : replica.start])
+        # colon means that replica is still annotated by author, just on previous line
+        and not any(t.text == ":" for t in doc[replica.start - 3 : replica.start])
+        and any(t._.is_newline for t in doc[replica.end : replica.end + 3])
     )
 
 
