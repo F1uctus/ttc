@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
 from spacy.matcher import Matcher
-from spacy.tokens import Token
+from spacy.tokens import Token, Span
 
 from ttc.language import ConversationClassifier, Dialogue, Play
 from ttc.language.russian.constants import (
@@ -46,6 +46,14 @@ class RussianConversationClassifier(ConversationClassifier):
         for name, pred in RussianConversationClassifier.token_predicates.items():
             if not Token.has_extension(name):
                 Token.set_extension(name, getter=pred)
+
+        if not Token.has_extension("line_no"):
+            Token.set_extension("line_no", default=1)
+
+        if not Span.has_extension("start_line_no"):
+            Span.set_extension("start_line_no", getter=lambda s: s[0]._.line_no)
+        if not Span.has_extension("end_line_no"):
+            Span.set_extension("end_line_no", getter=lambda s: s[-1]._.line_no)
 
         return Dialogue(
             self.language,
