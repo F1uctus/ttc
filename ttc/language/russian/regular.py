@@ -266,18 +266,21 @@ def classify_speakers(
                 relations[replica] = list(sp_queue.values())[-1]
                 break
 
-            if (
-                len(sp_queue) > 1
-                and prev_replica
-                and replica_fills_line(replica)
-                and abs(replica._.start_line_no - prev_replica._.end_line_no) < 3
-            ):
-                # Line has no author speech -> speakers alteration
-                # Assign replica to the penultimate speaker
-                relations[replica] = penult = list(sp_queue.values())[-2]
-                # reinsert to the end of queue
-                sp_queue[penult.lemma] = sp_queue.pop(penult.lemma)
-                break
+            if prev_replica and replica_fills_line(replica):
+                if 1 < abs(replica._.start_line_no - prev_replica._.end_line_no) < 4:
+                    # If there was 1-2 lines filled with author speech, it is more
+                    # probably a continuation, and not alteration, because the reader
+                    # will likely lose context if this replica is not annotated by
+                    # speaker name and follows some lines of author text
+                    relations[replica] = list(sp_queue.values())[-1]
+                    break
+                if len(sp_queue) > 1:
+                    # Line has no author speech -> speakers alteration
+                    # Assign replica to the penultimate speaker
+                    relations[replica] = penult = list(sp_queue.values())[-2]
+                    # reinsert to the end of queue
+                    sp_queue[penult.lemma] = sp_queue.pop(penult.lemma)
+                    break
 
             # Look for obvious references, such as
             # ... verb ... noun ... || ... noun ... verb ...
