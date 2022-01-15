@@ -251,15 +251,18 @@ def classify_speakers(
             prev_sent = sents[sent_i - 1] if sent_i > 0 else None
             next_sent = sents[sent_i + 1] if sent_i < len(sents) - 1 else None
 
-            if prev_replica and not any(
-                t._.is_newline for t in doc[prev_replica.end : replica.start]
-            ):
+            if prev_replica and prev_replica._.end_line_no == replica._.start_line_no:
                 # Replica is on the same line - probably separated by author speech
                 # Assign to the previous speaker
                 relations[replica] = list(sp_queue.values())[-1]
                 break
 
-            if len(relations) > 2 and replica_fills_line(replica):
+            if (
+                len(sp_queue) > 1
+                and prev_replica
+                and replica_fills_line(replica)
+                and abs(replica._.start_line_no - prev_replica._.end_line_no) < 3
+            ):
                 # Line has no author speech -> speakers alteration
                 # Assign replica to the penultimate speaker
                 relations[replica] = penult = list(sp_queue.values())[-2]
