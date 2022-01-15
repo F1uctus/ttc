@@ -276,13 +276,14 @@ def classify_speakers(
                 if prev_sent and token.lemma_ in REFERRAL_PRON:
                     speaker_span = find_by_reference(prev_sent, token)
                 else:
-                    # increase speaker "breadth" with corresponding noun chunk
+                    # increase speaker "breadth" by matching noun chunk
                     for nc in sent.noun_chunks:
                         if token in nc:
                             speaker_span = nc
                             break
                     else:
-                        speaker_span = doc[token.i : token.i + 1]  # TODO check
+                        # cannot expand noun, use token as-is
+                        speaker_span = doc[token.i : token.i + 1]
 
                 sp = Speaker(list(speaker_span) if speaker_span else [token])
                 if sp.lemma in sp_queue:
@@ -290,9 +291,7 @@ def classify_speakers(
                     sp_queue[sp.lemma] = relations[replica] = sp_queue.pop(sp.lemma)
                 else:
                     sp_queue[sp.lemma] = relations[replica] = sp
-
-                if replica in relations:
-                    break  # dependency matching if speaker was found
+                break  # dependency matching when speaker was found
 
             if replica in relations:
                 break  # sentences walking if speaker was found
