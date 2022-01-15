@@ -16,7 +16,17 @@ def _correct_mispredictions(doc):
     return doc
 
 
-# TODO: Adapt to the Russian lang (Copied from Greek pipeline)
+# noinspection PyProtectedMember
+# (spaCy "._." extensions)
+@Language.component("mark_line_numbers")
+def _mark_line_numbers(doc):
+    line_no = 1
+    for token in doc:
+        token._.line_no = line_no
+        if "\n" in token.text_with_ws:
+            line_no += 1
+    return doc
+
 
 def traverse_children(
     word: Token,
@@ -86,5 +96,9 @@ def setup_language(lang: Language):
     """
     if not lang.has_pipe("correct_mispredictions"):
         lang.add_pipe("correct_mispredictions", after="morphologizer")
+
+    if not lang.has_pipe("mark_line_numbers"):
+        lang.add_pipe("mark_line_numbers", after="senter")
+
     # Type error is CPython <-> Python incompatibility
     lang.vocab.get_noun_chunks = _noun_chunks  # type: ignore
