@@ -167,18 +167,24 @@ def extract_replicas(
     return replicas
 
 
-def find_by_reference(span: Span, reference: Token) -> Span | None:
+def find_by_reference(spans: list[Span], reference: Token, misses=0) -> Span | None:
     """
     Inside the given span, find a noun chunk that might be
     a definition of given reference token.
 
     Parameters:
-        span: sentence or other doc-like span to search definition in.
+        spans: list of sentences or other doc-like spans to search definition in.
         reference: reference to some speaker (e.g. он, она, оно, ...)
     """
-    for nc in span.noun_chunks:
-        if any(morph_equals(t, reference, "Gender", "Number") for t in nc):
-            return nc
+    for nc in spans[-1].noun_chunks:
+        for t in nc:
+            if morph_equals(t, reference, "Gender", "Number"):
+                if nc.lemma_ in REFERRAL_PRON:
+                    return find_by_reference(spans[:-1], t, misses)
+                return nc
+    else:
+        if len(spans) > 1 and misses < 4:
+            return find_by_reference(spans[:-1], reference, misses + 1)
     return None
 
 
@@ -277,7 +283,7 @@ def classify_speakers(
                 # For this matcher speaker is the top token in pattern
                 token: Token = sent[token_ids[0]]
                 if prev_sent and token.lemma_ in REFERRAL_PRON:
-                    speaker_span = find_by_reference(prev_sent, token)
+                    speaker_span = find_by_reference(sents[:sent_i], token)
                 else:
                     # increase speaker "breadth" by matching noun chunk
                     for nc in sent.noun_chunks:
