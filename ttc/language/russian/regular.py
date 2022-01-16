@@ -35,7 +35,7 @@ def next_matching(
     predicate: Callable[[Token], bool],
     *,
     start: int = 0,
-    step: int = 1
+    step: int = 1,
 ) -> Tuple[Optional[Token], int]:
     delta = 0
     sub_piece = None
@@ -265,7 +265,24 @@ def classify_speakers(
     dep_matcher.add("**", [SPEAKER_CONJUNCT_SPEAKING_VERB])
 
     # Handles speakers alteration & continuation
-    sp_queue: Dict[str, Span] = {}
+    speakers_queue: Dict[str, Span] = {}
+
+    def mark_speaker(*, span: Optional[Span] = None, queue_i: Optional[int] = None):
+        if queue_i:
+            try:
+                speaker = list(speakers_queue.values())[queue_i]
+            except IndexError:
+                return
+        elif span:
+            speaker = span
+        else:
+            return
+        relations[replica] = speaker
+        if speaker.lemma_ in speakers_queue:
+            # Move repeated speaker to the end of queue
+            speakers_queue[speaker.lemma_] = speakers_queue.pop(speaker.lemma_)
+        else:
+            speakers_queue[speaker.lemma_] = speaker
 
     for prev_replica, replica, next_replica in iter_by_triples(dialogue.replicas):
         # "p_" - previous; "n_" - next; "r_" - replica
@@ -280,12 +297,6 @@ def classify_speakers(
         )  # Replica is after colon - means back-first speaker search
 
         back_done = forw_done = False
-
-        def mark_speaker(speaker: Span):
-            relations[replica] = speaker
-            if speaker.lemma_ in sp_queue:
-                # Move repeated speaker to the end of queue
-                sp_queue[speaker.lemma_] = sp_queue.pop(speaker.lemma_)
 
         for offset in canonical_int_enumeration():
             # Iterate over sentences near the current replica.
@@ -319,7 +330,7 @@ def classify_speakers(
             if prev_replica and prev_replica._.end_line_no == replica._.start_line_no:
                 # Replica is on the same line - probably separated by author speech
                 # Assign it to the previous speaker
-                mark_speaker(list(sp_queue.values())[-1])
+                mark_speaker(queue_i=-1)
                 break  # replica processing
 
             if prev_replica and replica_fills_line(replica):
@@ -329,50 +340,37 @@ def classify_speakers(
                     # probably a continuation, and not alteration, because the reader
                     # will likely lose context if this replica is not annotated by
                     # speaker name and follows many lines of author text
-                    mark_speaker(list(sp_queue.values())[-1])
+                    mark_speaker(queue_i=-1)
                     break  # replica processing
 
-                if len(sp_queue) > 1:
+                if len(speakers_queue) > 1:
                     # Line has no author speech -> speakers alteration
                     # Assign replica to the penultimate speaker
-                    relations[replica] = penult = list(sp_queue.values())[-2]
-                    # Move this speaker to the end of queue
-                    sp_queue[penult.lemma_] = sp_queue.pop(penult.lemma_)
+                    mark_speaker(queue_i=-2)
                     break  # replica processing
 
-            # Look for obvious references, such as
-            # ... verb ... noun ... || ... noun ... verb ...
-            # where verb and noun are syntactically related.
             for match_id, token_ids in dep_matcher(sent):
-                # For this matcher speaker is the top token in pattern
+                # For this matcher speaker is first token in pattern
                 token: Token = sent[token_ids[0]]
                 if prev_sent and token.lemma_ in REFERRAL_PRON:
                     dep_span = find_by_reference(sents[:sent_i], token)
                 else:
                     dep_span = expand_to_matching_noun_chunk(token)
 
-                s = dep_span if dep_span else token_as_span(token)
-                if s.lemma_ in sp_queue:
-                    # Move this speaker to the end of queue
-                    sp_queue[s.lemma_] = relations[replica] = sp_queue.pop(s.lemma_)
-                else:
-                    sp_queue[s.lemma_] = relations[replica] = s
+                mark_speaker(span=dep_span if dep_span else token_as_span(token))
                 break  # dependency matching
 
             if replica in relations:
                 break  # replica processing
 
-            repeated_span = from_queue_with_verb(sent, sp_queue.keys())
+            repeated_span = from_queue_with_verb(sent, speakers_queue.keys())
             if repeated_span:
-                s = repeated_span
-                # Move this speaker to the end of queue
-                sp_queue[s.lemma_] = relations[replica] = sp_queue.pop(s.lemma_)
+                mark_speaker(span=repeated_span)
                 break  # replica processing
 
-            named_ent_span = from_named_ent_with_verb(sent)
-            if named_ent_span:
-                s = named_ent_span
-                sp_queue[s.lemma_] = relations[replica] = s
+            named_entity_span = from_named_ent_with_verb(sent)
+            if named_entity_span:
+                mark_speaker(span=named_entity_span)
                 break  # replica processing
 
     return relations
