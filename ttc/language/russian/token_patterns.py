@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Literal
+from typing import Any, Literal, Set, List, Dict, Tuple
 
 from ttc.language.russian.constants import DASHES, M_DOTS
 
@@ -40,7 +40,7 @@ TokenMatcherClass = Literal[
     "AUTHOR_ENDING",
 ]
 
-TOKEN_MATCHER_CLASSES: set[TokenMatcherClass] = {
+TOKEN_MATCHER_CLASSES: Set[TokenMatcherClass] = {
     "AUTHOR_INSERTION",
     "AUTHOR_ENDING",
 }
@@ -126,5 +126,5 @@ class TokenPattern(Enum):
     ]
 
     @classmethod
-    def entries(cls) -> list[tuple[str, list[dict[str, Any]]]]:
+    def entries(cls) -> List[Tuple[str, List[Dict[str, Any]]]]:
         return [(item.name, item.value) for item in cls]  # type: ignore

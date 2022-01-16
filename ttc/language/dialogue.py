@@ -1,3 +1,5 @@
+from typing import List
+
 from attr import attrs
 from spacy import Language
 from spacy.tokens import Token, Span, Doc
@@ -5,7 +7,7 @@ from spacy.tokens import Token, Span, Doc
 
 @attrs(init=False, repr=False)
 class Dialogue:
-    def __init__(self, language: Language, replicas: list[Span]):
+    def __init__(self, language: Language, replicas: List[Span]):
         self.language = language
         self.replicas = replicas
         self.doc: Doc = self.replicas[0].doc
