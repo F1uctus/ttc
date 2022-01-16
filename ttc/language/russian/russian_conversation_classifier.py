@@ -1,4 +1,3 @@
-from dataclasses import dataclass, field
 from typing import Dict
 
 from spacy.matcher import Matcher
@@ -20,7 +19,6 @@ from ttc.language.russian.token_patterns import (
 )
 
 
-@dataclass(slots=True)
 class RussianConversationClassifier(ConversationClassifier):
     token_predicates = {
         "is_sent_end": lambda t: t.is_sent_end,
@@ -31,7 +29,7 @@ class RussianConversationClassifier(ConversationClassifier):
         "is_speaking_verb": lambda t: any(v in t.lemma_ for v in SPEAKING_VERBS),
         "is_not_second_person": lambda t: "Person=Second" not in t.morph,
     }
-    token_matchers: Dict[TokenMatcherClass, Matcher] = field(default_factory=dict)
+    token_matchers: Dict[TokenMatcherClass, Matcher] = {}
 
     def extract_dialogue(self, text: str) -> Dialogue:
         setup_language(self.language)
