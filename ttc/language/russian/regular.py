@@ -1,5 +1,5 @@
 from collections import deque
-from typing import Literal, Callable, cast
+from typing import Literal, Callable, cast, Collection, Optional
 
 from spacy import Language
 from spacy.matcher import Matcher, DependencyMatcher
@@ -25,7 +25,7 @@ def next_matching(
     *,
     start: int = 0,
     step: int = 1
-) -> tuple[Token | None, int]:
+) -> tuple[Optional[Token], int]:
     delta = 0
     sub_piece = None
     while 0 <= start + delta < len(doc_like):
@@ -70,8 +70,8 @@ def extract_replicas(
     while ti + 1 < doc_length:
         ti += 1
 
-        pt: Token | None = doc[ti - 1] if ti - 1 >= 0 else None
-        nt: Token | None = doc[ti + 1] if ti + 1 < len(doc) else None
+        pt: Optional[Token] = doc[ti - 1] if ti - 1 >= 0 else None
+        nt: Optional[Token] = doc[ti + 1] if ti + 1 < len(doc) else None
         t: Token = doc[ti]
 
         state = states[-1]
@@ -207,9 +207,9 @@ def replica_fills_line(replica: Span) -> bool:
 def classify_speakers(
     language: Language,
     dialogue: Dialogue,
-) -> dict[Span, Speaker | None]:
+) -> dict[Span, Optional[Speaker]]:
     doc = dialogue.doc
-    relations: dict[Span, Speaker | None] = {}
+    relations: dict[Span, Optional[Speaker]] = {}
     sents = list(doc.sents)
 
     dep_matcher = DependencyMatcher(language.vocab)

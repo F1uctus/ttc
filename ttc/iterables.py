@@ -1,4 +1,4 @@
-from typing import Iterable, TypeVar
+from typing import Iterable, TypeVar, Optional
 
 T = TypeVar("T")
 
@@ -51,7 +51,9 @@ def canonical_int_enumeration() -> Iterable[int]:
             offset += 1
 
 
-def iter_by_triples(iterable: Iterable[T]) -> Iterable[tuple[T | None, T, T | None]]:
+def iter_by_triples(
+    iterable: Iterable[T],
+) -> Iterable[tuple[Optional[T], T, Optional[T]]]:
     """
     Yields elements of given iterable with sliding window of triplets, where first
     element of the triple is "previous", second is "current", and third is "next".
