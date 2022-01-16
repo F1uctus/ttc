@@ -1,5 +1,5 @@
 from collections import deque
-from typing import Literal, Callable, cast, Collection, Optional
+from typing import Literal, Callable, cast, Collection, Optional, Union
 
 from spacy import Language
 from spacy.matcher import Matcher, DependencyMatcher
@@ -20,7 +20,7 @@ from ttc.language.russian.token_patterns import TokenMatcherClass
 
 
 def next_matching(
-    doc_like: Span | Doc,
+    doc_like: Union[Span, Doc],
     predicate: Callable[[Token], bool],
     *,
     start: int = 0,
