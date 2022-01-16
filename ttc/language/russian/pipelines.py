@@ -1,4 +1,4 @@
-from typing import Iterator, Callable, Iterable, Union
+from typing import Iterator, Callable, Iterable, Union, Tuple
 
 from spacy import Errors
 from spacy.language import Language
@@ -46,7 +46,7 @@ def traverse_children(
     )
 
 
-def _noun_chunks(doclike: Union[Doc, Span]) -> Iterator[tuple[int, int, int]]:
+def _noun_chunks(doclike: Union[Doc, Span]) -> Iterator[Tuple[int, int, int]]:
     """Detect base noun phrases from a dependency parse. Works on Doc and Span."""
     doc = doclike.doc  # Ensure works on both Doc and Span.
 

@@ -1,5 +1,16 @@
 from collections import deque
-from typing import Literal, Callable, cast, Collection, Optional, Union
+from typing import (
+    Literal,
+    Callable,
+    cast,
+    Collection,
+    Optional,
+    Union,
+    List,
+    Dict,
+    Tuple,
+    Deque,
+)
 
 from spacy import Language
 from spacy.matcher import Matcher, DependencyMatcher
@@ -25,7 +36,7 @@ def next_matching(
     *,
     start: int = 0,
     step: int = 1
-) -> tuple[Optional[Token], int]:
+) -> Tuple[Optional[Token], int]:
     delta = 0
     sub_piece = None
     while 0 <= start + delta < len(doc_like):
@@ -41,10 +52,10 @@ def next_matching(
 # (spaCy "._." extensions)
 def extract_replicas(
     doc: Doc,
-    matchers: dict[TokenMatcherClass, Matcher],
-) -> list[Span]:
-    replicas: list[Span] = []
-    tokens: list[Token] = []
+    matchers: Dict[TokenMatcherClass, Matcher],
+) -> List[Span]:
+    replicas: List[Span] = []
+    tokens: List[Token] = []
 
     # noinspection PyProtectedMember
     # (spaCy "._." extensions)
@@ -54,7 +65,7 @@ def extract_replicas(
             replicas.append(doc[tokens[0].i : tokens[-1].i + 1])
             tokens = []
 
-    states: deque[
+    states: Deque[
         Literal[
             "author",
             "author_insertion",
@@ -207,9 +218,9 @@ def replica_fills_line(replica: Span) -> bool:
 def classify_speakers(
     language: Language,
     dialogue: Dialogue,
-) -> dict[Span, Optional[Speaker]]:
+) -> Dict[Span, Optional[Speaker]]:
     doc = dialogue.doc
-    relations: dict[Span, Optional[Speaker]] = {}
+    relations: Dict[Span, Optional[Speaker]] = {}
     sents = list(doc.sents)
 
     dep_matcher = DependencyMatcher(language.vocab)
@@ -217,7 +228,7 @@ def classify_speakers(
     dep_matcher.add("**", [SPEAKER_CONJUNCT_SPEAKING_VERB])
 
     # Handles speakers alteration case
-    sp_queue: dict[str, Speaker] = {}
+    sp_queue: Dict[str, Speaker] = {}
 
     for prev_replica, replica, next_replica in iter_by_triples(dialogue.replicas):
         # "p_" - previous; "n_" - next; "r_" - replica

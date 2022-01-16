@@ -1,19 +1,19 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List
 
 from spacy.tokens import Token, MorphAnalysis
 
 
 @dataclass(slots=True)
 class Speaker:
-    tokens: list[Token]
+    tokens: List[Token]
     text: str
     lemma: str
     first_token: Optional[Token]
     morph: Optional[MorphAnalysis]
     gender: Optional[str]
 
-    def __init__(self, tokens: list[Token]):
+    def __init__(self, tokens: List[Token]):  # TODO: Accept Span instead of token list
         self.tokens = tokens
         self.text = "".join(t.text_with_ws for t in self.tokens)
         self.lemma = " ".join(t.lemma_ for t in self.tokens)
