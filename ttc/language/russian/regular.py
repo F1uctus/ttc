@@ -20,7 +20,7 @@ from ttc.iterables import (
     iter_by_triples,
     canonical_int_enumeration,
 )
-from ttc.language import Speaker, Dialogue
+from ttc.language import Dialogue
 from ttc.language.russian.constants import REFERRAL_PRON
 from ttc.language.russian.dependency_patterns import (
     SPEAKER_TO_SPEAKING_VERB,
@@ -178,7 +178,31 @@ def extract_replicas(
     return replicas
 
 
-def find_by_reference(spans: list[Span], reference: Token, misses=0) -> Span | None:
+# noinspection PyProtectedMember
+# (spaCy "._." extensions)
+def replica_fills_line(replica: Span) -> bool:
+    doc = replica.doc
+    return (
+        replica.start - 3 >= 0
+        and replica.end + 3 < len(doc)  # TODO: Check end-of-doc case
+        and any(t._.is_newline for t in doc[replica.start - 3 : replica.start])
+        # colon means that replica is still annotated by author, just on previous line
+        and not any(t.text == ":" for t in doc[replica.start - 3 : replica.start])
+        and any(t._.is_newline for t in doc[replica.end : replica.end + 3])
+    )
+
+
+def expand_to_matching_noun_chunk(t: Token) -> Span:
+    """Increase speaker "breadth" up to matching noun chunk."""
+    for nc in t.sent.noun_chunks:
+        if t in nc:
+            return nc
+    else:
+        # cannot expand noun, use token as-is
+        return t.doc[t.i : t.i + 1]
+
+
+def find_by_reference(spans: List[Span], reference: Token, misses=0) -> Optional[Span]:
     """
     Inside the given span, find a noun chunk that might be
     a definition of given reference token.
@@ -199,18 +223,31 @@ def find_by_reference(spans: list[Span], reference: Token, misses=0) -> Span | N
     return None
 
 
-# noinspection PyProtectedMember
-# (spaCy "._." extensions)
-def replica_fills_line(replica: Span) -> bool:
-    doc = replica.doc
-    return (
-        replica.start - 3 >= 0
-        and replica.end + 3 < len(doc)  # TODO: Check end-of-doc case
-        and any(t._.is_newline for t in doc[replica.start - 3 : replica.start])
-        # colon means that replica is still annotated by author, just on previous line
-        and not any(t.text == ":" for t in doc[replica.start - 3 : replica.start])
-        and any(t._.is_newline for t in doc[replica.end : replica.end + 3])
-    )
+def from_queue_with_verb(sent: Span, queue: Collection[str]) -> Optional[Span]:
+    """Select speaker from queue if it is mentioned in given sentence."""
+    if len(queue) == 0:
+        return None
+
+    for t in sent:
+        if t.lemma_ in queue and t.head and t.head.pos_ == "VERB":
+            return expand_to_matching_noun_chunk(t)
+
+    return None
+
+
+def from_named_ent_with_verb(sent: Span) -> Optional[Span]:
+    """Select speaker from named entities if it is mentioned in given sentence."""
+    for ent in sent.ents:
+        for t in ent:
+            head: Token = t.head
+            while head and head.pos_ != "VERB":
+                if head == head.head:
+                    break
+                head = head.head
+            else:
+                return ent
+
+    return None
 
 
 # noinspection PyProtectedMember
@@ -218,17 +255,17 @@ def replica_fills_line(replica: Span) -> bool:
 def classify_speakers(
     language: Language,
     dialogue: Dialogue,
-) -> Dict[Span, Optional[Speaker]]:
+) -> Dict[Span, Optional[Span]]:
     doc = dialogue.doc
-    relations: Dict[Span, Optional[Speaker]] = {}
+    relations: Dict[Span, Optional[Span]] = {}
     sents = list(doc.sents)
 
     dep_matcher = DependencyMatcher(language.vocab)
     dep_matcher.add("*", [SPEAKER_TO_SPEAKING_VERB])
     dep_matcher.add("**", [SPEAKER_CONJUNCT_SPEAKING_VERB])
 
-    # Handles speakers alteration case
-    sp_queue: Dict[str, Speaker] = {}
+    # Handles speakers alteration & continuation
+    sp_queue: Dict[str, Span] = {}
 
     for prev_replica, replica, next_replica in iter_by_triples(dialogue.replicas):
         # "p_" - previous; "n_" - next; "r_" - replica
@@ -240,9 +277,15 @@ def classify_speakers(
 
         back_first = any(
             abs(replica[0].i - t.i) < 4 and t.lemma_ == ":" for t in r_start_sent
-        )  # replica is after colon - means back-first speaker search
+        )  # Replica is after colon - means back-first speaker search
 
-        sent_backward_done = sent_forward_done = False
+        back_done = forw_done = False
+
+        def mark_speaker(speaker: Span):
+            relations[replica] = speaker
+            if speaker.lemma_ in sp_queue:
+                # Move repeated speaker to the end of queue
+                sp_queue[speaker.lemma_] = sp_queue.pop(speaker.lemma_)
 
         for offset in canonical_int_enumeration():
             # Iterate over sentences near the current replica.
@@ -251,20 +294,22 @@ def classify_speakers(
             # (and i + 0, i - 1, i + 1, i - 2, i + 2, ... if it's backward-first).
             sent_i = r_start_sent_i - offset if back_first else r_end_sent_i + offset
 
-            # got up to the previous replica - stop going back
-            sent_backward_done = sent_backward_done or sent_i == p_r_sent_i
+            # Got up to the previous replica - stop going back
+            back_done = back_done or (p_r_sent_i is not None and sent_i < p_r_sent_i)
 
-            # got up to the next replica - stop going forward
-            sent_forward_done = sent_forward_done or sent_i == n_r_sent_i
+            # Got up to the next replica - stop going forward
+            forw_done = forw_done or (n_r_sent_i is not None and sent_i > n_r_sent_i)
 
-            if sent_backward_done and sent_forward_done:
+            if back_done and forw_done:
                 # We've got up to the sentences containing
                 # the previous AND next replicas -> cannot find
                 # the speaker this way, use alternative method.
                 break
-            if sent_backward_done and offset < 0:
+
+            if back_done and offset < 0:
                 continue
-            if sent_forward_done and offset > 0:
+
+            if forw_done and offset > 0:
                 continue
 
             sent = sents[sent_i]
@@ -273,25 +318,27 @@ def classify_speakers(
 
             if prev_replica and prev_replica._.end_line_no == replica._.start_line_no:
                 # Replica is on the same line - probably separated by author speech
-                # Assign to the previous speaker
-                relations[replica] = list(sp_queue.values())[-1]
-                break
+                # Assign it to the previous speaker
+                mark_speaker(list(sp_queue.values())[-1])
+                break  # replica processing
 
             if prev_replica and replica_fills_line(replica):
+
                 if 1 < abs(replica._.start_line_no - prev_replica._.end_line_no) < 4:
                     # If there was 1-2 lines filled with author speech, it is more
                     # probably a continuation, and not alteration, because the reader
                     # will likely lose context if this replica is not annotated by
-                    # speaker name and follows some lines of author text
-                    relations[replica] = list(sp_queue.values())[-1]
-                    break
+                    # speaker name and follows many lines of author text
+                    mark_speaker(list(sp_queue.values())[-1])
+                    break  # replica processing
+
                 if len(sp_queue) > 1:
                     # Line has no author speech -> speakers alteration
                     # Assign replica to the penultimate speaker
                     relations[replica] = penult = list(sp_queue.values())[-2]
-                    # reinsert to the end of queue
-                    sp_queue[penult.lemma] = sp_queue.pop(penult.lemma)
-                    break
+                    # Move this speaker to the end of queue
+                    sp_queue[penult.lemma_] = sp_queue.pop(penult.lemma_)
+                    break  # replica processing
 
             # Look for obvious references, such as
             # ... verb ... noun ... || ... noun ... verb ...
@@ -300,26 +347,32 @@ def classify_speakers(
                 # For this matcher speaker is the top token in pattern
                 token: Token = sent[token_ids[0]]
                 if prev_sent and token.lemma_ in REFERRAL_PRON:
-                    speaker_span = find_by_reference(sents[:sent_i], token)
+                    dep_span = find_by_reference(sents[:sent_i], token)
                 else:
-                    # increase speaker "breadth" by matching noun chunk
-                    for nc in sent.noun_chunks:
-                        if token in nc:
-                            speaker_span = nc
-                            break
-                    else:
-                        # cannot expand noun, use token as-is
-                        speaker_span = doc[token.i : token.i + 1]
+                    dep_span = expand_to_matching_noun_chunk(token)
 
-                sp = Speaker(list(speaker_span) if speaker_span else [token])
-                if sp.lemma in sp_queue:
-                    # Reinsert speaker to the end of queue
-                    sp_queue[sp.lemma] = relations[replica] = sp_queue.pop(sp.lemma)
+                s = dep_span if dep_span else doc[token.i : token.i + 1]
+                if s.lemma_ in sp_queue:
+                    # Move this speaker to the end of queue
+                    sp_queue[s.lemma_] = relations[replica] = sp_queue.pop(s.lemma_)
                 else:
-                    sp_queue[sp.lemma] = relations[replica] = sp
-                break  # dependency matching when speaker was found
+                    sp_queue[s.lemma_] = relations[replica] = s
+                break  # dependency matching
 
             if replica in relations:
-                break  # sentences walking if speaker was found
+                break  # replica processing
+
+            repeated_span = from_queue_with_verb(sent, sp_queue.keys())
+            if repeated_span:
+                s = repeated_span
+                # Move this speaker to the end of queue
+                sp_queue[s.lemma_] = relations[replica] = sp_queue.pop(s.lemma_)
+                break  # replica processing
+
+            named_ent_span = from_named_ent_with_verb(sent)
+            if named_ent_span:
+                s = named_ent_span
+                sp_queue[s.lemma_] = relations[replica] = s
+                break  # replica processing
 
     return relations
