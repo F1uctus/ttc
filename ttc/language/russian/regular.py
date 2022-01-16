@@ -26,7 +26,7 @@ from ttc.language.russian.dependency_patterns import (
     SPEAKER_TO_SPEAKING_VERB,
     SPEAKER_CONJUNCT_SPEAKING_VERB,
 )
-from ttc.language.russian.token_checks import morph_equals
+from ttc.language.russian.token_extensions import morph_equals, token_as_span
 from ttc.language.russian.token_patterns import TokenMatcherClass
 
 
@@ -199,7 +199,7 @@ def expand_to_matching_noun_chunk(t: Token) -> Span:
             return nc
     else:
         # cannot expand noun, use token as-is
-        return t.doc[t.i : t.i + 1]
+        return token_as_span(t)
 
 
 def find_by_reference(spans: List[Span], reference: Token, misses=0) -> Optional[Span]:
@@ -351,7 +351,7 @@ def classify_speakers(
                 else:
                     dep_span = expand_to_matching_noun_chunk(token)
 
-                s = dep_span if dep_span else doc[token.i : token.i + 1]
+                s = dep_span if dep_span else token_as_span(token)
                 if s.lemma_ in sp_queue:
                     # Move this speaker to the end of queue
                     sp_queue[s.lemma_] = relations[replica] = sp_queue.pop(s.lemma_)
