@@ -1,13 +1,9 @@
-from typing import Union
-
 from spacy.tokens import Token
-
-from ttc.language import Speaker
 
 
 def morph_equals(
-    a: Union[Token, Speaker],
-    b: Union[Token, Speaker],
+    a: Token,
+    b: Token,
     *morphs: str,  # Morph
 ) -> bool:
     if a.morph is None or b.morph is None:

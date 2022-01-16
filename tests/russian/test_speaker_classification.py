@@ -46,6 +46,6 @@ def test_text_to_play(cc, file_name):
     dialogue = cc.extract_dialogue(text)
     pprint(dialogue)
     play = cc.connect_play(dialogue)
-    actual_speakers = [str(spk.lemma) for spk in play.content.values()]
+    actual_speakers = [str(spk.lemma_) for spk in play.content.values()]
     pprint(play.content)
     assert expected_speakers == actual_speakers
