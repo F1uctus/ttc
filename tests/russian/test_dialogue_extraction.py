@@ -41,7 +41,7 @@ def test_raw_replica_with_intervention_by_pushkin(cc):
     )
 
 
-def test_replica_with_intervention_containing_a_dash_by_sanderson(cc):
+def test_replica_with_intervention_containing_a_hyphen_by_sanderson(cc):
     text = (
         "– Не-а. Они все так выглядят. Эй, а это что такое? "
         "– Разбойник вытащил искрящийся камень размером со сферу из ладони того, "
@@ -72,7 +72,7 @@ def test_replica_with_complex_sentence_inside(cc):
     )
 
 
-def test_replica_with_intervention_containing_a_comma_and_dash_by_sanderson(cc):
+def test_replica_with_intervention_containing_a_comma_and_hyphen_by_sanderson(cc):
     text = (
         "– Нет! – рявкнул Каладин. – Вылазки с мостом выматывают нас. О, я знаю, "
         "нас заставляют работать – осматривать ущелья, чистить нужники, "
@@ -103,7 +103,7 @@ def test_replica_with_intervention_containing_a_comma_and_dash_by_sanderson(cc):
     )
 
 
-def test_replica_with_intervention_starting_with_a_comma_and_dash_by_sanderson(cc):
+def test_replica_with_intervention_starting_with_a_comma_and_hyphen_by_sanderson(cc):
     text = """
     – Ага, – согласился Лейтен, высокий крепыш с курчавыми волосами. – Это точно.
     """
@@ -113,7 +113,7 @@ def test_replica_with_intervention_starting_with_a_comma_and_dash_by_sanderson(c
     assert str(dialogue.replicas[1]) == "Это точно."
 
 
-def test_replica_ending_with_a_comma_and_dash_by_mamleev(cc):
+def test_replica_ending_with_a_comma_and_hyphen_by_mamleev(cc):
     text = (
         "— Счастье — это довольство... И чтоб никаких "
         "мыслей, — наконец проговаривается Михайло."

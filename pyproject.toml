@@ -8,17 +8,23 @@ readme = "README.md"
 repository = "https://github.com/f1uctus/ttc"
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.11"
-numpy = "^1.21.4"
+python = ">=3.8,<3.9"
+numpy = "^1.22.1"
 spacy = ">=3.2.0,<3.3.0"
-mypy = { extras = ["d"], version = "^0.920" }
-black = { extras = ["d"], version = "^21.12b0" }
 
 [tool.poetry.dependencies.ru_core_news_sm]
 url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_sm-3.2.0/ru_core_news_sm-3.2.0.tar.gz"
 
+[tool.poetry.dependencies.ru_core_news_md]
+url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_md-3.2.0/ru_core_news_md-3.2.0.tar.gz"
+
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
+mypy = { extras = ["d"], version = "^0.920" }
+black = { extras = ["d"], version = "^21.12b0" }
+
+[tool.poetry.scripts]
+greet = "ttc.cli:cli"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -36,9 +42,9 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 strict_optional = true
 
-    [[tool.mypy.overrides]]
-    module = "tests.*"
-    ignore_errors = true
+[[tool.mypy.overrides]]
+module = "tests.*"
+ignore_errors = true
 
 [tool.black]
 line-length = 88
