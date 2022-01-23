@@ -1,38 +1,53 @@
+from dataclasses import dataclass, field
 from typing import Dict
 
+import spacy
+from spacy import Language
 from spacy.matcher import Matcher
-from spacy.tokens import Token, Span
+from spacy.tokens import Token
 
+import ttc.language.russian.pipelines as russian_pipelines
 from ttc.language import ConversationClassifier, Dialogue, Play
-from ttc.language.russian.constants import (
-    DASHES,
-    OPEN_QUOTES,
-    CLOSE_QUOTES,
-    SPEAKING_VERBS,
-)
-from ttc.language.russian.pipelines import setup_language
-from ttc.language.russian.regular import extract_replicas, classify_speakers
+from ttc.language.russian.extensions.syntax_iterators import noun_chunks
+from ttc.language.russian.pipelines.replicizer import extract_replicas
+from ttc.language.russian.pipelines.speaker_classifier import classify_speakers
+from ttc.language.russian.token_extensions import PREDICATIVE_TOKEN_EXTENSIONS
 from ttc.language.russian.token_patterns import (
-    TokenPattern,
-    TOKEN_MATCHER_CLASSES,
     TokenMatcherClass,
+    TOKEN_MATCHER_CLASSES,
+    TokenPattern,
 )
 
 
+@dataclass
 class RussianConversationClassifier(ConversationClassifier):
-    token_predicates = {
-        "is_sent_end": lambda t: t.is_sent_end,
-        "is_dash": lambda t: t.text in DASHES,
-        "is_newline": lambda t: "\n" in t.text,
-        "is_open_quote": lambda t: t.text in OPEN_QUOTES,
-        "is_close_quote": lambda t: t.text in CLOSE_QUOTES,
-        "is_speaking_verb": lambda t: any(v in t.lemma_ for v in SPEAKING_VERBS),
-        "is_not_second_person": lambda t: "Person=Second" not in t.morph,
-    }
-    token_matchers: Dict[TokenMatcherClass, Matcher] = {}
+    language: Language = None  # type: ignore
+    token_matchers: Dict[TokenMatcherClass, Matcher] = field(default_factory=dict)
 
     def extract_dialogue(self, text: str) -> Dialogue:
-        setup_language(self.language)
+        self.prepare_spacy()
+        return Dialogue(
+            self.language,
+            extract_replicas(self.language(text), self.token_matchers),
+        )
+
+    def connect_play(self, dialogue: Dialogue) -> Play:
+        self.prepare_spacy()
+        return Play(
+            self.language,
+            classify_speakers(self.language, dialogue),
+        )
+
+    def prepare_spacy(self):
+        if self.language:
+            return
+
+        self.language = spacy.load("ru_core_news_sm", exclude=["senter"])
+
+        russian_pipelines.register_for(self.language)
+
+        # Type error is CPython <-> Python incompatibility
+        self.language.vocab.get_noun_chunks = noun_chunks
 
         if len(self.token_matchers) == 0:
             for cls in TOKEN_MATCHER_CLASSES:
@@ -42,25 +57,6 @@ class RussianConversationClassifier(ConversationClassifier):
                         matcher.add(name, [value])
                 self.token_matchers[cls] = matcher
 
-        for name, pred in RussianConversationClassifier.token_predicates.items():
+        for name, pred in PREDICATIVE_TOKEN_EXTENSIONS.items():
             if not Token.has_extension(name):
                 Token.set_extension(name, getter=pred)
-
-        if not Token.has_extension("line_no"):
-            Token.set_extension("line_no", default=1)
-
-        if not Span.has_extension("start_line_no"):
-            Span.set_extension("start_line_no", getter=lambda s: s[0]._.line_no)
-        if not Span.has_extension("end_line_no"):
-            Span.set_extension("end_line_no", getter=lambda s: s[-1]._.line_no)
-
-        return Dialogue(
-            self.language,
-            extract_replicas(self.language(text), self.token_matchers),
-        )
-
-    def connect_play(self, dialogue: Dialogue) -> Play:
-        return Play(
-            self.language,
-            classify_speakers(self.language, dialogue),
-        )

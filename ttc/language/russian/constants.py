@@ -1,6 +1,6 @@
 from spacy.lang.char_classes import LIST_HYPHENS
 
-DASHES = "".join(LIST_HYPHENS)
+HYPHENS = "".join(LIST_HYPHENS)
 
 OPEN_QUOTES = frozenset({'"', "'", "`", "«", "‘", "‚", "“", "„", "‹", "❮", "''", "``"})
 
@@ -15,10 +15,6 @@ REFERRAL_PRON = {"он", "она", "оно", "мужчина", "женщина",
 PERSONAL_PRON = {"Fem": {"женщина"}, "Masc": {"мужчина"}}
 
 AUTHOR_INSERTION_MAX_LENGTH = 50
-
-MISPREDICTED_VERBS = {
-    "бормочет",
-}
 
 SPEAKING_VERBS = {
     "бормо",

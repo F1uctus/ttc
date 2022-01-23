@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Any, Literal, Set, List, Dict, Tuple
 
-from ttc.language.russian.constants import DASHES, M_DOTS
+from ttc.language.russian.constants import HYPHENS, M_DOTS
 
 INSERTION_1 = [
     {"_": {"is_sent_end": False}, "OP": "*"},
@@ -50,7 +50,7 @@ class TokenPattern(Enum):
     AUTHOR_ENDING_1 = [
         # p, — <AUTHOR>.
         {"TEXT": ","},
-        {"TEXT": {"IN": list(DASHES)}},
+        {"TEXT": {"IN": list(HYPHENS)}},
         *INSERTION_1,
         {"TEXT": {"IN": [".", *M_DOTS, "!", "?"]}},
     ]
@@ -58,7 +58,7 @@ class TokenPattern(Enum):
     AUTHOR_ENDING_2 = [
         # p, — <AUTHOR>.
         {"TEXT": ","},
-        {"TEXT": {"IN": list(DASHES)}},
+        {"TEXT": {"IN": list(HYPHENS)}},
         *INSERTION_2,
         {"TEXT": {"IN": [".", *M_DOTS, "!", "?"]}},
     ]
@@ -66,40 +66,40 @@ class TokenPattern(Enum):
     AUTHOR_INSERTION_1_1 = [
         # p[.…!?] — <INSERTION>. — A
         {"TEXT": {"IN": [".", *M_DOTS, "!", "?"]}},
-        {"TEXT": {"IN": list(DASHES)}},
+        {"TEXT": {"IN": list(HYPHENS)}},
         *INSERTION_1,
         {"TEXT": {"IN": [".", ";", ":", *M_DOTS, "!", "?"]}},
-        {"TEXT": {"IN": list(DASHES)}},
+        {"TEXT": {"IN": list(HYPHENS)}},
         {"IS_TITLE": True},
     ]
 
     AUTHOR_INSERTION_1_2 = [
         # p[.…!?] — <INSERTION>. — A
         {"TEXT": {"IN": [".", *M_DOTS, "!", "?"]}},
-        {"TEXT": {"IN": list(DASHES)}},
+        {"TEXT": {"IN": list(HYPHENS)}},
         *INSERTION_2,
         {"TEXT": {"IN": [".", ";", ":", *M_DOTS, "!", "?"]}},
-        {"TEXT": {"IN": list(DASHES)}},
+        {"TEXT": {"IN": list(HYPHENS)}},
         {"IS_TITLE": True},
     ]
 
     AUTHOR_INSERTION_2_1 = [
         # p, — <INSERTION>. — A
         {"TEXT": ","},
-        {"TEXT": {"IN": list(DASHES)}},
+        {"TEXT": {"IN": list(HYPHENS)}},
         *INSERTION_1,
         {"TEXT": {"IN": [".", ";", ":", *M_DOTS, "!", "?"]}},
-        {"TEXT": {"IN": list(DASHES)}},
+        {"TEXT": {"IN": list(HYPHENS)}},
         {"IS_TITLE": True},
     ]
 
     AUTHOR_INSERTION_2_2 = [
         # p, — <INSERTION>. — A
         {"TEXT": ","},
-        {"TEXT": {"IN": list(DASHES)}},
+        {"TEXT": {"IN": list(HYPHENS)}},
         *INSERTION_2,
         {"TEXT": {"IN": [".", ";", ":", *M_DOTS, "!", "?"]}},
-        {"TEXT": {"IN": list(DASHES)}},
+        {"TEXT": {"IN": list(HYPHENS)}},
         {"IS_TITLE": True},
     ]
 
@@ -107,10 +107,10 @@ class TokenPattern(Enum):
         # p, — <INSERTION>, — a
         # p... — <INSERTION>, — a
         {"TEXT": {"IN": [",", *M_DOTS]}},
-        {"TEXT": {"IN": list(DASHES)}},
+        {"TEXT": {"IN": list(HYPHENS)}},
         *INSERTION_1,
         {"TEXT": {"IN": [",", ";", ":"]}},
-        {"TEXT": {"IN": list(DASHES)}},
+        {"TEXT": {"IN": list(HYPHENS)}},
         {"IS_TITLE": False},
     ]
 
@@ -118,10 +118,10 @@ class TokenPattern(Enum):
         # p, — <INSERTION>, — a
         # p... — <INSERTION>, — a
         {"TEXT": {"IN": [",", *M_DOTS]}},
-        {"TEXT": {"IN": list(DASHES)}},
+        {"TEXT": {"IN": list(HYPHENS)}},
         *INSERTION_2,
         {"TEXT": {"IN": [",", ";", ":"]}},
-        {"TEXT": {"IN": list(DASHES)}},
+        {"TEXT": {"IN": list(HYPHENS)}},
         {"IS_TITLE": False},
     ]
 
