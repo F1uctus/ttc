@@ -19,12 +19,12 @@ poetry install
 Test output on a text file:
 
 ```shell
-poetry run print-play path_to_the_text_file text_language
+poetry run print-play path-to-the-text-file text-language
 ```
 
 **Notes**
 
 - Text must be encoded in UTF-8;
 - It is usually better to test on some middle-sized text (e.g a book chapter);
-- Supported `text_language`s are:
+- Supported `text-language`s are:
     + ru (russian)
