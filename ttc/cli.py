@@ -3,7 +3,7 @@ import random
 from typing import TextIO, Tuple, Dict, Optional
 
 import click
-from colorama import init as colorama_init, Fore, Style
+from colorama import init as colorama_init, Fore, Style  # type: ignore
 from spacy.tokens import Span
 
 import ttc
