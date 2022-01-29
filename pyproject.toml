@@ -24,7 +24,7 @@ mypy = { extras = ["d"], version = "^0.920" }
 black = { extras = ["d"], version = "^21.12b0" }
 
 [tool.poetry.scripts]
-print_play = "ttc.cli:print_play"
+print-play = "ttc.cli:print_play"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
