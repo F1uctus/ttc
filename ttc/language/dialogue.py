@@ -16,4 +16,4 @@ class Dialogue:
         return any(item in r for r in self.replicas)
 
     def __repr__(self) -> str:
-        return "\n\n".join(repr(r) for r in self.replicas)
+        return "- " + "\n- ".join(repr(r) for r in self.replicas)
