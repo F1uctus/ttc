@@ -2,6 +2,8 @@
 
 ### Usage
 
+Install [Poetry](https://python-poetry.org) to your Python distribution.
+
 Spawn a new virtual environment for the project:
 
 ```shell
