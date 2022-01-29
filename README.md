@@ -19,7 +19,7 @@ poetry install
 Test output on a text file:
 
 ```shell
-- poetry run print_play path_to_the_text_file text_language
+poetry run print_play path_to_the_text_file text_language
 ```
 
 **Notes**
