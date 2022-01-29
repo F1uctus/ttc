@@ -33,20 +33,13 @@ def print_play(file: TextIO, language):
     print("Extracting replicas...")
     dialogue = cc.extract_dialogue(text)
 
-    print("Connecting dialogue into the play...")
+    print("Connecting replicas into the play...")
     play = cc.connect_play(dialogue)
 
-    rs_indexed: Dict[int, Tuple[Span, Optional[Span]]] = {
-        k.start_char: (k, v) for k, v in play.content.items()
-    }
-    r_starts = list(rs_indexed.keys())
-    start_i = 0
-
-    colors = [c for c in COLORS]
+    colors = list(COLORS)
     random.shuffle(colors)
-    color_stream = itertools.cycle(colors)
     speaker_colors: Dict[Optional[Span], str] = {
-        s: c for s, c in zip(play.content.values(), color_stream)
+        s: c for s, c in zip(play.content.values(), itertools.cycle(colors))
     }
 
     print("Speakers found:")
@@ -57,7 +50,13 @@ def print_play(file: TextIO, language):
             if s is not None
         )
     )
+
     print("Marked play:")
+    rs_indexed: Dict[int, Tuple[Span, Optional[Span]]] = {
+        k.start_char: (k, v) for k, v in play.content.items()
+    }
+    r_starts = list(rs_indexed.keys())
+    start_i = 0
     for i, c in enumerate(text):
         replica: Optional[Span]
         speaker: Optional[Span]
