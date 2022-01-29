@@ -6,20 +6,20 @@ Install [Poetry](https://python-poetry.org) to your Python distribution.
 
 Spawn a new virtual environment for the project:
 
-```shell
-poetry shell
+```console
+$ poetry shell
 ```
 
 Install project dependencies:
 
-```shell
-poetry install
+```console
+$ poetry install
 ```
 
 Test output on a text file:
 
-```shell
-poetry run print-play path-to-the-text-file text-language
+```console
+$ poetry run print-play path-to-the-text-file text-language
 ```
 
 **Notes**
