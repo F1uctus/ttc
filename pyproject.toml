@@ -21,7 +21,7 @@ url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
 mypy = { extras = ["d"], version = "^0.931" }
-black = { extras = ["d"], version = "^21.12b0" }
+black = { extras = ["d"], version = "^22.1" }
 
 [tool.poetry.scripts]
 print-play = "ttc.cli:print_play"
