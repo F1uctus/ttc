@@ -26,9 +26,11 @@ class RussianConversationClassifier(ConversationClassifier):
 
     def extract_dialogue(self, text: str) -> Dialogue:
         self.prepare_spacy()
+        doc = self.language(text)
         return Dialogue(
             self.language,
-            extract_replicas(self.language(text), self.token_matchers),
+            doc,
+            extract_replicas(doc, self.token_matchers),
         )
 
     def connect_play(self, dialogue: Dialogue) -> Play:
