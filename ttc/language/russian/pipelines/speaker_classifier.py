@@ -166,8 +166,12 @@ def classify_speakers(
     language: Language,
     dialogue: Dialogue,
 ) -> Dict[Span, Optional[Span]]:
-    doc = dialogue.doc
     relations: Dict[Span, Optional[Span]] = {}
+
+    if len(dialogue.replicas) == 0:
+        return relations
+
+    doc = dialogue.doc
     sents = list(doc.sents)
 
     dep_matcher = DependencyMatcher(language.vocab)
