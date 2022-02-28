@@ -1,5 +1,5 @@
 from collections import deque
-from typing import Literal, Callable, cast, Optional, Union, List, Dict, Tuple, Deque
+from typing import Literal, Callable, Optional, Union, List, Dict, Tuple, Deque
 
 from spacy.matcher import Matcher
 from spacy.tokens import Token, Span, Doc
