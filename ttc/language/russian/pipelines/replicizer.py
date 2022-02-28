@@ -93,7 +93,7 @@ def extract_replicas(
                     start=pt.i,
                 )[1]
                 results = [
-                    cast(Span, match)
+                    match
                     for match in matchers["AUTHOR_INSERTION"](
                         doc[pt.i : par_end_idx + 1], as_spans=True
                     )
@@ -109,7 +109,7 @@ def extract_replicas(
                 else:
                     # checking for author ending
                     results = [
-                        cast(Span, match)
+                        match
                         for match in matchers["AUTHOR_ENDING"](
                             doc[pt.i : par_end_idx + 1], as_spans=True
                         )
