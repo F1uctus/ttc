@@ -48,7 +48,6 @@ class RussianConversationClassifier(ConversationClassifier):
 
         russian_pipelines.register_for(self.language)
 
-        # Type error is Cython <-> Python incompatibility
         self.language.vocab.get_noun_chunks = noun_chunks
 
         if len(self.token_matchers) == 0:

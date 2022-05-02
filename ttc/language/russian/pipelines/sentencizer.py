@@ -47,7 +47,7 @@ class Sentencizer(spacy.pipeline.Sentencizer):
 
                 for i, token in enumerate(doc):
                     is_in_punct_chars = token.text in self.default_punct_chars
-                    # Actual TTC patch is here
+                    # An actual TTC patch is here
                     if "\n" in token.text or (
                         seen_period and not token.is_punct and not is_in_punct_chars
                     ):

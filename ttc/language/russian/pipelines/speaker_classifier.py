@@ -68,7 +68,7 @@ def replica_fills_line(replica: Span) -> bool:
         replica.start - 3 >= 0
         and replica.end + 3 < len(doc)  # TODO: Check end-of-doc case
         and any(t._.is_newline for t in doc[replica.start - 3 : replica.start])
-        # colon means that replica is still annotated by author, just on previous line
+        # colon means that the author still annotates the replica, just on previous line
         and not any(t.text == ":" for t in doc[replica.start - 3 : replica.start])
         and any(t._.is_newline for t in doc[replica.end : replica.end + 3])
     )
@@ -76,12 +76,12 @@ def replica_fills_line(replica: Span) -> bool:
 
 def find_by_reference(spans: List[Span], reference: Token, misses=0) -> Optional[Span]:
     """
-    Inside the given span, find a noun chunk that might be
-    a definition of given reference token.
+    Find a noun chunk that might be a definition of
+    the given reference token inside the given span.
 
     Parameters:
-        spans: list of sentences or other doc-like spans to search definition in.
-        reference: reference to some speaker (e.g. он, она, оно, ...)
+        spans: A list of sentences or other doc-like spans to search definition in.
+        reference: A reference to some speaker (e.g. он, она, оно, ...)
     """
     for nc in spans[-1].noun_chunks:
         for t in nc:
@@ -96,7 +96,7 @@ def find_by_reference(spans: List[Span], reference: Token, misses=0) -> Optional
 
 
 def from_queue_with_verb(sent: Span, queue: Collection[str]) -> Optional[Span]:
-    """Select speaker from queue if it is mentioned in given sentence."""
+    """Select a speaker from queue if it is mentioned in the given sentence."""
     if len(queue) == 0:
         return None
 
@@ -108,7 +108,7 @@ def from_queue_with_verb(sent: Span, queue: Collection[str]) -> Optional[Span]:
 
 
 def from_named_ent_with_verb(sent: Span) -> Optional[Span]:
-    """Select speaker from named entities if it is mentioned in given sentence."""
+    """Select a speaker from named entities if it is mentioned in the given sentence."""
     for ent in sent.ents:
         for t in ent:
             if has_linked_verb(t):
@@ -118,7 +118,7 @@ def from_named_ent_with_verb(sent: Span) -> Optional[Span]:
 
 
 def from_noun_chunks_with_verb(sent: Span) -> Optional[Span]:
-    """Select speaker from noun chunks of given sentence."""
+    """Select a speaker from noun chunks of given sentence."""
     for noun_chunk in sent.noun_chunks:
         for t in noun_chunk:
             if has_linked_verb(t):
@@ -253,12 +253,13 @@ def classify_speakers(
                 break  # speaker found
 
             if prev_replica and (replica_fills_line(replica) or is_parenthesized(sent)):
-                # If author's sentence is enclosed in parentheses, there is unlikely
-                # a speaker definition, but some description of the situation
+                # If the author's sentence is enclosed in parentheses,
+                # there is unlikely a speaker definition,
+                # but some description of the situation
 
                 if 1 < abs(replica._.start_line_no - prev_replica._.end_line_no) < 4:
-                    # If there was 1-2 lines filled with author speech, it is more
-                    # probably a continuation, and not alteration, because the reader
+                    # If there were 1-2 lines filled with author speech, it is more
+                    # probable a continuation, and not alteration, because the reader
                     # will likely lose context if this replica is not annotated by
                     # speaker name and follows many lines of author text
                     mark_speaker(queue_i=-1)
@@ -275,7 +276,7 @@ def classify_speakers(
                 continue
 
             for match_id, token_ids in dep_matcher(sent):
-                # For this matcher speaker is first token in pattern
+                # For this matcher speaker is the first token in a pattern
                 token: Token = sent[token_ids[0]]
                 if prev_sent and token.lemma_ in REFERRAL_PRON:
                     dep_span = find_by_reference(sents[:sent_i], token)

@@ -11,14 +11,14 @@ def iter_by_abs_idx(seq: List[T], start: int) -> Iterable[Tuple[T, int]]:
     Parameters
     ----------
     seq
-        sequence to iterate over.
+        A sequence to iterate over.
     start
-        index to start from. Must be within given iterable.
+        An index to start from. Must be within given iterable.
 
     Returns
     -------
     Iterable[tuple]
-        iterable with tuples of (element, element offset from the start)
+        An iterable with tuples of (element, element offset from the start)
     """
     if len(seq) == 0 or not (0 <= start < len(seq)):
         return
@@ -40,7 +40,7 @@ def iter_by_abs_idx(seq: List[T], start: int) -> Iterable[Tuple[T, int]]:
 def canonical_int_enumeration() -> Iterable[int]:
     """
     Yields the canonical enumeration of integers (e.g. 0 1 -1 2 -2 3 -3).
-    Also known as A001057 sequence of OEIS.
+    Also known as the A001057 sequence of OEIS.
     """
     yield 0
     offset = 1
@@ -55,8 +55,9 @@ def iter_by_triples(
     iterable: Iterable[T],
 ) -> Iterable[Tuple[Optional[T], T, Optional[T]]]:
     """
-    Yields elements of given iterable with sliding window of triplets, where first
-    element of the triple is "previous", second is "current", and third is "next".
+    Yields elements of given iterable with a sliding window of triplets,
+    where the first element of the triple is "previous",
+    second is "current", and third is "next".
     So, first is None on the first yield and third is None on the last, respectively.
     """
     iterator = iter(iterable)
