@@ -20,7 +20,7 @@ url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.1.2"
-mypy = { extras = ["d"], version = "^0.942" }
+mypy = { extras = ["d"], version = "^0.950" }
 black = { extras = ["d"], version = "^22.1" }
 
 [tool.poetry.scripts]
