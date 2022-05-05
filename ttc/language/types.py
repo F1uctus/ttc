@@ -1,5 +1,10 @@
 from typing import Literal
 
+ClassifierLanguage = Literal[
+    "ru",
+    "en"
+]
+
 Morph = Literal[
     "Aspect",
     "Case",
