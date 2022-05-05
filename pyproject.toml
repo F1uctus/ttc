@@ -15,11 +15,15 @@ spacy = ">=3.3.0,<3.4.0"
 [tool.poetry.dependencies.ru_core_news_sm]
 url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_sm-3.3.0/ru_core_news_sm-3.3.0.tar.gz"
 
-[tool.poetry.dependencies.ru_core_news_md]
+[tool.poetry.dev-dependencies.ru_core_news_md]
 url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_md-3.3.0/ru_core_news_md-3.3.0.tar.gz"
+
+[tool.poetry.dev-dependencies.ru_core_news_lg]
+url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_lg-3.3.0/ru_core_news_lg-3.3.0.tar.gz"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.1.2"
+jupyter = "^1.0.0"
 mypy = { extras = ["d"], version = "^0.950" }
 black = { extras = ["d"], version = "^22.1" }
 
