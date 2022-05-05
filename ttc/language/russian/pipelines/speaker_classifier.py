@@ -216,8 +216,8 @@ def classify_speakers(
         for prev_offset, offset, _ in iter_by_triples(canonical_int_enumeration()):
             # Iterate over sentences near the current replica.
             # They have "up-down" indices
-            # (e.g i + 0, i + 1, i - 1, i + 2, i - 2, ... if it's forward-first);
-            # (and i + 0, i - 1, i + 1, i - 2, i + 2, ... if it's backward-first).
+            # (e.g i, i + 1, i - 1, i + 2, i - 2, ... if forward-first);
+            # (and i, i - 1, i + 1, i - 2, i + 2, ... if backward-first).
             if skip_sign_change and prev_offset:
                 offset = int(math.copysign(offset, prev_offset))
                 skip_sign_change = False
@@ -258,20 +258,23 @@ def classify_speakers(
                 # but some description of the situation
 
                 if 1 < abs(replica._.start_line_no - prev_replica._.end_line_no) < 4:
-                    # If there were 1-2 lines filled with author speech, it is more
-                    # probable a continuation, and not alteration, because the reader
-                    # will likely lose context if this replica is not annotated by
-                    # speaker name and follows many lines of author text
+                    # If there were 1-2 lines filled with author speech,
+                    # it is more probable a continuation than alteration,
+                    # because otherwise a reader will likely lose context
+                    # if this replica is not annotated by speaker name
+                    # and follows after many lines of author text
                     mark_speaker(queue_i=-1)
-                    break  # speaker found
+                    break  # speaker found, skip to the next replica
 
                 if len(speakers_queue) > 1:
                     # Line has no author speech -> speakers alteration
                     # Assign replica to the penultimate speaker
                     mark_speaker(queue_i=-2)
-                    break  # speaker found
+                    break  # speaker found, skip to the next replica
 
-            if non_overlapping_span_len(sent, replica) <= 3:
+            sent_resembles_replica = non_overlapping_span_len(sent, replica) <= 3
+
+            if sent_resembles_replica:
                 skip_sign_change = True
                 continue
 
