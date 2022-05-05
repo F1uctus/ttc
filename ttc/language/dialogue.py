@@ -1,6 +1,6 @@
+from dataclasses import dataclass
 from typing import List
 
-from dataclasses import dataclass
 from spacy import Language
 from spacy.tokens import Token, Span, Doc
 

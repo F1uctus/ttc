@@ -2,7 +2,7 @@ from typing import Literal
 
 ClassifierLanguage = Literal[
     "ru",
-    "en"
+    "en",
 ]
 
 Morph = Literal[

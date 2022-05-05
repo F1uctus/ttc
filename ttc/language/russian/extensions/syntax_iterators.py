@@ -104,18 +104,3 @@ def noun_chunks(doclike: Union[Doc, Span]) -> Iterator[Tuple[int, int, int]]:
                 continue
             yield left.i, right.i + 1, np_label
             prev_right = right.i
-
-
-if __name__ == "__main__":
-    import spacy
-    import ttc.language.russian.pipelines as russian_pipelines
-
-    nlp = spacy.load("ru_core_news_sm")
-    russian_pipelines.register_for(nlp)
-
-    text = "Один из них, худощавый, с подвижным лицом, приблизился к Гусеву и быстро проговорил."
-
-    nlp.vocab.get_noun_chunks = noun_chunks
-    doc = nlp(text)
-    ncs = [str(nc) for nc in doc.noun_chunks]
-    print(ncs)
