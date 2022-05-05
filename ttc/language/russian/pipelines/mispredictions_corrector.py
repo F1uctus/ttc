@@ -6,6 +6,13 @@ from ttc.language.russian.token_extensions import has_linked_verb
 
 NAME = "correct_mispredictions"
 
+MISPREDICTED_VERBS_SENT_START = {
+    "беги",
+    "поведай",
+    "засветись",
+    "забудь",
+}
+
 MISPREDICTED_VERBS = {
     "бормочет",
 }
@@ -125,7 +132,11 @@ PARTICLE_ENDINGS = {" ли", " ль", "-то", "-тка", "-де", "-ка", "-т
 def _correct_mispredictions(doc: Doc):
     for token in doc:
 
-        if token.text in MISPREDICTED_VERBS:
+        norm_text = token.text.strip().lower()
+
+        if norm_text in MISPREDICTED_VERBS:
+            token.pos_ = "VERB"
+        if token.is_sent_start and norm_text in MISPREDICTED_VERBS_SENT_START:
             token.pos_ = "VERB"
 
         if token.is_title and token.pos == PART and token.lower_ not in PARTICLES:
