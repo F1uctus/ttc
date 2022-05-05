@@ -49,9 +49,8 @@ def expand_to_matching_noun_chunk(t: Token) -> Span:
     for nc in t.sent.noun_chunks:
         if t in nc:
             return nc
-    else:
-        # cannot expand noun, use token as-is
-        return token_as_span(t)
+    # cannot expand noun, use token as-is
+    return token_as_span(t)
 
 
 def contains_near(t: Token, radius: int, predicate: Callable[[Token], bool]):
