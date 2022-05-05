@@ -13,4 +13,4 @@ def register_for(lang: Language) -> None:
         lang.add_pipe(line_number_marker.NAME, after=sentencizer.NAME)
 
     if not lang.has_pipe(mis_corrector.NAME):
-        lang.add_pipe(mis_corrector.NAME, after="parser")
+        lang.add_pipe(mis_corrector.NAME, after=line_number_marker.NAME)
