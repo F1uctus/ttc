@@ -25,6 +25,7 @@ $ poetry run print-play path-to-the-text-file text-language
 **Notes**
 
 - Text must be encoded in UTF-8;
+- Text must be sanitized (see https://github.com/F1uctus/ttc/issues/23);
 - It is usually better to test on some middle-sized text (e.g a book chapter);
 - Supported `text-language`s are:
     + ru (russian)
