@@ -118,12 +118,12 @@ def from_named_ent_with_verb(sent: Span) -> Optional[Span]:
 
 
 def from_noun_chunks_with_verb(sent: Span) -> Optional[Span]:
-    """Select a speaker from noun chunks of given sentence."""
+    """Select the first speaker with verb from noun chunks of given sentence."""
     for noun_chunk in sent.noun_chunks:
         for t in noun_chunk:
             if has_linked_verb(t):
                 return noun_chunk
-
+    # TODO: If > 1, prefer the nominative noun chunk
     return None
 
 
