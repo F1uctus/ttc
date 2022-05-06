@@ -57,7 +57,8 @@ class RussianConversationClassifier(ConversationClassifier):
 
         self.language.vocab.get_noun_chunks = noun_chunks
 
-        Doc.set_extension("nl_indices", default=False)
+        if not Doc.has_extension("nl_indices"):
+            Doc.set_extension("nl_indices", default=False)
 
         if len(self.token_matchers) == 0:
             for cls in TOKEN_MATCHER_CLASSES:
