@@ -283,6 +283,8 @@ def classify_speakers(
                 token: Token = sent[token_ids[0]]
                 if prev_sent and token.lemma_ in REFERRAL_PRON:
                     dep_span = find_by_reference(sents[:sent_i], token)
+                    if dep_span:
+                        dep_span = expand_to_matching_noun_chunk(dep_span[0])
                 else:
                     dep_span = expand_to_matching_noun_chunk(token)
 
