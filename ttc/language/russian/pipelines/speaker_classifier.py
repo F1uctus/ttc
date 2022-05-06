@@ -67,10 +67,10 @@ def replica_fills_line(replica: Span) -> bool:
     return (
         replica.start - 3 >= 0
         and replica.end + 3 < len(doc)  # TODO: Check end-of-doc case
-        and any(t._.is_newline for t in doc[replica.start - 3 : replica.start])
+        and any(t._.has_newline for t in doc[replica.start - 3 : replica.start])
         # colon means that the author still annotates the replica, just on previous line
         and not any(t.text == ":" for t in doc[replica.start - 3 : replica.start])
-        and any(t._.is_newline for t in doc[replica.end : replica.end + 3])
+        and any(t._.has_newline for t in doc[replica.end : replica.end + 3])
     )
 
 
@@ -149,8 +149,8 @@ def trim_span(span: Span, should_trim: Callable[[Token], bool]):
 
 
 def non_overlapping_span_len(outer: Span, inner: Span) -> int:
-    outer = trim_span(outer, lambda t: t.is_punct or t._.is_newline)
-    inner = trim_span(inner, lambda t: t.is_punct or t._.is_newline)
+    outer = trim_span(outer, lambda t: t.is_punct or t._.has_newline)
+    inner = trim_span(inner, lambda t: t.is_punct or t._.has_newline)
     if outer.start >= inner.start and outer.end <= inner.end:
         return 0
     return abs(outer.start - inner.start) + abs(outer.end - inner.end)

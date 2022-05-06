@@ -104,9 +104,9 @@ def test_replica_with_intervention_containing_a_comma_and_hyphen_by_sanderson(cc
 
 
 def test_replica_with_intervention_starting_with_a_comma_and_hyphen_by_sanderson(cc):
-    text = """
-    – Ага, – согласился Лейтен, высокий крепыш с курчавыми волосами. – Это точно.
-    """
+    text = (
+        "– Ага, – согласился Лейтен, высокий крепыш с курчавыми волосами. – Это точно."
+    )
     dialogue = cc.extract_dialogue(text)
     assert len(dialogue.replicas) == 2
     assert str(dialogue.replicas[0]) == "Ага,"

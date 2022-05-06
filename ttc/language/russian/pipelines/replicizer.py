@@ -62,7 +62,7 @@ def extract_replicas(
 
         if state == "replica_quote_before_hyphen":
             if t._.is_close_quote:
-                if nt and (nt._.is_hyphen or nt._.is_newline):
+                if t._.has_newline or (nt and nt._.is_hyphen):
                     flush_replica()
                 else:
                     # skip, just a quoted author speech
@@ -82,14 +82,14 @@ def extract_replicas(
                 tokens.append(t)
 
         elif state == "replica_hyphen_after_newline":
-            if t._.is_newline:
+            if t._.has_newline:
                 flush_replica()
                 states.append("author")
             elif pt and pt.is_punct and t._.is_hyphen:
                 # checking for author insertion
                 par_end_idx = next_matching(  # paragraph ending index
                     doc,
-                    lambda x: x._.is_newline or x.i == len(doc) - 1,
+                    lambda x: x._.has_newline or x.i == len(doc) - 1,
                     start=pt.i,
                 )[1]
                 results = [
@@ -116,7 +116,10 @@ def extract_replicas(
                     ]
                     for match in results:
                         # - 1 is a line break offset
-                        if match.end >= len(doc) - 1 or doc[match.end - 1]._.is_newline:
+                        if (
+                            match.end >= len(doc) - 1
+                            or doc[match.end - 1]._.has_newline
+                        ):
                             flush_replica()
                             states.append("author")
                             # skip to the end of author ending
@@ -128,7 +131,7 @@ def extract_replicas(
                 tokens.append(t)
 
         # author* -> replica* transitions
-        elif (pt is None or pt._.is_newline) and t._.is_hyphen:
+        elif (pt is None or pt._.has_newline) and t._.is_hyphen:
             # [Автор:]\n— Реплика
             states.append("replica_hyphen_after_newline")
 
