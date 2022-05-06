@@ -115,11 +115,12 @@ def extract_replicas(
                         )
                     ]
                     for match in results:
-                        if match.end >= len(doc) - 1 or doc[match.end]._.is_newline:
+                        # - 1 is a line break offset
+                        if match.end >= len(doc) - 1 or doc[match.end - 1]._.is_newline:
                             flush_replica()
                             states.append("author")
                             # skip to the end of author ending
-                            ti = match.end
+                            ti = match.end - 1
                             break
                     else:
                         tokens.append(t)

@@ -13,7 +13,9 @@ from ttc.language.russian.constants import (
 PREDICATIVE_TOKEN_EXTENSIONS = {
     "is_sent_end": lambda t: t.is_sent_end,
     "is_hyphen": lambda t: t.text in HYPHENS,
-    "is_newline": lambda t: "\n" in t.text,
+    "is_newline": lambda t: any(
+        t.idx <= i <= t.idx + len(t.text_with_ws) for i in t.doc._.nl_indices
+    ),
     "is_open_quote": lambda t: t.text in OPEN_QUOTES,
     "is_close_quote": lambda t: t.text in CLOSE_QUOTES,
     "is_speaking_verb": lambda t: any(v in t.lemma_ for v in SPEAKING_VERBS),

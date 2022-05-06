@@ -19,7 +19,7 @@ def _mark_line_numbers(doc: Doc):
 
     for token in doc:
         token._.line_no = line_no
-        if "\n" in token.text_with_ws:
+        if token._.is_newline:
             line_no += 1
 
     return doc

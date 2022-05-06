@@ -4,7 +4,7 @@ from typing import Dict
 import spacy
 from spacy import Language
 from spacy.matcher import Matcher
-from spacy.tokens import Token
+from spacy.tokens import Doc, Token
 
 import ttc.language.russian.pipelines as russian_pipelines
 from ttc.language import ConversationClassifier, Dialogue, Play
@@ -26,7 +26,14 @@ class RussianConversationClassifier(ConversationClassifier):
 
     def extract_dialogue(self, text: str) -> Dialogue:
         self.prepare_spacy()
-        doc = self.language(text)
+
+        # 1. store newline indices in the separate text metadata
+        # 2. pass the text to spacy with newlines completely removed/replaced with space
+        #    (the latter is preferred if it does not create the separate SPACE tokens)
+
+        doc = self.language.make_doc(text.replace("\n", " "))
+        doc._.nl_indices = {i for i, c in enumerate(text) if c == "\n"}
+        doc = self.language(doc)
         return Dialogue(
             self.language,
             doc,
@@ -49,6 +56,8 @@ class RussianConversationClassifier(ConversationClassifier):
         russian_pipelines.register_for(self.language)
 
         self.language.vocab.get_noun_chunks = noun_chunks
+
+        Doc.set_extension("nl_indices", default=False)
 
         if len(self.token_matchers) == 0:
             for cls in TOKEN_MATCHER_CLASSES:
