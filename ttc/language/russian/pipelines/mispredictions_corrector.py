@@ -146,26 +146,3 @@ def _correct_mispredictions(doc: Doc):
                 token.pos_ = "PROPN"
 
     return doc
-
-
-# from spacy.pipeline import AttributeRuler
-#
-# MISPREDICTED_VERBS = [
-#     "бормочет",
-# ]
-#
-#
-# def override_attributes(attribute_ruler: AttributeRuler):
-#     attribute_ruler.clear()
-#
-#     verbs = [
-#         {"LEMMA": {"IN": MISPREDICTED_VERBS}},
-#     ]
-#     attribute_ruler.add(patterns=[verbs], attrs={"POS": "VERB"})
-#
-#     propns = [
-#         {"IS_SENT_START": True},
-#         {"IS_TITLE": True},
-#         {"POS": "PART"},
-#     ]
-#     attribute_ruler.add(patterns=[propns], attrs={"POS": "PROPN"})
