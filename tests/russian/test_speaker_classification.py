@@ -15,7 +15,10 @@ def find_test_texts(path: Path):
 
 def load_test(path: Path, file_name: str, delimiter="-" * 20):
     """
-    :returns: ("Input text", [Expected speakers to be extracted by TTC])
+    Returns
+    -------
+    Tuple[str, List[int]]
+        Input text, Expected speakers to be extracted by ttc.
     """
     content = (path / file_name).read_text(encoding="utf-8").split(delimiter)
     return content[0].strip(), [s for s in content[1].split("\n") if s.strip()]

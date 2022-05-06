@@ -76,12 +76,15 @@ def replica_fills_line(replica: Span) -> bool:
 
 def find_by_reference(spans: List[Span], reference: Token, misses=0) -> Optional[Span]:
     """
-    Find a noun chunk that might be a definition of
-    the given reference token inside the given span.
+    Find a noun chunk that might be a definition of the given reference token
+    inside the given span.
 
-    Parameters:
-        spans: A list of sentences or other doc-like spans to search definition in.
-        reference: A reference to some speaker (e.g. он, она, оно, ...)
+    Parameters
+    ----------
+    spans
+        A list of sentences or other doc-like spans to search definition in.
+    reference
+        A reference to some speaker (e.g. он, она, оно, ...)
     """
     for nc in spans[-1].noun_chunks:
         for t in nc:
@@ -96,7 +99,9 @@ def find_by_reference(spans: List[Span], reference: Token, misses=0) -> Optional
 
 
 def from_queue_with_verb(sent: Span, queue: Collection[str]) -> Optional[Span]:
-    """Select a speaker from queue if it is mentioned in the given sentence."""
+    """
+    Select a speaker from queue if it is mentioned in the given sentence.
+    """
     if len(queue) == 0:
         return None
 
@@ -108,7 +113,9 @@ def from_queue_with_verb(sent: Span, queue: Collection[str]) -> Optional[Span]:
 
 
 def from_named_ent_with_verb(sent: Span) -> Optional[Span]:
-    """Select a speaker from named entities if it is mentioned in the given sentence."""
+    """
+    Select a speaker from named entities if it is mentioned in the given sentence.
+    """
     for ent in sent.ents:
         for t in ent:
             if has_linked_verb(t):
@@ -118,7 +125,9 @@ def from_named_ent_with_verb(sent: Span) -> Optional[Span]:
 
 
 def from_noun_chunks_with_verb(sent: Span) -> Optional[Span]:
-    """Select the first speaker with verb from noun chunks of given sentence."""
+    """
+    Select the first speaker with verb from noun chunks of given sentence.
+    """
     for noun_chunk in sent.noun_chunks:
         for t in noun_chunk:
             if has_linked_verb(t):

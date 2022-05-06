@@ -5,8 +5,8 @@ T = TypeVar("T")
 
 def iter_by_abs_idx(seq: List[T], start: int) -> Iterable[Tuple[T, int]]:
     """
-    Iterates over a sequence of elements with their indices following
-    the canonical enumeration of integers (e.g. 0 1 -1 2 -2 3 -3 ...).
+    Iterates over a sequence of elements with their indices following the
+    canonical enumeration of integers (e.g. 0 1 -1 2 -2 3 -3 ...).
 
     Parameters
     ----------
@@ -55,9 +55,8 @@ def iter_by_triples(
     iterable: Iterable[T],
 ) -> Iterable[Tuple[Optional[T], T, Optional[T]]]:
     """
-    Yields elements of given iterable with a sliding window of triplets,
-    where the first element of the triple is "previous",
-    second is "current", and third is "next".
+    Yields elements of given iterable with a sliding window of triplets, where the
+    first element of the triple is "previous", second is "current", and third is "next".
     So, first is None on the first yield and third is None on the last, respectively.
     """
     iterator = iter(iterable)
