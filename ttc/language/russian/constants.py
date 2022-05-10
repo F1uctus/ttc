@@ -8,7 +8,7 @@ CLOSE_QUOTES = frozenset({'"', "'", "`", "»", "’", "‛", "”", "‟", "›"
 
 QUOTES = frozenset(OPEN_QUOTES | CLOSE_QUOTES)
 
-M_DOTS = {"…", "...", "....", ".....", "......", ".......", "........"}
+ELLIPSES = {"…", "...", "....", ".....", "......", ".......", "........"}
 
 REFERRAL_PRON = {
     "мужчина",
