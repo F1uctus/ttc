@@ -74,7 +74,7 @@ def noun_chunks(doclike: Union[Doc, Span]) -> Iterator[Tuple[int, int, int]]:
         for tok in root.rights:
             if tok.dep in np_right_deps:
                 right = get_right_bound(tok)
-                if list(filter(lambda t: is_verb_token(t), doc[root.i : right.i])):
+                if list(filter(is_verb_token, doc[root.i : right.i])):
                     break
                 else:
                     right_bound = right
