@@ -1,25 +1,33 @@
 ## Text-To-Conversation toolkit (TTC)
 
+This NLP library can help you with:
+
+- Extraction of characters' replicas from literary texts;
+- Classification of the actors owning these replicas.
+
+We aim to achieve the following goals:
+
+- Better accuracy on the actor classification task
+  (it is near 80% or worse for now);
+- Support for more languages
+  (only Russian is supported at the moment).
+
+### Installation
+
+Install with pip is just a usual `pip install .` from the project dir.
+
 ### Usage
 
-Install [Poetry](https://python-poetry.org) to your Python distribution.
+**As a library**
 
-Spawn a new virtual environment for the project:
+You can find an example of using the library in the `cli.py` file.
 
-```console
-$ poetry shell
-```
-
-Install project dependencies:
-
-```console
-$ poetry install
-```
+**As a tool for the CLI**
 
 Test output on a text file:
 
 ```console
-$ poetry run print-play path-to-the-text-file text-language
+ttc-print-play path-to-the-text-file text-language
 ```
 
 **Notes**
@@ -29,3 +37,19 @@ $ poetry run print-play path-to-the-text-file text-language
 - It is usually better to test on some middle-sized text (e.g a book chapter);
 - Supported `text-language`s are:
     + ru (russian)
+
+### Development
+
+Please install [Poetry](https://python-poetry.org).
+
+Spawn a new virtual environment for the project:
+
+```console
+poetry shell
+```
+
+Install project dependencies:
+
+```console
+poetry install
+```
