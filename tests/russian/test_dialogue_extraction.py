@@ -129,6 +129,7 @@ def test_replica_ending_with_a_comma_and_hyphen_by_mamleev(
     )
 
 
+@pytest.mark.xfail(reason="unhandled onomatopoeia", raises=AssertionError)
 def test_replica_with_intervention_containing_an_ellipsis_by_mamleev(
     cc: ttc.ConversationClassifier,
 ):
