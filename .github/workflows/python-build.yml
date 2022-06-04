@@ -28,7 +28,7 @@ jobs:
       - name: Install poetry
         run: |
           curl -sSL https://install.python-poetry.org > install-poetry.py
-          python install-poetry.py -y --version 1.2.0b
+          python install-poetry.py -y --preview
           echo "PATH=${HOME}/.local/bin:${PATH}" >> $GITHUB_ENV
           rm install-poetry.py
 
