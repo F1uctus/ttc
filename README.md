@@ -51,5 +51,5 @@ poetry shell
 Install project dependencies:
 
 ```console
-poetry install
+poetry install [-E dev] [-E interactive]
 ```
