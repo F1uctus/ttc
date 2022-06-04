@@ -3,6 +3,7 @@ import random
 from typing import TextIO, Tuple, Dict, Optional
 
 import click
+from click import echo
 from colorama import init as colorama_init, Fore, Style  # type: ignore
 from spacy.tokens import Span
 
@@ -18,22 +19,27 @@ COLORS = [
 ]
 
 
-@click.command(name="print")
+@click.group
+def cli():
+    pass
+
+
+@cli.command(name="print-play")
 @click.argument("file", type=click.File("r", encoding="utf-8"), nargs=1)
 @click.argument("language", type=str, nargs=1)
 def print_play(file: TextIO, language):
     cc = ttc.load(language)
 
     if cc is None:
-        print("Specified language is not supported")
+        echo("Specified language is not supported")
         exit(1)
 
     text = file.read().split("-" * 20)[0]
 
-    print("Extracting replicas...")
+    echo("Extracting replicas...")
     dialogue = cc.extract_dialogue(text)
 
-    print("Connecting replicas into the play...")
+    echo("Connecting replicas into the play...")
     play = cc.connect_play(dialogue)
 
     colors = list(COLORS)
@@ -42,8 +48,8 @@ def print_play(file: TextIO, language):
         s: c for s, c in zip(play.content.values(), itertools.cycle(colors))
     }
 
-    print("Speakers found:")
-    print(
+    echo("Speakers found:")
+    echo(
         ", ".join(
             c + s.text + Style.RESET_ALL
             for s, c in speaker_colors.items()
@@ -51,7 +57,7 @@ def print_play(file: TextIO, language):
         )
     )
 
-    print("Marked play:")
+    echo("Marked play:")
     rs_indexed: Dict[int, Tuple[Span, Optional[Span]]] = {
         k.start_char: (k, v) for k, v in play.content.items()
     }
@@ -67,12 +73,16 @@ def print_play(file: TextIO, language):
         if replica and i >= replica.start_char:
             if i == replica.start_char:
                 if speaker is not None:
-                    print(speaker_colors[speaker], end=" ")
+                    echo(speaker_colors[speaker] + " ", nl=False)
 
             if i >= replica.end_char:
                 start_i += 1
-                print(Style.RESET_ALL, end="")
+                echo(Style.RESET_ALL, nl=False)
 
-        print(c, end="")
+        echo(c, nl=False)
 
-    print()
+    echo()
+
+
+if __name__ == "__main__":
+    cli()

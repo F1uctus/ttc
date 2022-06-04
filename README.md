@@ -27,7 +27,7 @@ You can find an example of using the library in the `cli.py` file.
 Test output on a text file:
 
 ```console
-ttc-print-play path-to-the-text-file text-language
+ttc print-play path-to-the-text-file text-language
 ```
 
 **Notes**
