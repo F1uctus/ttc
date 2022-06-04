@@ -4,7 +4,7 @@
 # - https://python-poetry.org/docs/master/#installing-with-the-official-installer
 # - https://github.com/python-poetry/poetry/discussions/4205
 
-name: Python package check
+name: Python build
 
 on:
   push:
@@ -28,7 +28,7 @@ jobs:
       - name: Install poetry
         run: |
           curl -sSL https://install.python-poetry.org > install-poetry.py
-          python install-poetry.py -y --version 1.2.0
+          python install-poetry.py -y --version 1.2.0b
           echo "PATH=${HOME}/.local/bin:${PATH}" >> $GITHUB_ENV
           rm install-poetry.py
 
