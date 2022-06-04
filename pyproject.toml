@@ -8,24 +8,27 @@ readme = "README.md"
 repository = "https://github.com/f1uctus/ttc"
 
 [tool.poetry.dependencies]
+# required
 python = ">=3.8,<3.11"
+click = "^8.1.3"
 numpy = "^1.22.4"
 spacy = ">=3.3.0,<3.4.0"
+ru_core_news_sm = { url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_sm-3.3.0/ru_core_news_sm-3.3.0.tar.gz" }
 
-[tool.poetry.dependencies.ru_core_news_sm]
-url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_sm-3.3.0/ru_core_news_sm-3.3.0.tar.gz"
+# ... models
+ru_core_news_md = { url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_md-3.3.0/ru_core_news_md-3.3.0.tar.gz", optional = true }
+ru_core_news_lg = { url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_lg-3.3.0/ru_core_news_lg-3.3.0.tar.gz", optional = true }
 
-[tool.poetry.dev-dependencies.ru_core_news_md]
-url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_md-3.3.0/ru_core_news_md-3.3.0.tar.gz"
+# ... development
+pytest = { version = "^7.1.2", optional = true }
+jupyter = { version = "^1.0.0", optional = true }
+mypy = { version = "^0.960", optional = true }
+black = { version = "^22.1", optional = true }
 
-[tool.poetry.dev-dependencies.ru_core_news_lg]
-url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_lg-3.3.0/ru_core_news_lg-3.3.0.tar.gz"
-
-[tool.poetry.dev-dependencies]
-pytest = "^7.1.2"
-jupyter = "^1.0.0"
-mypy = { extras = ["d"], version = "^0.960" }
-black = { extras = ["d"], version = "^22.1" }
+[tool.poetry.extras]
+models = ["ru_core_news_md", "ru_core_news_lg"]
+dev = ["pytest", "mypy"]
+interactive = ["jupyter", "black"]
 
 [tool.poetry.scripts]
 ttc-print-play = "ttc.cli:print_play"
