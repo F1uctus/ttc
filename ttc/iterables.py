@@ -1,3 +1,4 @@
+import itertools
 from typing import Iterable, TypeVar, Optional, List, Tuple
 
 T = TypeVar("T")
@@ -69,3 +70,7 @@ def iter_by_triples(
             prv, cur = cur, nxt
     except StopIteration:
         yield prv, cur, None
+
+
+def flatmap(func, *iterable: Iterable[T]) -> Iterable[T]:
+    return itertools.chain.from_iterable(map(func, *iterable))
