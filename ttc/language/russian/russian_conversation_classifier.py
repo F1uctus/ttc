@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict
 
 import spacy
@@ -21,36 +21,11 @@ from ttc.language.russian.token_patterns import (
 
 @dataclass
 class RussianConversationClassifier(ConversationClassifier):
-    language: Language = None  # type: ignore
-    token_matchers: Dict[TokenMatcherClass, Matcher] = field(default_factory=dict)
+    language: Language
+    token_matchers: Dict[TokenMatcherClass, Matcher]
 
-    def extract_dialogue(self, text: str) -> Dialogue:
-        self.prepare_spacy()
-
-        # 1. store newline indices in the separate text metadata
-        # 2. pass the text to spacy with newlines completely removed/replaced with space
-        #    (the latter is preferred if it does not create the separate SPACE tokens)
-
-        doc = self.language.make_doc(text.replace("\n", " "))
-        doc._.nl_indices = {i for i, c in enumerate(text) if c == "\n"}
-        doc = self.language(doc)
-        return Dialogue(
-            self.language,
-            doc,
-            extract_replicas(doc, self.token_matchers),
-        )
-
-    def connect_play(self, dialogue: Dialogue) -> Play:
-        self.prepare_spacy()
-        return Play(
-            self.language,
-            classify_speakers(self.language, dialogue),
-        )
-
-    def prepare_spacy(self):
-        if self.language:
-            return
-
+    def __init__(self):
+        super().__init__()
         self.language = spacy.load("ru_core_news_sm", exclude=["senter"])
 
         russian_pipelines.register_for(self.language)
@@ -60,14 +35,33 @@ class RussianConversationClassifier(ConversationClassifier):
         if not Doc.has_extension("nl_indices"):
             Doc.set_extension("nl_indices", default=frozenset())
 
-        if len(self.token_matchers) == 0:
-            for cls in TOKEN_MATCHER_CLASSES:
-                matcher = Matcher(self.language.vocab)
-                for name, value in TokenPattern.entries():
-                    if name.startswith(cls):
-                        matcher.add(name, [value])
-                self.token_matchers[cls] = matcher
+        self.token_matchers = {}
+        for cls in TOKEN_MATCHER_CLASSES:
+            matcher = Matcher(self.language.vocab)
+            for name, value in TokenPattern.entries():
+                if name.startswith(cls):
+                    matcher.add(name, [value])
+            self.token_matchers[cls] = matcher
 
         for name, pred in PREDICATIVE_TOKEN_EXTENSIONS.items():
             if not Token.has_extension(name):
                 Token.set_extension(name, getter=pred)
+
+    def extract_dialogue(self, text: str) -> Dialogue:
+        # 1. store newline indices in the separate text metadata
+        # 2. pass the text to spacy with newlines completely removed/replaced with space
+        #    (the latter is preferred if it does not create the separate SPACE tokens)
+        doc = self.language.make_doc(text.replace("\n", " "))
+        doc._.nl_indices = frozenset(i for i, c in enumerate(text) if c == "\n")
+        doc = self.language(doc)
+        return Dialogue(
+            self.language,
+            doc,
+            extract_replicas(doc, self.token_matchers),
+        )
+
+    def connect_play(self, dialogue: Dialogue) -> Play:
+        return Play(
+            self.language,
+            classify_speakers(self.language, dialogue),
+        )
