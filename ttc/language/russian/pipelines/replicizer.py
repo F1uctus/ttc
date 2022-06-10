@@ -56,13 +56,25 @@ def extract_replicas(
 
         pt: Optional[Token] = doc[ti - 1] if ti - 1 >= 0 else None
         nt: Optional[Token] = doc[ti + 1] if ti + 1 < len(doc) else None
+        nnt: Optional[Token] = doc[ti + 2] if ti + 2 < len(doc) else None
         t: Token = doc[ti]
 
         state = states[-1]
 
         if state == "replica_quote_before_hyphen":
             if t._.is_close_quote:
-                if t._.has_newline or (nt and nt._.is_hyphen):
+                if t._.has_newline or (
+                    nt
+                    and (
+                        (nt._.is_hyphen or nt._.has_newline)
+                        or (nt.is_punct and nnt and nnt._.is_hyphen)
+                    )
+                ):
+                    # matches all below cases:
+                    # "\n
+                    # " —
+                    # ".\n
+                    # ". —
                     flush_replica()
                 else:
                     # skip, just a quoted author speech
