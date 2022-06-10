@@ -67,11 +67,11 @@ def replica_fills_line(replica: Span) -> bool:
     doc = replica.doc
     return (
         replica.start - 3 >= 0
-        and replica.end + 3 < len(doc)  # TODO: Check end-of-doc case
+        and replica.end + 3 < len(doc)  # TODO: Rewrite and check end-of-doc case
         and any(t._.has_newline for t in doc[replica.start - 3 : replica.start])
         # colon means that the author still annotates the replica, just on previous line
         and not any(t.text == ":" for t in doc[replica.start - 3 : replica.start])
-        and any(t._.has_newline for t in doc[replica.end : replica.end + 3])
+        and any(t._.has_newline for t in doc[replica.end - 1 : replica.end + 3])
     )
 
 

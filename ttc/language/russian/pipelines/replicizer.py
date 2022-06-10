@@ -83,6 +83,7 @@ def extract_replicas(
 
         elif state == "replica_hyphen_after_newline":
             if t._.has_newline:
+                tokens.append(t)
                 flush_replica()
                 states.append("author")
             elif pt and pt.is_punct and t._.is_hyphen:
