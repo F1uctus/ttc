@@ -35,6 +35,7 @@ def print_play(file: TextIO, language):
         exit(1)
 
     text = file.read().split("-" * 20)[0]
+    file.close()
 
     echo("Extracting replicas...")
     dialogue = cc.extract_dialogue(text)
@@ -59,7 +60,7 @@ def print_play(file: TextIO, language):
 
     echo("Marked play:")
     rs_indexed: Dict[int, Tuple[Span, Optional[Span]]] = {
-        k.start_char: (k, v) for k, v in play.content.items()
+        r.start_char: (r, s) for r, s in play.content.items()
     }
     r_starts = list(rs_indexed.keys())
     start_i = 0
@@ -72,7 +73,7 @@ def print_play(file: TextIO, language):
 
         if replica and i >= replica.start_char:
             if i == replica.start_char:
-                if speaker is not None:
+                if speaker:
                     echo(speaker_colors[speaker] + " ", nl=False)
 
             if i >= replica.end_char:
