@@ -20,9 +20,6 @@ jobs:
       matrix:
         python-version: [ "3.8", "3.9", "3.10" ]
 
-    env:
-      POETRY_VIRTUALENVS_CREATE: false
-
     steps:
       - uses: actions/checkout@v3
       - name: Install poetry
@@ -42,7 +39,6 @@ jobs:
         run: |
           # This is required to do as of @actions/checkout@v3
           # to prevent default action python from being used
-          mkdir -p $HOME/.cache/pypoetry/virtualenvs
           poetry env use ${{ matrix.python-version }}
           poetry install --no-interaction -E dev
 
