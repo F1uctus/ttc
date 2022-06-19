@@ -53,3 +53,12 @@ Install project dependencies:
 ```console
 poetry install [-E dev] [-E interactive]
 ```
+
+### TODO
+
+1. Improve identification quality
+   (maybe use actual trained NN instead of rule-based algorithm);
+2. Restructure some functions to use the all-new spaCy's [Span Categorizer](https://spacy.io/api/spancategorizer).
+
+Contributions are very welcome!
+
