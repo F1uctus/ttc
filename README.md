@@ -20,7 +20,7 @@ Install with pip is just a usual `pip install .` from the project dir.
 
 **As a library**
 
-You can find an example of using the library in the `cli.py` file.
+You can find an example of using the library in the [`cli.py`](ttc/cli.py) file.
 
 **As a tool for the CLI**
 
