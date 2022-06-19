@@ -3,7 +3,7 @@
 This NLP library can help you with:
 
 - Extraction of characters' replicas from literary texts;
-- Classification of the actors owning these replicas.
+- Identification of the actors owning these replicas.
 
 We aim to achieve the following goals:
 
