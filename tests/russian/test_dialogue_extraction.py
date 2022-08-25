@@ -11,22 +11,19 @@ def cc():
 def test_single_pre_replica_by_pushkin(cc: ttc.ConversationClassifier):
     text = "«Далече ли до крепости?» – спросил я у своего ямщика"
     d = cc.extract_dialogue(text)
-    assert len(d.replicas) == 1
-    assert str(d.replicas[0]) == "Далече ли до крепости?"
+    assert list(map(str, d.replicas)) == ["Далече ли до крепости?"]
 
 
 def test_single_pre_replica_by_mamleyev(cc: ttc.ConversationClassifier):
     text = "— Что есть счастье? — вдруг громко спрашивает Гриша."
     d = cc.extract_dialogue(text)
-    assert len(d.replicas) == 1
-    assert str(d.replicas[0]) == "Что есть счастье?"
+    assert list(map(str, d.replicas)) == ["Что есть счастье?"]
 
 
 def test_single_post_replica_by_pushkin(cc: ttc.ConversationClassifier):
     text = "Старый священник подошел ко мне с вопросом: «Прикажете начинать?»"
     d = cc.extract_dialogue(text)
-    assert len(d.replicas) == 1
-    assert str(d.replicas[0]) == "Прикажете начинать?"
+    assert list(map(str, d.replicas)) == ["Прикажете начинать?"]
 
 
 def test_raw_replica_with_intervention_by_pushkin(cc: ttc.ConversationClassifier):
@@ -34,9 +31,10 @@ def test_raw_replica_with_intervention_by_pushkin(cc: ttc.ConversationClassifier
     «Тише, – говорит она мне, – отец болен, при смерти, и желает с тобою проститься»
     """
     d = cc.extract_dialogue(text)
-    assert len(d.replicas) == 2
-    assert str(d.replicas[0]) == "Тише,"
-    assert str(d.replicas[1]) == "отец болен, при смерти, и желает с тобою проститься"
+    assert list(map(str, d.replicas)) == [
+        "Тише,",
+        "отец болен, при смерти, и желает с тобою проститься",
+    ]
 
 
 def test_replica_with_intervention_containing_a_hyphen_by_sanderson(
@@ -50,9 +48,10 @@ def test_replica_with_intervention_containing_a_hyphen_by_sanderson(
         "– Это что?"
     )
     d = cc.extract_dialogue(text)
-    assert len(d.replicas) == 2
-    assert str(d.replicas[0]) == "Не-а. Они все так выглядят. Эй, а это что такое?"
-    assert str(d.replicas[1]) == "Это что?"
+    assert list(map(str, d.replicas)) == [
+        "Не-а. Они все так выглядят. Эй, а это что такое?",
+        "Это что?",
+    ]
 
 
 def test_replica_with_complex_sentence_inside(cc: ttc.ConversationClassifier):
@@ -63,11 +62,10 @@ def test_replica_with_complex_sentence_inside(cc: ttc.ConversationClassifier):
         #           ^^^^ problematic place
     )
     d = cc.extract_dialogue(text)
-    assert len(d.replicas) == 1
-    assert str(d.replicas[0]) == (
+    assert list(map(str, d.replicas)) == [
         "Делал ли что-нибудь для этого Штольц, что делал "
-        "и как делал, — мы этого не знаем."
-    )
+        "и как делал, — мы этого не знаем.",
+    ]
 
 
 def test_replica_with_intervention_containing_a_comma_and_hyphen_by_sanderson(
@@ -110,9 +108,10 @@ def test_replica_with_intervention_starting_with_a_comma_and_hyphen_by_sanderson
         "– Ага, – согласился Лейтен, высокий крепыш с курчавыми волосами. – Это точно."
     )
     d = cc.extract_dialogue(text)
-    assert len(d.replicas) == 2
-    assert str(d.replicas[0]) == "Ага,"
-    assert str(d.replicas[1]) == "Это точно."
+    assert list(map(str, d.replicas)) == [
+        "Ага,",
+        "Это точно.",
+    ]
 
 
 def test_replica_ending_with_a_comma_and_hyphen_by_mamleev(
@@ -122,11 +121,10 @@ def test_replica_ending_with_a_comma_and_hyphen_by_mamleev(
         "— Счастье — это довольство... И чтоб никаких "
         "мыслей, — наконец проговаривается Михайло."
     )
-    dialogue = cc.extract_dialogue(text)
-    assert len(dialogue.replicas) == 1
-    assert str(dialogue.replicas[0]) == (
-        "Счастье — это довольство... И чтоб никаких мыслей,"
-    )
+    d = cc.extract_dialogue(text)
+    assert list(map(str, d.replicas)) == [
+        "Счастье — это довольство... И чтоб никаких мыслей,",
+    ]
 
 
 @pytest.mark.xfail(reason="unhandled onomatopoeia", raises=AssertionError)
@@ -140,6 +138,7 @@ def test_replica_with_intervention_containing_an_ellipsis_by_mamleev(
         "— мысль... Боязно очень."
     )
     d = cc.extract_dialogue(text)
-    assert len(d.replicas) == 2
-    assert str(d.replicas[0]) == "Вот их я и боюсь,"
-    assert str(d.replicas[1]) == "Все пусто, и вдруг — бац! — мысль... Боязно очень."
+    assert list(map(str, d.replicas)) == [
+        "Вот их я и боюсь,",
+        "Все пусто, и вдруг — бац! — мысль... Боязно очень.",
+    ]

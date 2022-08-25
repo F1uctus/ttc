@@ -50,9 +50,10 @@ def test_referential_pronoun_by_tolstoy(
         "– У тебя лишний работник пропал! – сказал он, отвернувшись от Пьера. Князь Андрей высказывал свои мысли."
     )
     dialogue = cc.extract_dialogue(text)
-    assert len(dialogue.replicas) == 2
-    assert str(dialogue.replicas[0]) == "Он умрет. Третье, – что бишь еще ты сказал?"
-    assert str(dialogue.replicas[1]) == "У тебя лишний работник пропал!"
+    assert list(map(str, dialogue.replicas)) == [
+        "Он умрет. Третье, – что бишь еще ты сказал?",
+        "У тебя лишний работник пропал!",
+    ]
     play = cc.connect_play(dialogue)
     actual_speakers = [str(spk.lemma_) for spk in play.content.values()]
     assert actual_speakers[0] == "князь андрей"
