@@ -2,7 +2,7 @@
 name = "ttc"
 version = "0.1.0"
 description = "A Text-To-Conversation Natural Language Processing toolkit."
-authors = ["Ilya Nikitin <f1uctus@mail.ru>"]
+authors = ["Ilya I. Nikitin <ilya.i.nikitin@proton.me>"]
 license = "GPL-3.0+"
 readme = "README.md"
 repository = "https://github.com/f1uctus/ttc"
