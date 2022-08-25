@@ -105,12 +105,9 @@ def extract_replicas(
                     lambda x: x._.has_newline or x.i == len(doc) - 1,
                     start=pt.i,
                 )[1]
-                results = [
-                    match
-                    for match in matchers["AUTHOR_INSERTION"](
-                        doc[pt.i : par_end_idx + 1], as_spans=True
-                    )
-                ]
+                results = matchers["AUTHOR_INSERTION"](
+                    doc[pt.i : par_end_idx + 1], as_spans=True
+                )
                 if len(results) > 0:
                     flush_replica()
                     # skip to the end of author insertion
@@ -121,12 +118,9 @@ def extract_replicas(
                     states.append("author_insertion")
                 else:
                     # checking for author ending
-                    results = [
-                        match
-                        for match in matchers["AUTHOR_ENDING"](
-                            doc[pt.i : par_end_idx + 1], as_spans=True
-                        )
-                    ]
+                    results = matchers["AUTHOR_ENDING"](
+                        doc[pt.i : par_end_idx + 1], as_spans=True
+                    )
                     for match in results:
                         # - 1 is a line break offset
                         if (
