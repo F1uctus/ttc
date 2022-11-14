@@ -22,7 +22,7 @@ ru_core_news_lg = { url = "https://github.com/explosion/spacy-models/releases/do
 # ... development
 pytest = { version = "^7.2.0", optional = true }
 jupyter = { version = "^1.0.0", optional = true }
-mypy = { version = "^0.982", optional = true }
+mypy = { version = "^0.990", optional = true }
 black = { version = "^22.10", optional = true }
 
 [tool.poetry.extras]
