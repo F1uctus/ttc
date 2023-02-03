@@ -12,12 +12,12 @@ repository = "https://github.com/f1uctus/ttc"
 python = ">=3.8,<3.12"
 click = "^8.1.3"
 numpy = "^1.24.1"
-spacy = "^3.4.4"
-ru_core_news_sm = { url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_sm-3.4.0/ru_core_news_sm-3.4.0.tar.gz" }
+spacy = "^3.5.0"
+ru_core_news_sm = { url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_sm-3.5.0/ru_core_news_sm-3.5.0.tar.gz" }
 
 # ... models
-ru_core_news_md = { url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_md-3.4.0/ru_core_news_md-3.4.0.tar.gz", optional = true }
-ru_core_news_lg = { url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_lg-3.4.0/ru_core_news_lg-3.4.0.tar.gz", optional = true }
+ru_core_news_md = { url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_md-3.5.0/ru_core_news_md-3.5.0.tar.gz", optional = true }
+ru_core_news_lg = { url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_lg-3.5.0/ru_core_news_lg-3.5.0.tar.gz", optional = true }
 
 # ... development
 pytest = { version = "^7.2.1", optional = true }
@@ -26,9 +26,8 @@ mypy = { version = "^0.991", optional = true }
 black = { version = "^22.12", optional = true }
 
 [tool.poetry.extras]
-models = ["ru_core_news_md", "ru_core_news_lg"]
-dev = ["pytest", "mypy"]
-interactive = ["jupyter", "black"]
+large_models_ru = ["ru_core_news_md", "ru_core_news_lg"]
+dev = ["pytest", "mypy", "jupyter", "black"]
 
 [tool.poetry.scripts]
 ttc = "ttc:cli.cli"
