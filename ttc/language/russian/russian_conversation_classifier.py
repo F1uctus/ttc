@@ -4,19 +4,20 @@ from typing import Dict
 import spacy
 from spacy import Language
 from spacy.matcher import Matcher
-from spacy.tokens import Doc, Token
+from spacy.tokens import Doc, Token, Span
 
 import ttc.language.russian.pipelines as russian_pipelines
 from ttc.language import ConversationClassifier, Dialogue, Play
 from ttc.language.russian.extensions.syntax_iterators import noun_chunks
 from ttc.language.russian.pipelines.replicizer import extract_replicas
 from ttc.language.russian.pipelines.speaker_classifier import classify_speakers
-from ttc.language.russian.token_extensions import PREDICATIVE_TOKEN_EXTENSIONS
+from ttc.language.russian.token_extensions import TOKEN_EXTENSIONS
 from ttc.language.russian.token_patterns import (
     TokenMatcherClass,
     TOKEN_MATCHER_CLASSES,
     TokenPattern,
 )
+from ttc.language.russian.span_extensions import SPAN_EXTENSIONS
 
 
 @dataclass
@@ -43,9 +44,13 @@ class RussianConversationClassifier(ConversationClassifier):
                     matcher.add(name, [value])
             self.token_matchers[cls] = matcher
 
-        for name, pred in PREDICATIVE_TOKEN_EXTENSIONS.items():
+        for name, ext in TOKEN_EXTENSIONS.items():
             if not Token.has_extension(name):
-                Token.set_extension(name, getter=pred)
+                Token.set_extension(name, **ext)
+
+        for name, ext in SPAN_EXTENSIONS.items():
+            if not Span.has_extension(name):
+                Span.set_extension(name, **ext)
 
     def extract_dialogue(self, text: str) -> Dialogue:
         # 1. store newline indices in the separate text metadata

@@ -1,6 +1,6 @@
 from typing import Callable
 
-from spacy.symbols import VERB  # type: ignore
+from spacy.symbols import VERB, nsubj, obj, obl  # type: ignore
 from spacy.tokens import Token, Span
 
 from ttc.language.russian.constants import (
@@ -11,36 +11,50 @@ from ttc.language.russian.constants import (
 )
 
 
-def has_newline(t: Token):
-    start = t.idx + len(t.text)
-    return any(
-        start + i in t.doc._.nl_indices for i in range(len(t.whitespace_) - 1, -1, -1)
+def is_sent_end(self: Token):
+    return self.is_sent_end
+
+
+def is_hyphen(self: Token):
+    return self.text in HYPHENS
+
+
+def is_open_quote(self: Token):
+    return self.text in OPEN_QUOTES
+
+
+def is_close_quote(self: Token):
+    return self.text in CLOSE_QUOTES
+
+
+def is_speaking_verb(self: Token):
+    return any(v in self.lemma_ for v in SPEAKING_VERBS)
+
+
+def is_not_second_person(self: Token):
+    return "Person=Second" not in self.morph
+
+
+def has_newline(self: Token):
+    start = self.idx + len(self.text)
+    return self.i == len(self.doc) - 1 or any(
+        start + i in self.doc._.nl_indices
+        for i in range(len(self.whitespace_) - 1, -1, -1)
     )
 
 
-PREDICATIVE_TOKEN_EXTENSIONS = {
-    "is_sent_end": lambda t: t.is_sent_end,
-    "is_hyphen": lambda t: t.text in HYPHENS,
-    "has_newline": has_newline,
-    "is_open_quote": lambda t: t.text in OPEN_QUOTES,
-    "is_close_quote": lambda t: t.text in CLOSE_QUOTES,
-    "is_speaking_verb": lambda t: any(v in t.lemma_ for v in SPEAKING_VERBS),
-    "is_not_second_person": lambda t: "Person=Second" not in t.morph,
-}
-
-
 def morph_equals(
-    a: Token,
-    b: Token,
+    self: Token,
+    other: Token,
     *morphs: str,  # Morph
 ) -> bool:
-    if a.morph is None or b.morph is None:
+    if self.morph is None or other.morph is None:
         return False
-    return all(a.morph.get(k) == b.morph.get(k) for k in morphs)
+    return all(self.morph.get(k) == other.morph.get(k) for k in morphs)
 
 
-def has_linked_verb(t: Token):
-    head: Token = t.head
+def has_linked_verb(self: Token):
+    head: Token = self.head
     while head and head.pos != VERB:
         if head == head.head:
             return False
@@ -49,20 +63,46 @@ def has_linked_verb(t: Token):
         return True
 
 
-def token_as_span(t: Token) -> Span:
-    return t.doc[t.i : t.i + 1]
+def as_span(self: Token) -> Span:
+    return self.doc[self.i : self.i + 1]
 
 
-def expand_to_matching_noun_chunk(t: Token) -> Span:
-    for nc in t.sent.noun_chunks:
-        if t in nc:
+def non_word(self: Token) -> bool:
+    return self.is_punct or has_newline(self)
+
+
+def expand_to_matching_noun_chunk(self: Token) -> Span:
+    for nc in self.sent.noun_chunks:
+        if self in nc:
             return nc
     # cannot expand noun, use token as-is
-    return token_as_span(t)
+    return as_span(self)
 
 
-def contains_near(t: Token, radius: int, predicate: Callable[[Token], bool]):
+def contains_near(self: Token, radius: int, predicate: Callable[[Token], bool]) -> bool:
     return any(
         predicate(t)
-        for t in t.doc[max(0, t.i - radius) : min(len(t.doc), t.i + radius)]
+        for t in self.doc[max(0, self.i - radius) : min(len(self.doc), self.i + radius)]
     )
+
+
+# from least to most important
+SPEAKER_DEP_ORDER = [obl, obj, nsubj]
+
+
+def speaker_dep_order(self: Token) -> int:
+    try:
+        return SPEAKER_DEP_ORDER.index(self.dep)
+    except ValueError:
+        return -1
+
+
+def ref_match(ref: Token, target: Token) -> bool:
+    return morph_equals(target, ref, "Gender", "Number")
+
+
+TOKEN_EXTENSIONS = {
+    name: {"getter": f}
+    for name, f in locals().items()
+    if callable(f) and f.__module__ == __name__
+}

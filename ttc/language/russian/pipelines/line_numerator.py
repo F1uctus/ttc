@@ -1,6 +1,8 @@
 from spacy import Language
 from spacy.tokens import Doc, Token, Span
 
+from ttc.language.russian.token_extensions import has_newline
+
 NAME = "line_numerator"
 
 if not Token.has_extension("line_no"):
@@ -19,7 +21,7 @@ def _mark_line_numbers(doc: Doc):
 
     for token in doc:
         token._.line_no = line_no
-        if token._.has_newline:
+        if has_newline(token):
             line_no += 1
 
     return doc

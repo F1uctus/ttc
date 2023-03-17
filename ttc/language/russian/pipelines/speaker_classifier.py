@@ -10,12 +10,21 @@ from spacy.tokens import Token, Span
 from ttc.iterables import iter_by_triples, canonical_int_enumeration, flatmap
 from ttc.language import Dialogue
 from ttc.language.russian.constants import REFERRAL_PRON
+from ttc.language.russian.span_extensions import (
+    is_parenthesized,
+    non_overlapping_span_len,
+    trim_non_word,
+    is_inside,
+    replica_fills_line,
+    sent_resembles_replica,
+)
 from ttc.language.russian.token_extensions import (
-    morph_equals,
-    token_as_span,
+    speaker_dep_order,
+    ref_match,
     has_linked_verb,
-    contains_near,
     expand_to_matching_noun_chunk,
+    as_span,
+    non_word,
 )
 
 SPEAKER_TO_SPEAKING_VERB = [
@@ -63,33 +72,6 @@ SPEAKER_CONJUNCT_SPEAKING_VERB = [
 ]
 
 
-def replica_fills_line(replica: Span) -> bool:
-    doc = replica.doc
-    return (
-        replica.start - 3 >= 0
-        and replica.end + 3 < len(doc)  # TODO: Rewrite and check end-of-doc case
-        and any(t._.has_newline for t in doc[replica.start - 3 : replica.start])
-        # colon means that the author still annotates the replica, just on previous line
-        and not any(t.text == ":" for t in doc[replica.start - 3 : replica.start])
-        and any(t._.has_newline for t in doc[replica.end - 1 : replica.end + 3])
-    )
-
-
-# from least to most important
-SPEAKER_DEP_ORDER = [obl, obj, nsubj]
-
-
-def speaker_dep_order(t: Token) -> int:
-    try:
-        return SPEAKER_DEP_ORDER.index(t.dep)
-    except ValueError:
-        return -1
-
-
-def ref_match(ref: Token, target: Token) -> bool:
-    return morph_equals(target, ref, "Gender", "Number")
-
-
 def find_by_reference(spans: List[Span], reference: Token, _misses=0):
     """
     Find a noun chunk that might be a definition of the given reference token
@@ -111,7 +93,7 @@ def find_by_reference(spans: List[Span], reference: Token, _misses=0):
     ncs = sorted(
         spans[-1].noun_chunks,
         key=lambda nc: min(
-            (i for i in map(speaker_dep_order, nc) if i != -1), default=0
+            (i for tt in nc if (i := speaker_dep_order(tt)) != -1), default=0
         ),
         reverse=True,
     )
@@ -168,46 +150,10 @@ def from_exact_propn_with_verb(sent: Span) -> Optional[Span]:
     propns: List[Token] = [t for t in sent if t.pos == PROPN]
     for t in propns:
         if has_linked_verb(t):
-            return token_as_span(t)
+            return as_span(t)
         break
 
     return None
-
-
-def trim(span: Span, should_trim: Callable[[Token], bool]):
-    doc = span.doc
-    start = span.start
-    while start < span.end and should_trim(doc[start]):
-        start += 1
-    end = span.end - 1
-    while end > span.start and should_trim(doc[end]):
-        end -= 1
-    return doc[start : end + 1]
-
-
-def is_inside(inner: Span, outer: Span):
-    return inner.start >= outer.start and inner.end <= outer.end
-
-
-def non_overlapping_span_len(outer: Span, inner: Span) -> int:
-    outer, inner = trim(outer, non_word), trim(inner, non_word)
-    if is_inside(outer, inner):
-        return 0  # outer must be a strict superset of inner
-    return abs(outer.start - inner.start) + abs(outer.end - inner.end)
-
-
-def sent_resembles_replica(sent: Span, replica: Span):
-    return non_overlapping_span_len(sent, replica) <= 3
-
-
-def is_parenthesized(span: Span):
-    return contains_near(span[0], 3, lambda t: t.text == "(") and contains_near(
-        span[-1], 3, lambda t: t.text == ")"
-    )
-
-
-def non_word(t: Token) -> bool:
-    return t.is_punct or t._.has_newline
 
 
 def reference_search_context(
@@ -224,7 +170,7 @@ def reference_search_context(
 
     # add context piece between doc start and referral pronoun indices
     if len(relations) == 0 and replica_preceding_reference.start > reference.i:
-        nearest_l_context = trim(doc[0 : reference.i], non_word)
+        nearest_l_context = trim_non_word(doc[0 : reference.i])
         if len(nearest_l_context) > 1:
             search_context.append(nearest_l_context)
 
@@ -233,7 +179,7 @@ def reference_search_context(
     # add context pieces between some replicas
     # laying before the referral pronoun
     for l, r in zip(replicas_to_search_between, replicas_to_search_between[1:]):
-        between_reps = trim(doc[l[-1].i + 1 : r[0].i], non_word)
+        between_reps = trim_non_word(doc[l[-1].i + 1 : r[0].i])
         # if that span contains an already annotated matching speaker
         if (
             exclude_previous_speakers
@@ -271,8 +217,8 @@ def reference_search_context(
 
     # add context piece between the last replica to the left
     # of the referral pronoun and the pronoun itself
-    nearest_r_context = trim(
-        doc[replica_preceding_reference.end : reference.i], non_word
+    nearest_r_context = trim_non_word(
+        doc[replica_preceding_reference.end : reference.i]
     )
     if len(nearest_r_context) > 1:
         search_context.append(nearest_r_context)
@@ -395,7 +341,8 @@ def classify_speakers(
             for match_id, token_ids in dep_matcher(sent):
                 # For this matcher speaker is the first token in a pattern
                 token: Token = sent[token_ids[0]]
-                if prev_sent and token.lemma_ in REFERRAL_PRON and (ref := token):
+                if prev_sent and token.lemma_ in REFERRAL_PRON:
+                    ref = token
                     # First, exclude previously annotated speakers from search
                     ref_search_context = reference_search_context(
                         relations=relations,
@@ -416,7 +363,7 @@ def classify_speakers(
                         try:
                             dep_span = next(find_by_reference(ref_search_context, ref))
                         except StopIteration:
-                            dep_span = token_as_span(token)
+                            dep_span = as_span(token)
                 else:
                     dep_span = expand_to_matching_noun_chunk(token)
 

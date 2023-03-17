@@ -1,9 +1,15 @@
 from collections import deque
-from typing import Literal, Callable, Optional, Union, List, Dict, Tuple, Deque
+from typing import Literal, Callable, Optional, Union, List, Dict, Tuple, Deque, Final
 
 from spacy.matcher import Matcher
 from spacy.tokens import Token, Span, Doc
 
+from ttc.language.russian.token_extensions import (
+    has_newline,
+    is_open_quote,
+    is_close_quote,
+    is_hyphen,
+)
 from ttc.language.russian.token_patterns import TokenMatcherClass
 
 
@@ -12,39 +18,37 @@ def next_matching(
     predicate: Callable[[Token], bool],
     *,
     start: int = 0,
-    step: int = 1,
 ) -> Tuple[Optional[Token], int]:
-    delta = 0
-    sub_piece = None
-    while 0 <= start + delta < len(doc_like):
-        checked = doc_like[start + delta]
-        if predicate(checked):
-            sub_piece = checked
-            break
-        delta += step
-    return sub_piece, start + delta
+    for i, token in enumerate(doc_like[start:], start):
+        if predicate(token):
+            return token, i
+    return None, len(doc_like)
 
 
 def extract_replicas(
     doc: Doc,
     matchers: Dict[TokenMatcherClass, Matcher],
 ) -> List[Span]:
-    replicas: List[Span] = []
-    tokens: List[Token] = []
+    """
+    Extract replicas from a Doc object.
+    Replicas are speech elements in a text that are often attributed to specific characters.
+    The function uses a state machine to process the text and identify the replicas.
+    """
+    replicas: Final[List[Span]] = []
+    tokens: Final[List[Token]] = []
 
     def flush_replica():
-        nonlocal tokens
-        if len(tokens) > 0:
+        if tokens:
             replicas.append(doc[tokens[0].i : tokens[-1].i + 1])
-            tokens = []
+            tokens.clear()
 
     states: Deque[
         Literal[
             "author",
             "author_insertion",
-            "replica_hyphen_after_newline",
-            "replica_quote_after_colon",
-            "replica_quote_before_hyphen",
+            "replica_by_newline_and_hyphen",
+            "replica_by_colon_and_quote",
+            "replica_by_quote",  # Can be a mistreated author's speech
         ]
     ] = deque(maxlen=3)
     states.append("author")
@@ -54,20 +58,20 @@ def extract_replicas(
     while ti + 1 < doc_length:
         ti += 1
 
-        pt: Optional[Token] = doc[ti - 1] if ti - 1 >= 0 else None
-        nt: Optional[Token] = doc[ti + 1] if ti + 1 < len(doc) else None
-        nnt: Optional[Token] = doc[ti + 2] if ti + 2 < len(doc) else None
+        pt: Optional[Token] = doc[ti - 1] if ti > 0 else None
+        nt: Optional[Token] = doc[ti + 1] if ti + 1 < doc_length else None
+        nnt: Optional[Token] = doc[ti + 2] if ti + 2 < doc_length else None
         t: Token = doc[ti]
 
         state = states[-1]
 
-        if state == "replica_quote_before_hyphen":
-            if t._.is_close_quote:
-                if t._.has_newline or (
+        if state == "replica_by_quote":
+            if is_close_quote(t):
+                if has_newline(t) or (
                     nt
                     and (
-                        (nt._.is_hyphen or nt._.has_newline)
-                        or (nt.is_punct and nnt and nnt._.is_hyphen)
+                        (is_hyphen(nt) or has_newline(nt))
+                        or (nt.is_punct and nnt and is_hyphen(nnt))
                     )
                 ):
                     # matches all below cases:
@@ -78,31 +82,31 @@ def extract_replicas(
                     flush_replica()
                 else:
                     # skip, just a quoted author speech
-                    tokens = []
+                    tokens.clear()
                 states.append("author")
-            elif pt and pt.is_punct and t._.is_hyphen:
+            elif pt and pt.is_punct and is_hyphen(t):
                 flush_replica()
                 states.append("author_insertion")
             else:
                 tokens.append(t)
 
-        elif state == "replica_quote_after_colon":
-            if t._.is_close_quote:
+        elif state == "replica_by_colon_and_quote":
+            if is_close_quote(t):
                 flush_replica()
                 states.append("author")
             else:
                 tokens.append(t)
 
-        elif state == "replica_hyphen_after_newline":
-            if t._.has_newline:
+        elif state == "replica_by_newline_and_hyphen":
+            if has_newline(t):
                 tokens.append(t)
                 flush_replica()
                 states.append("author")
-            elif pt and pt.is_punct and t._.is_hyphen:
+            elif pt and pt.is_punct and is_hyphen(t):
                 # checking for author insertion
                 par_end_idx = next_matching(  # paragraph ending index
                     doc,
-                    lambda x: x._.has_newline or x.i == len(doc) - 1,
+                    lambda x: has_newline(x) or x.i == doc_length - 1,
                     start=pt.i,
                 )[1]
                 results = matchers["AUTHOR_INSERTION"](
@@ -112,45 +116,69 @@ def extract_replicas(
                     flush_replica()
                     # skip to the end of author insertion
                     ti = results[0][:-2].end
-                elif pt.text not in (",", ";"):
-                    # certainly not a complex sentence construct
-                    flush_replica()
-                    states.append("author_insertion")
                 else:
-                    # checking for author ending
-                    results = matchers["AUTHOR_ENDING"](
-                        doc[pt.i : par_end_idx + 1], as_spans=True
+                    # (+) Onomatopoeia
+                    # — Все тихо, и вдруг — бам-бам-бам! — заколотили в дверь...
+                    # — Из кустов — кря! — ...
+                    # (-) Not an onomatopoeia
+                    # — То — дедам! — сказал ...
+                    onomatopoeia = (
+                        pt.text in ("!",)
+                        and nt
+                        and nt.text[0].islower()
+                        and (
+                            # a singular sound is usually a stop token
+                            tokens[-2].is_stop
+                            or
+                            # found a repetitive sequence (x-x)
+                            any(
+                                t
+                                for t in tokens[:5:-1]
+                                if is_hyphen(t.nbor(-1)) and t.nbor(-2).text == t.text
+                            )
+                        )
                     )
-                    for match in results:
-                        # - 1 is a line break offset
-                        if (
-                            match.end >= len(doc) - 1
-                            or doc[match.end - 1]._.has_newline
-                        ):
-                            flush_replica()
-                            states.append("author")
-                            # skip to the end of author ending
-                            ti = match.end - 1
-                            break
-                    else:
+                    if pt.text not in (",", ";") and not onomatopoeia:
+                        # certainly not a complex sentence construct
+                        # and not an onomatopoeia
+                        flush_replica()
+                        states.append("author_insertion")
+                    elif onomatopoeia:
                         tokens.append(t)
+                    else:
+                        # checking for author ending
+                        results = matchers["AUTHOR_ENDING"](
+                            doc[pt.i : par_end_idx + 1], as_spans=True
+                        )
+                        for match in results:
+                            # - 1 is a line break offset
+                            if match.end >= doc_length - 1 or has_newline(
+                                doc[match.end - 1]
+                            ):
+                                flush_replica()
+                                states.append("author")
+                                # skip to the end of author ending
+                                ti = match.end - 1
+                                break
+                        else:
+                            tokens.append(t)
             else:
                 tokens.append(t)
 
         # author* -> replica* transitions
-        elif (pt is None or pt._.has_newline) and t._.is_hyphen:
+        elif (pt is None or has_newline(pt)) and is_hyphen(t):
             # [Автор:]\n— Реплика
-            states.append("replica_hyphen_after_newline")
+            states.append("replica_by_newline_and_hyphen")
 
-        elif pt and ":" in pt.text and t._.is_open_quote:
-            # Автор: "Реплика" | Автор: «Реплика»
-            states.append("replica_quote_after_colon")
+        elif pt and ":" in pt.text and is_open_quote(t):
+            # Автор: [«"]Реплика[»"]
+            states.append("replica_by_colon_and_quote")
 
-        elif t._.is_open_quote:
+        elif is_open_quote(t):
             # "Реплика" — автор
-            states.append("replica_quote_before_hyphen")
+            states.append("replica_by_quote")
 
-        elif state == "author_insertion" and pt and pt.is_punct and t._.is_hyphen:
+        elif state == "author_insertion" and pt and pt.is_punct and is_hyphen(t):
             # — автор<punct> — [Рр]еплика
             #                 ^
             # return to the state preceding the author insertion

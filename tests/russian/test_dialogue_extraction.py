@@ -114,7 +114,7 @@ def test_replica_with_intervention_starting_with_a_comma_and_hyphen_by_sanderson
     ]
 
 
-def test_replica_ending_with_a_comma_and_hyphen_by_mamleev(
+def test_replica_ending_with_a_comma_and_hyphen_by_mamleyev(
     cc: ttc.ConversationClassifier,
 ):
     text = (
@@ -127,8 +127,7 @@ def test_replica_ending_with_a_comma_and_hyphen_by_mamleev(
     ]
 
 
-@pytest.mark.xfail(reason="unhandled onomatopoeia", raises=AssertionError)
-def test_replica_with_intervention_containing_an_ellipsis_by_mamleev(
+def test_replica_with_onomatopoeia_by_mamleyev(
     cc: ttc.ConversationClassifier,
 ):
     text = (
@@ -141,4 +140,14 @@ def test_replica_with_intervention_containing_an_ellipsis_by_mamleev(
     assert list(map(str, d.replicas)) == [
         "Вот их я и боюсь,",
         "Все пусто, и вдруг — бац! — мысль... Боязно очень.",
+    ]
+
+
+def test_replica_with_repetitive_onomatopoeia(
+    cc: ttc.ConversationClassifier,
+):
+    text = "— Все тихо, и вдруг — бам-бам-бам! — заколотили в дверь..."
+    d = cc.extract_dialogue(text)
+    assert list(map(str, d.replicas)) == [
+        "Все тихо, и вдруг — бам-бам-бам! — заколотили в дверь...",
     ]

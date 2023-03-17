@@ -3,6 +3,8 @@ from typing import Optional, List, Callable
 import spacy
 from spacy import Language
 
+from ttc.language.russian.token_extensions import has_newline, is_hyphen
+
 NAME = "patched_sentencizer"
 
 
@@ -48,10 +50,16 @@ class Sentencizer(spacy.pipeline.Sentencizer):
                 for i, token in enumerate(doc):
                     is_in_punct_chars = token.text in self.default_punct_chars
                     # An actual TTC patch is here
-                    # (applies sentence splitting by newlines)
+                    # (sentence splits by newlines; hyphen starts a sentence)
                     #  ~~~~~~~~~~~~~~~~~~~~~~
-                    if token._.has_newline or (
-                        seen_period and not token.is_punct and not is_in_punct_chars
+                    if has_newline(token):
+                        doc_guesses[start] = True
+                        start = token.i + int(not is_hyphen(token))
+                        seen_period = False
+                    elif (
+                        seen_period
+                        and (not token.is_punct or is_hyphen(token))
+                        and not is_in_punct_chars
                     ):
                         doc_guesses[start] = True
                         start = token.i
