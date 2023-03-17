@@ -13,15 +13,22 @@ def find_test_texts(path: Path):
     return [e.name for e in path.iterdir() if e.suffix == ".txt"]
 
 
-def load_test(path: Path, file_name: str, delimiter="-" * 20):
+def parse_conversation(text: str) -> Tuple[List[str], List[str]]:
+    lines = [line.strip() for line in text.split("\n") if line.strip()]
+    dialogue = [(r, s.lower()) for s, r in [line.split("::") for line in lines]]
+    return tuple(list(x) for x in zip(*dialogue))
+
+
+def load_test(
+    path: Path, file_name: str, delimiter="-" * 20
+) -> Tuple[str, Tuple[List[str], List[str]]]:
     """
     Returns
     -------
-    Tuple[str, List[int]]
-        Input text, Expected speakers to be extracted by ttc.
+    (Input text, Expected conversation to be extracted by ttc.)
     """
     content = (path / file_name).read_text(encoding="utf-8").split(delimiter)
-    return content[0].strip(), [s for s in content[1].split("\n") if s.strip()]
+    return content[0].strip(), parse_conversation(content[1].strip())
 
 
 @pytest.fixture(scope="module")
@@ -63,11 +70,14 @@ def test_referential_pronoun_by_tolstoy(
 @pytest.mark.xfail(reason="some test files are still failing", raises=AssertionError)
 @pytest.mark.parametrize("file_name", find_test_texts(TEXTS_PATH))
 def test_text_to_play(cc, file_name):
-    text, expected_speakers = load_test(TEXTS_PATH, file_name)
+    text, expected_result = load_test(TEXTS_PATH, file_name)
+    expected_replicas, expected_speakers = expected_result
     print()
     dialogue = cc.extract_dialogue(text)
     pprint(dialogue)
     play = cc.connect_play(dialogue)
-    actual_speakers = [str(spk.lemma_) for spk in play.content.values()]
     pprint(play.content)
-    assert expected_speakers == actual_speakers
+    assert [cc.language(s)[:].lemma_ for s in expected_speakers] == [
+        s.lemma_ for s in play.content.values()
+    ]
+    assert expected_replicas == list(map(str, play.content.keys()))
