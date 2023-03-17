@@ -2,7 +2,7 @@ from collections import deque
 from typing import Literal, Callable, Optional, Union, List, Dict, Tuple, Deque, Final
 
 from spacy.matcher import Matcher
-from spacy.symbols import NOUN, PRON, PROPN
+from spacy.symbols import NOUN, PRON, PROPN  # type: ignore
 from spacy.tokens import Token, Span, Doc
 
 from ttc.language.russian.token_extensions import (
