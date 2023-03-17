@@ -341,6 +341,9 @@ def classify_speakers(
             for match_id, token_ids in dep_matcher(sent):
                 # For this matcher speaker is the first token in a pattern
                 token: Token = sent[token_ids[0]]
+                if token in replica:
+                    # We're not interested in "verb-noun"s inside of replicas yet
+                    continue
                 if prev_sent and token.lemma_ in REFERRAL_PRON:
                     ref = token
                     # First, exclude previously annotated speakers from search
