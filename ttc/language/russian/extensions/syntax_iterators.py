@@ -49,7 +49,7 @@ def noun_chunks(doclike: Union[Doc, Span]) -> Iterator[Tuple[int, int, int]]:
 
     def are_uniform(t1: Token, t2: Token) -> bool:
         return t1.pos == t2.pos and morph_equals(
-            t1, t2, "Gender", "Number", "Case", "Voice", "Animacy"
+            t1, t2, "Number", "Case", "Voice", "Animacy"
         )
 
     def get_left_bound(root: Token) -> Token:
