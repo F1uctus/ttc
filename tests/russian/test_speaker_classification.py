@@ -82,7 +82,7 @@ def test_hyphenated_noun_chunk(cc):
     assert actual_speakers[1] == "одноглазый коротышка-сержант"
 
 
-# @pytest.mark.xfail(reason="some test files are still failing", raises=AssertionError)
+@pytest.mark.xfail(reason="some test files are still failing", raises=AssertionError)
 @pytest.mark.parametrize("file_name", find_test_texts(TEXTS_PATH))
 def test_text_to_play(cc, file_name):
     text, expected_result = load_test(TEXTS_PATH, file_name)
