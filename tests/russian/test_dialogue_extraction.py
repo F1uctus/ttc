@@ -8,28 +8,29 @@ def cc():
     yield ttc.load("ru")
 
 
-def test_single_pre_replica_by_pushkin(cc: ttc.ConversationClassifier):
+def test_single_pre_replica_by_pushkin(cc):
     text = "«Далече ли до крепости?» – спросил я у своего ямщика"
     d = cc.extract_dialogue(text)
     assert list(map(str, d.replicas)) == ["Далече ли до крепости?"]
 
 
-def test_single_pre_replica_by_mamleyev(cc: ttc.ConversationClassifier):
+def test_single_pre_replica_by_mamleyev(cc):
     text = "— Что есть счастье? — вдруг громко спрашивает Гриша."
     d = cc.extract_dialogue(text)
     assert list(map(str, d.replicas)) == ["Что есть счастье?"]
 
 
-def test_single_post_replica_by_pushkin(cc: ttc.ConversationClassifier):
+def test_single_post_replica_by_pushkin(cc):
     text = "Старый священник подошел ко мне с вопросом: «Прикажете начинать?»"
     d = cc.extract_dialogue(text)
     assert list(map(str, d.replicas)) == ["Прикажете начинать?"]
 
 
-def test_raw_replica_with_intervention_by_pushkin(cc: ttc.ConversationClassifier):
-    text = """
-    «Тише, – говорит она мне, – отец болен, при смерти, и желает с тобою проститься»
-    """
+def test_raw_replica_with_intervention_by_pushkin(cc):
+    text = (
+        "«Тише, – говорит она мне, – отец"
+        " болен, при смерти, и желает с тобою проститься»"
+    )
     d = cc.extract_dialogue(text)
     assert list(map(str, d.replicas)) == [
         "Тише,",
@@ -37,9 +38,7 @@ def test_raw_replica_with_intervention_by_pushkin(cc: ttc.ConversationClassifier
     ]
 
 
-def test_replica_with_intervention_containing_a_hyphen_by_sanderson(
-    cc: ttc.ConversationClassifier,
-):
+def test_replica_with_intervention_containing_a_hyphen_by_sanderson(cc):
     text = (
         "– Не-а. Они все так выглядят. Эй, а это что такое? "
         "– Разбойник вытащил искрящийся камень размером со сферу из ладони того, "
@@ -54,7 +53,7 @@ def test_replica_with_intervention_containing_a_hyphen_by_sanderson(
     ]
 
 
-def test_replica_with_complex_sentence_inside(cc: ttc.ConversationClassifier):
+def test_replica_with_complex_sentence_inside(cc):
     text = (
         "Джон продолжил:\n"
         "— Делал ли что-нибудь для этого Штольц, что делал "
@@ -68,9 +67,7 @@ def test_replica_with_complex_sentence_inside(cc: ttc.ConversationClassifier):
     ]
 
 
-def test_replica_with_intervention_containing_a_comma_and_hyphen_by_sanderson(
-    cc: ttc.ConversationClassifier,
-):
+def test_replica_with_intervention_containing_a_comma_and_hyphen_by_sanderson(cc):
     text = (
         "– Нет! – рявкнул Каладин. – Вылазки с мостом выматывают нас. О, я знаю, "
         "нас заставляют работать – осматривать ущелья, чистить нужники, "
@@ -101,11 +98,10 @@ def test_replica_with_intervention_containing_a_comma_and_hyphen_by_sanderson(
     )
 
 
-def test_replica_with_intervention_starting_with_a_comma_and_hyphen_by_sanderson(
-    cc: ttc.ConversationClassifier,
-):
+def test_replica_with_intervention_starting_with_a_comma_and_hyphen_by_sanderson(cc):
     text = (
-        "– Ага, – согласился Лейтен, высокий крепыш с курчавыми волосами. – Это точно."
+        "– Ага, – согласился Лейтен, высокий"
+        " крепыш с курчавыми волосами. – Это точно."
     )
     d = cc.extract_dialogue(text)
     assert list(map(str, d.replicas)) == [
@@ -114,9 +110,7 @@ def test_replica_with_intervention_starting_with_a_comma_and_hyphen_by_sanderson
     ]
 
 
-def test_replica_ending_with_a_comma_and_hyphen_by_mamleyev(
-    cc: ttc.ConversationClassifier,
-):
+def test_replica_ending_with_a_comma_and_hyphen_by_mamleyev(cc):
     text = (
         "— Счастье — это довольство... И чтоб никаких "
         "мыслей, — наконец проговаривается Михайло."
@@ -127,9 +121,7 @@ def test_replica_ending_with_a_comma_and_hyphen_by_mamleyev(
     ]
 
 
-def test_replica_with_onomatopoeia_by_mamleyev(
-    cc: ttc.ConversationClassifier,
-):
+def test_replica_with_onomatopoeia_by_mamleyev(cc):
     text = (
         "— Вот их я и боюсь, — обрадовался Гриша. "
         "— Все пусто, и вдруг — бац! "
@@ -143,9 +135,7 @@ def test_replica_with_onomatopoeia_by_mamleyev(
     ]
 
 
-def test_replica_with_repetitive_onomatopoeia(
-    cc: ttc.ConversationClassifier,
-):
+def test_replica_with_repetitive_onomatopoeia(cc):
     text = "— Все тихо, и вдруг — бам-бам-бам! — заколотили в дверь..."
     d = cc.extract_dialogue(text)
     assert list(map(str, d.replicas)) == [
