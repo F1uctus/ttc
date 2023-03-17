@@ -65,6 +65,12 @@ def extract_replicas(
 
         state = states[-1]
 
+        if t.is_space and not has_newline(t):
+            if state.startswith("replica"):
+                tokens.append(t)
+            else:
+                continue
+
         if state == "replica_by_quote":
             if is_close_quote(t):
                 if has_newline(t) or (
@@ -166,7 +172,7 @@ def extract_replicas(
                 tokens.append(t)
 
         # author* -> replica* transitions
-        elif (pt is None or has_newline(pt)) and is_hyphen(t):
+        elif (pt is None or pt.is_space or has_newline(pt)) and is_hyphen(t):
             # [Автор:]\n— Реплика
             states.append("replica_by_newline_and_hyphen")
 
