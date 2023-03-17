@@ -2,6 +2,7 @@ from collections import deque
 from typing import Literal, Callable, Optional, Union, List, Dict, Tuple, Deque, Final
 
 from spacy.matcher import Matcher
+from spacy.symbols import NOUN, PRON, PROPN
 from spacy.tokens import Token, Span, Doc
 
 from ttc.language.russian.token_extensions import (
@@ -131,17 +132,16 @@ def extract_replicas(
                     onomatopoeia = (
                         pt.text in ("!",)
                         and nt
-                        and nt.text[0].islower()
+                        and not nt.is_title
                         and (
-                            # a singular sound is usually a stop token
-                            tokens[-2].is_stop
+                            # found a — [word] [punct] — construct
+                            is_hyphen(tokens[-3])
+                            # where [word] is not a noun
+                            and tokens[-2].pos not in (NOUN, PRON, PROPN)
                             or
                             # found a repetitive sequence (x-x)
-                            any(
-                                t
-                                for t in tokens[:5:-1]
-                                if is_hyphen(t.nbor(-1)) and t.nbor(-2).text == t.text
-                            )
+                            is_hyphen(tokens[-3])
+                            and tokens[-2].lemma_ == tokens[-4].lemma_
                         )
                     )
                     if pt.text not in (",", ";") and not onomatopoeia:
