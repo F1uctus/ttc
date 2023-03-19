@@ -9,6 +9,7 @@ from spacy.tokens import Span
 class Play:
     language: Language
     content: Dict[Span, Optional[Span]]
+    """Replica text -> Speaker name"""
 
     def __repr__(self):
         s = ""
