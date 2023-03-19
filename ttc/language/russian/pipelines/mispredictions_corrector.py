@@ -2,7 +2,7 @@ from spacy import Language
 from spacy.symbols import PART  # type: ignore
 from spacy.tokens import Doc
 
-from ttc.language.russian.token_extensions import has_linked_verb
+from ttc.language.russian.token_extensions import linked_verb
 
 NAME = "correct_mispredictions"
 
@@ -142,7 +142,7 @@ def _correct_mispredictions(doc: Doc):
         if token.is_title and token.pos == PART and token.lower_ not in PARTICLES:
             if any(token.lower_.endswith(e) for e in PARTICLE_ENDINGS):
                 continue
-            if has_linked_verb(token):
+            if linked_verb(token):
                 token.pos_ = "PROPN"
 
     return doc

@@ -1,6 +1,6 @@
 import functools
 import math
-from typing import Collection, Optional, List, Dict, Callable
+from typing import Collection, Optional, List, Dict
 
 from spacy import Language
 from spacy.matcher import DependencyMatcher
@@ -10,66 +10,24 @@ from spacy.tokens import Token, Span
 from ttc.iterables import iter_by_triples, canonical_int_enumeration, flatmap
 from ttc.language import Dialogue
 from ttc.language.russian.constants import REFERRAL_PRON
+from ttc.language.russian.dependency_patterns import (
+    SPEAKER_TO_SPEAKING_VERB,
+    SPEAKER_CONJUNCT_SPEAKING_VERB,
+)
 from ttc.language.russian.span_extensions import (
     is_parenthesized,
-    non_overlapping_span_len,
     trim_non_word,
     is_inside,
-    replica_fills_line,
+    fills_line,
     sent_resembles_replica,
 )
 from ttc.language.russian.token_extensions import (
     speaker_dep_order,
     ref_match,
-    has_linked_verb,
+    linked_verb,
     expand_to_matching_noun_chunk,
     as_span,
-    non_word,
 )
-
-SPEAKER_TO_SPEAKING_VERB = [
-    {  # (anchor) speaker
-        "RIGHT_ID": "speaker",
-        "RIGHT_ATTRS": {
-            "DEP": "nsubj",
-            "POS": {"NOT_IN": ["SPACE", "PUNCT"]},
-        },
-    },
-    {  # speaker <--- speaking verb
-        "LEFT_ID": "speaker",
-        "REL_OP": "<",
-        "RIGHT_ID": "speaking_verb",
-        "RIGHT_ATTRS": {
-            "POS": "VERB",
-            "_": {"is_speaking_verb": True},
-        },
-    },
-]
-
-SPEAKER_CONJUNCT_SPEAKING_VERB = [
-    {  # (anchor) speaker
-        "RIGHT_ID": "speaker",
-        "RIGHT_ATTRS": {
-            "DEP": "nsubj",
-            "POS": {"NOT_IN": ["SPACE", "PUNCT"]},
-        },
-    },
-    {  # speaker <--- conjunct
-        "LEFT_ID": "speaker",
-        "REL_OP": "<",
-        "RIGHT_ID": "conjunct",
-        "RIGHT_ATTRS": {},
-    },
-    {  # conjunct ---> speaking verb
-        "LEFT_ID": "conjunct",
-        "REL_OP": ">>",  # TODO: Replace by search in Token.conjuncts?
-        "RIGHT_ID": "speaking_verb",
-        "RIGHT_ATTRS": {
-            "POS": "VERB",
-            "_": {"is_speaking_verb": True},
-        },
-    },
-]
 
 
 def find_by_reference(spans: List[Span], reference: Token, _misses=0):
@@ -116,7 +74,7 @@ def from_queue_with_verb(sent: Span, queue: Collection[str]) -> Optional[Span]:
         return None
 
     for t in sent:
-        if t.lemma_ in queue and has_linked_verb(t):
+        if t.lemma_ in queue and linked_verb(t):
             return expand_to_matching_noun_chunk(t)
 
     return None
@@ -128,7 +86,7 @@ def from_named_ent_with_verb(sent: Span) -> Optional[Span]:
     """
     for ent in sent.ents:
         for t in ent:
-            if has_linked_verb(t):
+            if linked_verb(t):
                 return ent
 
     return None
@@ -140,7 +98,7 @@ def from_noun_chunks_with_verb(sent: Span) -> Optional[Span]:
     """
     for noun_chunk in sent.noun_chunks:
         for t in noun_chunk:
-            if has_linked_verb(t):
+            if linked_verb(t):
                 return noun_chunk
     # TODO: If > 1, prefer the nominative noun chunk
     return None
@@ -149,7 +107,7 @@ def from_noun_chunks_with_verb(sent: Span) -> Optional[Span]:
 def from_exact_propn_with_verb(sent: Span) -> Optional[Span]:
     propns: List[Token] = [t for t in sent if t.pos == PROPN]
     for t in propns:
-        if has_linked_verb(t):
+        if linked_verb(t):
             return as_span(t)
         break
 
@@ -314,7 +272,7 @@ def classify_speakers(
                 mark_speaker(queue_i=-1)
                 break  # speaker found
 
-            if prev_replica and (replica_fills_line(replica) or is_parenthesized(sent)):
+            if prev_replica and (fills_line(replica) or is_parenthesized(sent)):
                 # If the author's sentence is enclosed in parentheses,
                 # there is unlikely a speaker definition,
                 # but some description of the situation

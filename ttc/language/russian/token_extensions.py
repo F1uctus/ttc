@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Set, Optional
 
 from spacy.symbols import VERB, nsubj, obj, obl  # type: ignore
 from spacy.tokens import Token, Span
@@ -53,14 +53,14 @@ def morph_equals(
     return all(self.morph.get(k) == other.morph.get(k) for k in morphs)
 
 
-def has_linked_verb(self: Token):
+def linked_verb(self: Token) -> Optional[Token]:
     head: Token = self.head
     while head and head.pos != VERB:
         if head == head.head:
-            return False
+            return None
         head = head.head
     else:
-        return True
+        return head
 
 
 def as_span(self: Token) -> Span:

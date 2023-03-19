@@ -62,7 +62,7 @@ class RussianConversationClassifier(ConversationClassifier):
         return Dialogue(
             self.language,
             doc,
-            extract_replicas(doc, self.token_matchers),
+            extract_replicas(doc, self.language, self.token_matchers),
         )
 
     def connect_play(self, dialogue: Dialogue) -> Play:
