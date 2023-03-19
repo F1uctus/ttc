@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Optional, Dict, Iterable, Generator
+from typing import Optional, Dict, List, Iterable, Generator
 
 from spacy import Language
 from spacy.matcher import DependencyMatcher
@@ -46,34 +46,26 @@ def nearest_of_filtered_by_verbs(subjects: Iterable[Span]) -> Optional[Span]:
     return next(reversed(list(filter_by_verbs(subjects))), None)
 
 
+def unique_speakers(relations: Dict[Span, Optional[Span]]) -> List[str]:
+    return list(
+        OrderedDict.fromkeys([s.lemma_ for s in relations.values() if s][::-1])
+    )[::-1]
+
+
 def search_for_speaker(
     s_region: Span,
-    relations: Dict[Span, Optional[Span]],
+    rels: Dict[Span, Optional[Span]],
     dep_matcher: DependencyMatcher,
 ):
     for match_id, token_ids in dep_matcher(s_region):
         # For this matcher speaker is the first token in a pattern
         token: Token = s_region[token_ids[0]]
-        # if token in replica:
-        #     # We're not interested in "verb-noun"s inside of replicas yet
-        #     continue
-        if token.lemma_ in REFERRAL_PRON:
-            ref = token
-            if (
-                len(
-                    speakers := list(
-                        OrderedDict.fromkeys(
-                            [s.lemma_ for s in relations.values() if s][::-1]
-                        )
-                    )[::-1]
-                )
-                > 1
-            ):
-                for s in relations.values():
-                    if s and s.lemma_ == speakers[-2] and ref_match_any(ref, s):
-                        return s
-                else:
-                    dep = token
+        if token.lemma_ in REFERRAL_PRON and (
+            len(speakers := unique_speakers(rels)) > 1
+        ):
+            for s in rels.values():
+                if s and s.lemma_ == speakers[-2] and ref_match_any(token, s):
+                    return s
             else:
                 dep = token
         else:
@@ -81,7 +73,7 @@ def search_for_speaker(
 
         return expand_to_noun_chunk(dep)
 
-    if relations and (prev_speaker := relations[next(reversed(relations.keys()))]):
+    if rels and (prev_speaker := rels[next(reversed(rels.keys()))]):
         for ref_t in [
             r[0] for r in s_region.noun_chunks if r[0].lemma_ in REFERRAL_PRON
         ]:
@@ -94,7 +86,7 @@ def search_for_speaker(
         return named_entity_span
 
     if propn_span := nearest_of_filtered_by_verbs(
-        expand_to_noun_chunk(t) for t in s_region if is_speaker_noun(t)
+        map(expand_to_noun_chunk, filter(is_speaker_noun, s_region))
     ):
         return propn_span
 
@@ -104,14 +96,31 @@ def search_for_speaker(
     return None
 
 
+def alternated(
+    relations: Dict[Span, Optional[Span]],
+    prev_replica: Optional[Span],
+    replica: Span,
+):
+    speakers = unique_speakers(relations)
+    return (
+        next(s for s in relations.values() if s and s.lemma_ == speakers[-2])
+        if (
+            prev_replica
+            and replica._.start_line_no - prev_replica._.end_line_no == 1
+            and len(speakers) > 1
+        )
+        else None
+    )
+
+
 def classify_speakers(
     language: Language,
     dialogue: Dialogue,
 ) -> Dict[Span, Optional[Span]]:
-    relations: Dict[Span, Optional[Span]] = {}
+    rels: Dict[Span, Optional[Span]] = {}
 
     if len(dialogue.replicas) == 0:
-        return relations
+        return rels
 
     doc = dialogue.doc
 
@@ -119,38 +128,23 @@ def classify_speakers(
     dep_matcher.add("*", [SPEAKER_TO_SPEAKING_VERB])
     dep_matcher.add("**", [SPEAKER_CONJUNCT_SPEAKING_VERB])
 
-    for prev_replica, replica, next_replica in iter_by_triples(dialogue.replicas):
-        if prev_replica and prev_replica._.end_line_no == replica._.start_line_no:
+    for p_replica, replica, n_replica in iter_by_triples(dialogue.replicas):
+
+        # On the same line as prev replica
+        if p_replica and p_replica._.end_line_no == replica._.start_line_no:
             # Replica is on the same line - probably separated by author speech
             # Assign it to the previous speaker
-            relations[replica] = relations[prev_replica]
+            rels[replica] = rels[p_replica]
 
-        elif (
-            prev_replica
-            and replica._.start_line_no - prev_replica._.end_line_no == 1
-            and fills_line(replica)
-            and len(
-                speakers := list(
-                    OrderedDict.fromkeys(
-                        [s.lemma_ for s in relations.values() if s][::-1]
-                    )
-                )[::-1]
-            )
-            > 1
-        ):
+        # Non-first replica fills line
+        elif fills_line(replica) and (alt := alternated(rels, p_replica, replica)):
             # Line has no author speech => speakers alternation
             # Assign replica to the penultimate speaker
-            relations[replica] = next(
-                s for s in relations.values() if s and s.lemma_ == speakers[-2]
-            )
+            rels[replica] = alt
 
+        # After author starting ( ... [:])
         elif replica._.is_after_author_starting:
             leading = doc[min(replica.start, replica.sent.start) : replica.start]
-            if len(leading) == 0:
-                if leading.start > 0:
-                    leading = doc[leading.start - 1 : leading.end]
-                else:
-                    breakpoint()
             if (
                 len(leading) < 2 < leading.start
                 and doc[leading.start - 1]._.has_newline
@@ -159,10 +153,10 @@ def classify_speakers(
                 # That indicates that speaker definition may be on that line.
                 leading = doc[leading.start - 2 : leading.end]
             search_region = expand_to_prev_line(leading)
-            relations[replica] = search_for_speaker(
-                search_region, relations, dep_matcher
-            )
 
+            rels[replica] = search_for_speaker(search_region, rels, dep_matcher)
+
+        # Before author ending ([-] ... [\n])
         elif replica._.is_before_author_ending:
             trailing = doc[replica.end : max(replica.end, replica.sent.end)]
             if len(trailing) == 0:
@@ -171,74 +165,37 @@ def classify_speakers(
                 else:
                     breakpoint()
             search_region = expand_to_next_line(trailing)
-            relations[replica] = search_for_speaker(
-                search_region, relations, dep_matcher
-            )
-            # TODO: Extract common alternation logic
-            if not relations[replica] and (
-                prev_replica
-                and replica._.start_line_no - prev_replica._.end_line_no == 1
-                and len(
-                    speakers := list(
-                        OrderedDict.fromkeys(
-                            [s.lemma_ for s in relations.values() if s][::-1]
-                        )
-                    )[::-1]
-                )
-                > 1
-            ):
+
+            rels[replica] = search_for_speaker(search_region, rels, dep_matcher)
+            if not rels[replica] and (alt := alternated(rels, p_replica, replica)):
                 # Author speech is present, but
                 # it has no reference to the speaker => speakers alternation
                 # Assign replica to the penultimate speaker
-                relations[replica] = next(
-                    s for s in relations.values() if s and s.lemma_ == speakers[-2]
-                )
+                rels[replica] = alt
 
-        elif replica._.is_before_author_insertion and next_replica:
-            search_region = doc[replica.end : next_replica.start]
+        # Author insertion
+        elif replica._.is_before_author_insertion and n_replica:
+            search_region = doc[replica.end : n_replica.start]
             if is_parenthesized(search_region):
                 # author is commenting on a situation, there should be
                 # no reference to the speaker.
                 search_region = doc[replica.end : replica.end]
-            relations[replica] = search_for_speaker(
-                search_region, relations, dep_matcher
-            )
-            # TODO: Extract common alternation logic
-            if not relations[replica] and (
-                prev_replica
-                and replica._.start_line_no - prev_replica._.end_line_no == 1
-                and len(
-                    speakers := list(
-                        OrderedDict.fromkeys(
-                            # TODO: Do not erase None-s from the speaker queue
-                            [s.lemma_ for s in relations.values() if s][::-1]
-                        )
-                    )[::-1]
-                )
-                > 1
-            ):
+
+            rels[replica] = search_for_speaker(search_region, rels, dep_matcher)
+            if not rels[replica] and (alt := alternated(rels, p_replica, replica)):
                 # Author speech is present, but
                 # it has no reference to the speaker => speakers alternation
                 # Assign replica to the penultimate speaker
-                relations[replica] = next(
-                    s for s in relations.values() if s and s.lemma_ == speakers[-2]
-                )
+                rels[replica] = alt
 
+        # Fallback - repeat speaker from prev replica
         elif (i := dialogue.replicas.index(replica)) > 0 and (
-            (pr := dialogue.replicas[i - 1]) and pr in relations
+            (pr := dialogue.replicas[i - 1]) and pr in rels
         ):
             # Assign to the previous speaker
-            relations[replica] = relations[pr]
+            rels[replica] = rels[pr]
 
         else:
             print("MISS", replica)  # TODO: handle
 
-    # end of replicas traversal
-
-    prev_replica = None
-    for replica, speaker in relations.items():
-        if speaker and speaker.lemma_ in REFERRAL_PRON and prev_replica:
-            relations[replica] = relations[prev_replica]
-        prev_replica = replica
-
-    return relations
+    return rels
