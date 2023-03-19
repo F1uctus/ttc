@@ -91,6 +91,7 @@ class TokenPattern(Enum):
         one_or_more(SPEAKER_WORD),
         some(WORDS_ON_SAME_LINE),
         text(*".;:", *ELLIPSES),
+        some(text(")")),
         HYPHEN,
         {"IS_TITLE": True},
     ]
@@ -105,6 +106,7 @@ class TokenPattern(Enum):
         VERB,
         some(WORDS_ON_SAME_LINE),
         text(*".;:", *ELLIPSES),
+        some(text(")")),
         HYPHEN,
         {"IS_TITLE": True},
     ]
