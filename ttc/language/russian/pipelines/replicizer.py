@@ -15,7 +15,7 @@ from typing import (
 
 from spacy import Language
 from spacy.matcher import Matcher, DependencyMatcher
-from spacy.symbols import NOUN, PRON, PROPN  # type: ignore
+from spacy.symbols import NOUN, PRON, PROPN, parataxis  # type: ignore
 from spacy.tokens import Token, Span, Doc
 
 from ttc.language.russian.dependency_patterns import (
@@ -56,7 +56,9 @@ def depends_on(match: Span, phrase: Set[Token]):
     so that match does not belong to an author speech.
     """
     return any(
-        ancs <= phrase for t in match if t.is_alpha and (ancs := set(t.ancestors))
+        ancs <= phrase
+        for t in match
+        if t.is_alpha and (ancs := set(t.ancestors)) and t.dep != parataxis
     )
 
 
