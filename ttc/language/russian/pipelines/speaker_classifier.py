@@ -87,8 +87,11 @@ def from_named_ent_with_verb(sent: Span) -> Optional[Span]:
     Select a speaker from named entities if it is mentioned in the given sentence.
     """
     for ent in sent.ents:
-        for t in ent:
-            if linked_verb(t):
+        for t in ent:  # TODO check only the root token of a chunk
+            if (verb := linked_verb(t)) and not (
+                True  # "Case=Dat" in t.morph
+                and {"Number=Sing", "Tense=Past", "Voice=Act"}.issubset(verb.morph)
+            ):
                 return ent
 
     return None
@@ -100,18 +103,28 @@ def from_noun_chunks_with_verb(sent: Span) -> Optional[Span]:
     """
     for noun_chunk in sent.noun_chunks:
         for t in noun_chunk:
-            if linked_verb(t):
+            if (verb := linked_verb(t)) and not (
+                "Case=Dat" in t.morph
+                and {"Number=Sing", "Tense=Past", "Voice=Act"}.issubset(verb.morph)
+            ):
                 return noun_chunk
     # TODO: If > 1, prefer the nominative noun chunk
     return None
 
 
 def from_exact_propn_with_verb(sent: Span) -> Optional[Span]:
-    propns: List[Token] = [t for t in sent if t.pos == PROPN]
-    for t in propns:
-        if linked_verb(t):
-            return as_span(t)
-        break
+    propns: List[Span] = [
+        expand_to_matching_noun_chunk(t) for t in sent if t.pos == PROPN
+    ]
+    for propn in propns:
+        for t in propn:  # TODO check only the root token of a chunk
+            if (verb := linked_verb(t)) and not (
+                True  # "Case=Dat" in t.morph
+                and {"Number=Sing", "Tense=Past", "Voice=Act"}.issubset(verb.morph)
+            ):
+                return propn
+            else:
+                break
 
     return None
 
@@ -256,7 +269,7 @@ def classify_speakers(
             if back_done and forw_done:
                 # We've got up to the sentences containing
                 # the previous AND next replicas -> cannot find
-                # the speaker this way, use alternative method.
+                # the speaker this way, will try alteration
                 break
 
             if back_done and offset < 0:
