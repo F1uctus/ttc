@@ -1,7 +1,9 @@
 import functools
 import math
+from collections import deque
 from typing import Collection, Optional, List, Dict
 
+import numpy as np
 from spacy import Language
 from spacy.matcher import DependencyMatcher
 from spacy.symbols import PROPN, nsubj, obj, obl  # type: ignore
@@ -50,8 +52,8 @@ def find_by_reference(spans: List[Span], reference: Token, _misses=0):
     # Order noun chunks from most to least probably denoting the actor.
     ncs = sorted(
         spans[-1].noun_chunks,
-        key=lambda nc: min(
-            (i for tt in nc if (i := speaker_dep_order(tt)) != -1), default=0
+        key=lambda chunk: min(
+            (i for tt in chunk if (i := speaker_dep_order(tt)) != -1), default=0
         ),
         reverse=True,
     )
@@ -201,12 +203,12 @@ def classify_speakers(
     dep_matcher.add("**", [SPEAKER_CONJUNCT_SPEAKING_VERB])
 
     # Handles speakers alteration & continuation
-    speakers_queue: Dict[str, Span] = {}
+    speaker_queue: Dict[str, Span] = {}
 
     def mark_speaker(*, span: Optional[Span] = None, queue_i: Optional[int] = None):
         if queue_i:
             try:
-                speaker = list(speakers_queue.values())[queue_i]
+                speaker = list(speaker_queue.values())[queue_i]
             except IndexError:
                 return
         elif span:
@@ -214,11 +216,11 @@ def classify_speakers(
         else:
             return
         lemma = speaker.lemma_
-        if lemma in speakers_queue:
+        if lemma in speaker_queue:
             # Move repeated speaker to the end of queue
-            speakers_queue[lemma] = relations[replica] = speakers_queue.pop(lemma)
+            speaker_queue[lemma] = relations[replica] = speaker_queue.pop(lemma)
         else:
-            speakers_queue[lemma] = relations[replica] = speaker
+            speaker_queue[lemma] = relations[replica] = speaker
 
     for prev_replica, replica, next_replica in iter_by_triples(dialogue.replicas):
         # "p_" - previous; "n_" - next; "r_" - replica
@@ -286,7 +288,7 @@ def classify_speakers(
                     mark_speaker(queue_i=-1)
                     break  # speaker found, skip to the next replica
 
-                if len(speakers_queue) > 1:
+                if len(speaker_queue) > 1:
                     # Line has no author speech -> speakers alteration
                     # Assign replica to the penultimate speaker
                     mark_speaker(queue_i=-2)
@@ -334,7 +336,7 @@ def classify_speakers(
             if replica in relations:
                 break  # speaker found
 
-            repeated_span = from_queue_with_verb(sent, speakers_queue.keys())
+            repeated_span = from_queue_with_verb(sent, speaker_queue.keys())
             if repeated_span:
                 mark_speaker(span=repeated_span)
                 break  # speaker found
