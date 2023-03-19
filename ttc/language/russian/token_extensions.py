@@ -1,6 +1,16 @@
-from typing import Callable, Set, Optional
+from typing import Callable, Optional
 
-from spacy.symbols import VERB, nsubj, obj, obl  # type: ignore
+from spacy.symbols import (  # type: ignore
+    VERB,
+    NOUN,
+    PROPN,
+    PRON,
+    ADJ,
+    NUM,
+    nsubj,
+    obj,
+    obl,
+)
 from spacy.tokens import Token, Span
 
 from ttc.language.russian.constants import (
@@ -71,10 +81,10 @@ def non_word(self: Token) -> bool:
     return self.is_punct or has_newline(self)
 
 
-def expand_to_matching_noun_chunk(self: Token) -> Span:
+def expand_to_noun_chunk(self: Token) -> Span:
     for nc in self.sent.noun_chunks:
         if self in nc:
-            return nc
+            return nc.ents[0] if len(nc) > 2 and len(nc.ents) == 1 else nc
     # cannot expand noun, use token as-is
     return as_span(self)
 
@@ -103,6 +113,14 @@ def ref_match(ref: Token, target: Token) -> bool:
 
 def ref_match_any(ref: Token, target: Span):
     return any(ref_match(ref, t) for t in target)
+
+
+def is_speaker_noun(self: Token):
+    return bool(
+        self.pos in {NOUN, PROPN, PRON, ADJ, NUM}
+        and set(self.morph.get("Case")).intersection({"Nom", "Acc", "Dat"})
+        and is_not_second_person(self)
+    )
 
 
 TOKEN_EXTENSIONS = {
