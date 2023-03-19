@@ -119,7 +119,7 @@ class TokenPattern(Enum):
         some(WORDS_ON_SAME_LINE),
         one_or_more(SPEAKER_WORD),
         some(WORDS_ON_SAME_LINE),
-        text(*".;:"),
+        text(","),
         HYPHEN,
         {"IS_TITLE": False},
     ]
@@ -134,7 +134,7 @@ class TokenPattern(Enum):
         some(WORDS_ON_SAME_LINE),
         VERB,
         some(WORDS_ON_SAME_LINE),
-        text(*".;:"),
+        text(","),
         HYPHEN,
         {"IS_TITLE": False},
     ]
