@@ -65,6 +65,7 @@ class TokenPattern(Enum):
         merge(VERB, {"_": {"is_sent_end": False}}),
         some(WORDS_ON_SAME_LINE),
         one_or_more(SPEAKER_WORD),
+        some(WORDS_ON_SAME_LINE),
         merge(text(*".!?", *ELLIPSES), {"_": {"has_newline": True}}),
     ]
 
@@ -76,6 +77,7 @@ class TokenPattern(Enum):
         merge(one_or_more(SPEAKER_WORD), {"_": {"is_sent_end": False}}),
         some(WORDS_ON_SAME_LINE),
         VERB,
+        some(WORDS_ON_SAME_LINE),
         merge(text(*".!?", *ELLIPSES), {"_": {"has_newline": True}}),
     ]
 
