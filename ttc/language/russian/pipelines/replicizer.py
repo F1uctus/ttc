@@ -1,17 +1,5 @@
 from collections import deque
-from typing import (
-    Literal,
-    Callable,
-    Optional,
-    Union,
-    List,
-    Dict,
-    Set,
-    Tuple,
-    Deque,
-    Final,
-    Any,
-)
+from typing import Literal, Callable, Optional, List, Dict, Set, Deque, Final, Any
 
 from spacy import Language
 from spacy.matcher import Matcher, DependencyMatcher
@@ -35,18 +23,6 @@ from ttc.language.russian.token_extensions import (
     is_hyphen,
 )
 from ttc.language.russian.token_patterns import TokenMatcherClass
-
-
-def next_matching(
-    doc_like: Union[Span, Doc],
-    predicate: Callable[[Token], bool],
-    *,
-    start: int = 0,
-) -> Tuple[Optional[Token], int]:
-    for i, token in enumerate(doc_like[start:], start):
-        if predicate(token):
-            return token, i
-    return None, len(doc_like)
 
 
 def depends_on(match: Span, phrase: Set[Token]):
@@ -178,11 +154,11 @@ def extract_replicas(
                 phrase = {t for t in tokens if t.is_alpha}
 
                 # checking for author insertion
-                line_end_i = next_matching(
-                    doc,
-                    lambda x: has_newline(x) or x.i == doc_length - 1,
-                    start=pt.i,
-                )[1]
+                line_end_i = doc_length
+                for i, token in enumerate(doc[pt.i :], pt.i):
+                    if has_newline(token) or token.i == doc_length - 1:
+                        line_end_i = i
+                        break
                 results = matchers["AUTHOR_INSERTION"](
                     doc[pt.i : line_end_i + 1], as_spans=True
                 )
