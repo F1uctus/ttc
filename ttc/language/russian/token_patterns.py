@@ -141,4 +141,4 @@ class TokenPattern(Enum):
 
     @classmethod
     def entries(cls) -> List[Tuple[str, List[Dict[str, Any]]]]:
-        return [(item.name, item.value) for item in cls]  # type: ignore
+        return [(item.name, item.value) for item in cls]
