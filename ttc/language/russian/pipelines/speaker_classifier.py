@@ -16,6 +16,7 @@ from ttc.language.russian.dependency_patterns import (
 from ttc.language.russian.span_extensions import (
     trim_non_word,
     is_inside,
+    is_parenthesized,
     fills_line,
     expand_to_prev_line,
     expand_to_next_line,
@@ -333,9 +334,33 @@ def classify_speakers(
 
         elif replica._.is_before_author_insertion and next_replica:
             search_region = doc[replica.end : next_replica.start]
+            if is_parenthesized(search_region):
+                # author is commenting on a situation, there should be
+                # no reference to the speaker.
+                search_region = doc[replica.end : replica.end]
             relations[replica] = search_for_speaker(
                 search_region, replica, relations, dep_matcher
             )
+            # TODO: Extract common alternation logic
+            if not relations[replica] and (
+                prev_replica
+                and replica._.start_line_no - prev_replica._.end_line_no == 1
+                and len(
+                    speakers := list(
+                        OrderedDict.fromkeys(
+                            # TODO: Do not erase None-s from the speaker queue
+                            [s.lemma_ for s in relations.values() if s][::-1]
+                        )
+                    )[::-1]
+                )
+                > 1
+            ):
+                # Author speech is present, but
+                # it has no reference to the speaker => speakers alteration
+                # Assign replica to the penultimate speaker
+                relations[replica] = next(
+                    s for s in relations.values() if s and s.lemma_ == speakers[-2]
+                )
 
         elif (
             (i := dialogue.replicas.index(replica)) > 1
