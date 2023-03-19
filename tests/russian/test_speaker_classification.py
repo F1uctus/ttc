@@ -15,7 +15,7 @@ def find_test_texts(path: Path):
 
 
 def parse_conversation(text: str) -> Tuple[List[str], List[str]]:
-    lines = [line.strip() for line in text.split("\n") if line.strip()]
+    lines = [l for line in text.split("\n") if (l := line.strip())]
     dialogue = [(r, s.lower()) for s, r in [line.split("::") for line in lines]]
     return tuple(list(x) for x in zip(*dialogue))
 
@@ -52,20 +52,23 @@ def test_name_reference(cc):
 
 def test_referential_pronoun_by_tolstoy(cc):
     text = (
-        "– Он умрет. Третье, – что бишь еще ты сказал?"
-        " – Князь Андрей загнул третий палец.\n"
-        "– У тебя лишний работник пропал! – сказал он,"
-        " отвернувшись от Пьера. Князь Андрей высказывал свои мысли.\n"
+        "– Он умрет. Третье, – что бишь еще ты сказал? – Князь Андрей загнул третий палец.\n"
+        "- Ничего не говорил!\n"
+        "– У тебя лишний работник пропал! – сказал он, отвернувшись от Пьера.\n"
     )
     dialogue = cc.extract_dialogue(text)
     assert list(map(str, dialogue.replicas)) == [
         "Он умрет. Третье, – что бишь еще ты сказал?",
+        "Ничего не говорил!",
         "У тебя лишний работник пропал!",
     ]
     play = cc.connect_play(dialogue)
     actual_speakers = [str(spk.lemma_) for spk in play.content.values() if spk]
-    assert actual_speakers[0] == "князь андрей"
-    assert actual_speakers[1] == "князь андрей"
+    assert actual_speakers == [
+        "князь андрей",
+        None,
+        "князь андрей",
+    ]
 
 
 def test_hyphenated_noun_chunk(cc):
@@ -75,11 +78,38 @@ def test_hyphenated_noun_chunk(cc):
         "– Чего надо? – Тот скорчил недовольную мину."
     )
     dialogue = cc.extract_dialogue(text)
-    assert list(map(str, dialogue.replicas)) == ["Эй, Газ,", "Чего надо?"]
+    assert list(map(str, dialogue.replicas)) == [
+        "Эй, Газ,",
+        "Чего надо?",
+    ]
     play = cc.connect_play(dialogue)
     actual_speakers = [str(spk.lemma_) for spk in play.content.values() if spk]
-    assert actual_speakers[0] == "моаш"
-    assert actual_speakers[1] == "одноглазый коротышка-сержант"
+    assert actual_speakers == [
+        "моаш",
+        "одноглазый коротышка-сержант",
+    ]
+
+
+def test_ignorance_of_dative(cc):
+    text = (
+        "– Что происходит? – спросил Калак.\n"
+        "– На этот раз погиб только один. – Низкий голос был спокоен.\n"
+        "– Таленель. – Не хватало лишь Клинка Чести, который принадлежал Таленелю."
+        #                                             problematic place -^
+    )
+    dialogue = cc.extract_dialogue(text)
+    assert list(map(str, dialogue.replicas)) == [
+        "Что происходит?",
+        "На этот раз погиб только один.",
+        "Таленель.",
+    ]
+    play = cc.connect_play(dialogue)
+    actual_speakers = [str(spk.lemma_) for spk in play.content.values() if spk]
+    assert actual_speakers == [
+        "калак",
+        "низкий голос",
+        "калак",
+    ]
 
 
 @pytest.mark.xfail(reason="some test files are still failing", raises=AssertionError)
