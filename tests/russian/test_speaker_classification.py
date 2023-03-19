@@ -63,7 +63,10 @@ def test_referential_pronoun_by_tolstoy(cc):
         "У тебя лишний работник пропал!",
     ]
     play = cc.connect_play(dialogue)
-    actual_speakers = [str(spk.lemma_) for spk in play.content.values() if spk]
+    actual_speakers = [
+        str(spk.lemma_) if (spk := play.content.get(r)) else None
+        for r in dialogue.replicas
+    ]
     assert actual_speakers == [
         "князь андрей",
         None,
@@ -117,11 +120,11 @@ def test_ignorance_of_dative(cc):
 def test_text_to_play(cc, file_name):
     text, expected_result = load_test(TEXTS_PATH, file_name)
     expected_replicas, expected_speakers = expected_result
-    print()
     dialogue = cc.extract_dialogue(text)
-    pprint(dialogue)
     play = cc.connect_play(dialogue)
-    pprint(play.content)
+    print()
+    print(play)
+    print("\n")
     assert [cc.language(s)[:].lemma_ for s in expected_speakers] == [
         s.lemma_ for s in play.content.values()
     ]
