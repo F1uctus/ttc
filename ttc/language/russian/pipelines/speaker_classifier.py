@@ -363,7 +363,7 @@ def classify_speakers(
                 )
 
         elif (
-            (i := dialogue.replicas.index(replica)) > 1
+            (i := dialogue.replicas.index(replica)) > 0
             and (pr := dialogue.replicas[i - 1])
             and pr in relations
         ):
