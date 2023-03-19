@@ -33,7 +33,7 @@ def lowest_linked_verb(t: Token) -> Optional[Token]:
     return next((t for t in p if t.pos == VERB), None)
 
 
-def filter_by_verbs(subjects: Iterable[Span]) -> Generator[Span, None, None]:
+def where_with_verbs(subjects: Iterable[Span]) -> Generator[Span, None, None]:
     for noun in subjects:
         t = noun.root
         if is_speaker_noun(t) and (
@@ -42,8 +42,8 @@ def filter_by_verbs(subjects: Iterable[Span]) -> Generator[Span, None, None]:
             yield noun
 
 
-def nearest_of_filtered_by_verbs(subjects: Iterable[Span]) -> Optional[Span]:
-    return next(reversed(list(filter_by_verbs(subjects))), None)
+def nearest_with_verbs(subjects: Iterable[Span]) -> Optional[Span]:
+    return next(reversed(list(where_with_verbs(subjects))), None)
 
 
 def unique_speakers(relations: Dict[Span, Optional[Span]]) -> List[str]:
@@ -59,17 +59,15 @@ def search_for_speaker(
 ):
     for match_id, token_ids in dep_matcher(s_region):
         # For this matcher speaker is the first token in a pattern
-        token: Token = s_region[token_ids[0]]
-        if token.lemma_ in REFERRAL_PRON and (
-            len(speakers := unique_speakers(rels)) > 1
-        ):
+        t = s_region[token_ids[0]]
+        if t.lemma_ in REFERRAL_PRON and (len(spkrs := unique_speakers(rels)) > 1):
             for s in rels.values():
-                if s and s.lemma_ == speakers[-2] and ref_match_any(token, s):
+                if s and s.lemma_ == spkrs[-2] and ref_match_any(t, s):
                     return s
             else:
-                dep = token
+                dep = t
         else:
-            dep = token
+            dep = t
 
         return expand_to_noun_chunk(dep)
 
@@ -82,31 +80,31 @@ def search_for_speaker(
             if ref_match_any(ref_t, prev_speaker):
                 return prev_speaker
 
-    if named_entity_span := nearest_of_filtered_by_verbs(s_region.ents):
-        return named_entity_span
+    if named_entity := nearest_with_verbs(s_region.ents):
+        return named_entity
 
-    if propn_span := nearest_of_filtered_by_verbs(
+    if speaker := nearest_with_verbs(
         map(expand_to_noun_chunk, filter(is_speaker_noun, s_region))
     ):
-        return propn_span
+        return speaker
 
-    if noun_chunk_span := nearest_of_filtered_by_verbs(s_region.noun_chunks):
-        return noun_chunk_span
+    if noun_chunk := nearest_with_verbs(s_region.noun_chunks):
+        return noun_chunk
 
     return None
 
 
 def alternated(
     relations: Dict[Span, Optional[Span]],
-    prev_replica: Optional[Span],
+    p_replica: Optional[Span],
     replica: Span,
 ):
     speakers = unique_speakers(relations)
     return (
         next(s for s in relations.values() if s and s.lemma_ == speakers[-2])
         if (
-            prev_replica
-            and replica._.start_line_no - prev_replica._.end_line_no == 1
+            p_replica
+            and replica._.start_line_no - p_replica._.end_line_no == 1
             and len(speakers) > 1
         )
         else None
@@ -157,11 +155,8 @@ def classify_speakers(
         # Before author ending ([-] ... [\n])
         elif replica._.is_before_author_ending:
             trailing = doc[replica.end : max(replica.end, replica.sent.end)]
-            if len(trailing) == 0:
-                if trailing.end + 1 < len(doc):
-                    trailing = doc[trailing.start : trailing.end + 1]
-                else:
-                    breakpoint()
+            if len(trailing) == 0 and trailing.end + 1 < len(doc):
+                trailing = doc[trailing.start : trailing.end + 1]
             search_region = expand_to_next_line(trailing)
 
             rels[replica] = search_for_speaker(search_region, rels, dep_matcher)
