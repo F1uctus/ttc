@@ -2,7 +2,7 @@ SPEAKER_TO_SPEAKING_VERB = [
     {  # (anchor) speaker
         "RIGHT_ID": "speaker",
         "RIGHT_ATTRS": {
-            "DEP": "nsubj",
+            "DEP": {"IN": ["nsubj", "obj"]},
             "POS": {"NOT_IN": ["SPACE", "PUNCT"]},
         },
     },
