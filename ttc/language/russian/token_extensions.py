@@ -101,6 +101,10 @@ def ref_match(ref: Token, target: Token) -> bool:
     return morph_equals(target, ref, "Gender", "Number")
 
 
+def ref_match_any(ref: Token, target: Span):
+    return any(ref_match(ref, t) for t in target)
+
+
 TOKEN_EXTENSIONS = {
     name: {"getter": f}
     for name, f in locals().items()

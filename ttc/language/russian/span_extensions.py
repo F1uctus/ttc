@@ -30,6 +30,22 @@ def span_extension(kind: ExtensionKind, default_value: Any = None):
 
 
 @span_extension("method")
+def expand_to_prev_line(self: Span):
+    t = self[0]
+    while t.i > 0 and not t._.has_newline:
+        t = t.nbor(-1)
+    return self.doc[t.i : self.end]
+
+
+@span_extension("method")
+def expand_to_next_line(self: Span):
+    t = self[-1]
+    while t.i < len(self.doc) and not t._.has_newline:
+        t = t.nbor()
+    return self.doc[self.start : t.i + 1]
+
+
+@span_extension("method")
 def trim(self: Span, should_trim: Callable[[Token], bool]) -> Span:
     doc = self.doc
     start = self.start

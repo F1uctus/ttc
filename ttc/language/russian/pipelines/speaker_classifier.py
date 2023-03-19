@@ -1,15 +1,12 @@
-import functools
-import math
-from collections import deque
+from collections import OrderedDict
 from typing import Collection, Optional, List, Dict
 
-import numpy as np
 from spacy import Language
 from spacy.matcher import DependencyMatcher
 from spacy.symbols import PROPN, nsubj, obj, obl  # type: ignore
 from spacy.tokens import Token, Span
 
-from ttc.iterables import iter_by_triples, canonical_int_enumeration, flatmap
+from ttc.iterables import iter_by_triples, flatmap
 from ttc.language import Dialogue
 from ttc.language.russian.constants import REFERRAL_PRON
 from ttc.language.russian.dependency_patterns import (
@@ -17,15 +14,16 @@ from ttc.language.russian.dependency_patterns import (
     SPEAKER_CONJUNCT_SPEAKING_VERB,
 )
 from ttc.language.russian.span_extensions import (
-    is_parenthesized,
     trim_non_word,
     is_inside,
     fills_line,
-    sent_resembles_replica,
+    expand_to_prev_line,
+    expand_to_next_line,
 )
 from ttc.language.russian.token_extensions import (
     speaker_dep_order,
     ref_match,
+    ref_match_any,
     linked_verb,
     expand_to_matching_noun_chunk,
     as_span,
@@ -68,20 +66,6 @@ def find_by_reference(spans: List[Span], reference: Token, _misses=0):
             yield from find_by_reference(spans[:-1], reference, _misses + 1)
 
 
-def from_queue_with_verb(sent: Span, queue: Collection[str]) -> Optional[Span]:
-    """
-    Select a speaker from queue if it is mentioned in the given sentence.
-    """
-    if len(queue) == 0:
-        return None
-
-    for t in sent:
-        if t.lemma_ in queue and linked_verb(t):
-            return expand_to_matching_noun_chunk(t)
-
-    return None
-
-
 def from_named_ent_with_verb(sent: Span) -> Optional[Span]:
     """
     Select a speaker from named entities if it is mentioned in the given sentence.
@@ -89,7 +73,7 @@ def from_named_ent_with_verb(sent: Span) -> Optional[Span]:
     for ent in sent.ents:
         for t in ent:  # TODO check only the root token of a chunk
             if (verb := linked_verb(t)) and not (
-                True  # "Case=Dat" in t.morph
+                "Case=Dat" in t.morph
                 and {"Number=Sing", "Tense=Past", "Voice=Act"}.issubset(verb.morph)
             ):
                 return ent
@@ -104,7 +88,7 @@ def from_noun_chunks_with_verb(sent: Span) -> Optional[Span]:
     for noun_chunk in sent.noun_chunks:
         for t in noun_chunk:
             if (verb := linked_verb(t)) and not (
-                "Case=Dat" in t.morph
+                True  # "Case=Dat" in t.morph
                 and {"Number=Sing", "Tense=Past", "Voice=Act"}.issubset(verb.morph)
             ):
                 return noun_chunk
@@ -147,23 +131,19 @@ def reference_search_context(
         if len(nearest_l_context) > 1:
             search_context.append(nearest_l_context)
 
-    ref_matches = functools.partial(ref_match, reference)
-
     # add context pieces between some replicas
     # laying before the referral pronoun
     for l, r in zip(replicas_to_search_between, replicas_to_search_between[1:]):
         between_reps = trim_non_word(doc[l[-1].i + 1 : r[0].i])
         # if that span contains an already annotated matching speaker
+        previous_spk: Optional[Span] = next(
+            (s for s in relations.values() if s and is_inside(s, between_reps)),
+            None,
+        )
         if (
             exclude_previous_speakers
-            and (
-                previous_spk := next(
-                    (s for s in relations.values() if s and is_inside(s, between_reps)),
-                    None,
-                )
-            )
             and previous_spk
-            and any(map(ref_matches, previous_spk))
+            and ref_match_any(reference, previous_spk)
         ):
             # exclude the speaker and all matching nouns
             # of its subtree from the search context
@@ -173,7 +153,7 @@ def reference_search_context(
                 (
                     t
                     for t in flatmap(lambda tt: tt.head.children, previous_spk)
-                    if ref_matches(t)
+                    if ref_match(reference, t)
                 ),
                 key=lambda t: t.i,
             )
@@ -199,6 +179,67 @@ def reference_search_context(
     return search_context
 
 
+def search_for_speaker(
+    search_region: Span,
+    replica: Span,
+    relations: Dict[Span, Optional[Span]],
+    dep_matcher: DependencyMatcher,
+):
+    for match_id, token_ids in dep_matcher(search_region):
+        # For this matcher speaker is the first token in a pattern
+        token: Token = search_region[token_ids[0]]
+        if token in replica:
+            # We're not interested in "verb-noun"s inside of replicas yet
+            continue
+        if token.lemma_ in REFERRAL_PRON:
+            ref = token
+            # First, exclude previously annotated speakers from search
+            ref_search_context = reference_search_context(
+                relations=relations,
+                replica_preceding_reference=replica,
+                reference=ref,
+            )
+            try:
+                dep_span = next(find_by_reference(ref_search_context, ref))
+            except StopIteration:
+                # If no ref targets were found, include
+                # previously annotated speakers in search
+                ref_search_context = reference_search_context(
+                    relations=relations,
+                    replica_preceding_reference=replica,
+                    reference=ref,
+                    exclude_previous_speakers=False,
+                )
+                try:
+                    dep_span = next(find_by_reference(ref_search_context, ref))
+                except StopIteration:
+                    dep_span = as_span(token)
+        else:
+            dep_span = expand_to_matching_noun_chunk(token)
+
+        return dep_span
+
+    if relations and (prev_speaker := relations[next(reversed(relations.keys()))]):
+        for ref_t in [
+            r[0] for r in search_region.noun_chunks if r[0].lemma_ in REFERRAL_PRON
+        ]:
+            if len(search_region.ents) == 1 and search_region.ents[0].end < ref_t.i:
+                return search_region.ents[0]
+            if ref_match_any(ref_t, prev_speaker):
+                return prev_speaker
+
+    if named_entity_span := from_named_ent_with_verb(search_region):
+        return named_entity_span
+
+    if propn_span := from_exact_propn_with_verb(search_region):
+        return propn_span
+
+    if noun_chunk_span := from_noun_chunks_with_verb(search_region):
+        return noun_chunk_span
+
+    return None
+
+
 def classify_speakers(
     language: Language,
     dialogue: Dialogue,
@@ -215,162 +256,104 @@ def classify_speakers(
     dep_matcher.add("*", [SPEAKER_TO_SPEAKING_VERB])
     dep_matcher.add("**", [SPEAKER_CONJUNCT_SPEAKING_VERB])
 
-    # Handles speakers alteration & continuation
-    speaker_queue: Dict[str, Span] = {}
-
-    def mark_speaker(*, span: Optional[Span] = None, queue_i: Optional[int] = None):
-        if queue_i:
-            try:
-                speaker = list(speaker_queue.values())[queue_i]
-            except IndexError:
-                return
-        elif span:
-            speaker = span
-        else:
-            return
-        lemma = speaker.lemma_
-        if lemma in speaker_queue:
-            # Move repeated speaker to the end of queue
-            speaker_queue[lemma] = relations[replica] = speaker_queue.pop(lemma)
-        else:
-            speaker_queue[lemma] = relations[replica] = speaker
-
     for prev_replica, replica, next_replica in iter_by_triples(dialogue.replicas):
-        # "p_" - previous; "n_" - next; "r_" - replica
-        r_start_sent_i = sents.index(replica[0].sent)
-        r_end_sent_i = sents.index(replica[-1].sent)
-        p_r_sent_i = sents.index(prev_replica[-1].sent) if prev_replica else None
-        n_r_sent_i = sents.index(next_replica[0].sent) if next_replica else None
+        if prev_replica and prev_replica._.end_line_no == replica._.start_line_no:
+            # Replica is on the same line - probably separated by author speech
+            # Assign it to the previous speaker
+            relations[replica] = relations[prev_replica]
 
-        skip_sign_change = False
-        back_first = replica.start - 3 >= 0 and any(
-            t.text == ":" for t in doc[replica.start - 3 : replica.start]
-        )  # Replica is after colon - means back-first speaker search
-
-        back_done = forw_done = False
-
-        for prev_offset, offset, _ in iter_by_triples(canonical_int_enumeration()):
-            # Iterate over sentences near the current replica.
-            # They have "up-down" indices
-            # (e.g i, i + 1, i - 1, i + 2, i - 2, ... if forward-first);
-            # (and i, i - 1, i + 1, i - 2, i + 2, ... if backward-first).
-            if skip_sign_change and prev_offset:
-                offset = int(math.copysign(offset, prev_offset))
-                skip_sign_change = False
-
-            sent_i = r_start_sent_i - offset if back_first else r_end_sent_i + offset
-
-            # Got up to the previous replica - stop going back
-            back_done = back_done or (p_r_sent_i is not None and sent_i < p_r_sent_i)
-
-            # Got up to the next replica - stop going forward
-            forw_done = forw_done or (n_r_sent_i is not None and sent_i > n_r_sent_i)
-
-            if back_done and forw_done:
-                # We've got up to the sentences containing
-                # the previous AND next replicas -> cannot find
-                # the speaker this way, will try alteration
-                break
-
-            if back_done and offset < 0:
-                continue
-
-            if forw_done and offset > 0:
-                continue
-
-            sent = sents[sent_i]
-            prev_sent = sents[sent_i - 1] if sent_i > 0 else None
-
-            if prev_replica and prev_replica._.end_line_no == replica._.start_line_no:
-                # Replica is on the same line - probably separated by author speech
-                # Assign it to the previous speaker
-                mark_speaker(queue_i=-1)
-                break  # speaker found
-
-            if prev_replica and (fills_line(replica) or is_parenthesized(sent)):
-                # If the author's sentence is enclosed in parentheses,
-                # there is unlikely a speaker definition,
-                # but some description of the situation
-
-                if 1 < abs(replica._.start_line_no - prev_replica._.end_line_no) < 4:
-                    # If there were 1-2 lines filled with author speech,
-                    # it is more probable a continuation than alteration,
-                    # because otherwise a reader will likely lose context
-                    # if this replica is not annotated by speaker name
-                    # and follows after many lines of author text
-                    mark_speaker(queue_i=-1)
-                    break  # speaker found, skip to the next replica
-
-                if len(speaker_queue) > 1:
-                    # Line has no author speech -> speakers alteration
-                    # Assign replica to the penultimate speaker
-                    mark_speaker(queue_i=-2)
-                    break  # speaker found, skip to the next replica
-
-            if sent_resembles_replica(sent, replica):
-                skip_sign_change = True
-                continue
-
-            for match_id, token_ids in dep_matcher(sent):
-                # For this matcher speaker is the first token in a pattern
-                token: Token = sent[token_ids[0]]
-                if token in replica:
-                    # We're not interested in "verb-noun"s inside of replicas yet
-                    continue
-                if prev_sent and token.lemma_ in REFERRAL_PRON:
-                    ref = token
-                    # First, exclude previously annotated speakers from search
-                    ref_search_context = reference_search_context(
-                        relations=relations,
-                        replica_preceding_reference=replica,
-                        reference=ref,
+        elif (
+            prev_replica
+            and replica._.start_line_no - prev_replica._.end_line_no == 1
+            and fills_line(replica)
+            and len(
+                speakers := list(
+                    OrderedDict.fromkeys(
+                        [s.lemma_ for s in relations.values() if s][::-1]
                     )
-                    try:
-                        dep_span = next(find_by_reference(ref_search_context, ref))
-                    except StopIteration:
-                        # If no ref targets were found, include
-                        # previously annotated speakers in search
-                        ref_search_context = reference_search_context(
-                            relations=relations,
-                            replica_preceding_reference=replica,
-                            reference=ref,
-                            exclude_previous_speakers=False,
-                        )
-                        try:
-                            dep_span = next(find_by_reference(ref_search_context, ref))
-                        except StopIteration:
-                            dep_span = as_span(token)
+                )[::-1]
+            )
+            > 1
+        ):
+            # Line has no author speech => speakers alteration
+            # Assign replica to the penultimate speaker
+            relations[replica] = next(
+                s for s in relations.values() if s and s.lemma_ == speakers[-2]
+            )
+
+        elif replica._.is_after_author_starting:
+            leading = doc[min(replica.start, replica.sent.start) : replica.start]
+            if len(leading) == 0:
+                if leading.start > 0:
+                    leading = doc[leading.start - 1 : leading.end]
                 else:
-                    dep_span = expand_to_matching_noun_chunk(token)
+                    breakpoint()
+            if (
+                len(leading) < 2 < leading.start
+                and doc[leading.start - 1]._.has_newline
+            ):
+                # Check if colon was on a previous line
+                # That indicates that speaker definition may be on that line.
+                leading = doc[leading.start - 2 : leading.end]
+            search_region = expand_to_prev_line(leading)
+            relations[replica] = search_for_speaker(
+                search_region, replica, relations, dep_matcher
+            )
 
-                mark_speaker(span=dep_span)
-                break  # dependency matching
+        elif replica._.is_before_author_ending:
+            trailing = doc[replica.end : max(replica.end, replica.sent.end)]
+            if len(trailing) == 0:
+                if trailing.end + 1 < len(doc):
+                    trailing = doc[trailing.start : trailing.end + 1]
+                else:
+                    breakpoint()
+            search_region = expand_to_next_line(trailing)
+            relations[replica] = search_for_speaker(
+                search_region, replica, relations, dep_matcher
+            )
+            # TODO: Extract common alternation logic
+            if not relations[replica] and (
+                prev_replica
+                and replica._.start_line_no - prev_replica._.end_line_no == 1
+                and len(
+                    speakers := list(
+                        OrderedDict.fromkeys(
+                            [s.lemma_ for s in relations.values() if s][::-1]
+                        )
+                    )[::-1]
+                )
+                > 1
+            ):
+                # Author speech is present, but
+                # it has no reference to the speaker => speakers alteration
+                # Assign replica to the penultimate speaker
+                relations[replica] = next(
+                    s for s in relations.values() if s and s.lemma_ == speakers[-2]
+                )
 
-            if replica in relations:
-                break  # speaker found
+        elif replica._.is_before_author_insertion and next_replica:
+            search_region = doc[replica.end : next_replica.start]
+            relations[replica] = search_for_speaker(
+                search_region, replica, relations, dep_matcher
+            )
 
-            repeated_span = from_queue_with_verb(sent, speaker_queue.keys())
-            if repeated_span:
-                mark_speaker(span=repeated_span)
-                break  # speaker found
+        elif (
+            (i := dialogue.replicas.index(replica)) > 1
+            and (pr := dialogue.replicas[i - 1])
+            and pr in relations
+        ):
+            # Assign to the previous speaker
+            relations[replica] = relations[pr]
 
-            named_entity_span = from_named_ent_with_verb(sent)
-            if named_entity_span:
-                mark_speaker(span=named_entity_span)
-                break  # speaker found
-
-            propn_span = from_exact_propn_with_verb(sent)
-            if propn_span:
-                mark_speaker(span=propn_span)
-                continue  # speaker can be overridden
-
-            noun_chunk_span = from_noun_chunks_with_verb(sent)
-            if noun_chunk_span:
-                mark_speaker(span=noun_chunk_span)
-                continue  # speaker can be overridden
-
-        # end of sentences traversal
+        else:
+            print("MISS", replica)  # TODO: handle
 
     # end of replicas traversal
+
+    prev_replica = None
+    for replica, speaker in relations.items():
+        if speaker and speaker.lemma_ in REFERRAL_PRON and prev_replica:
+            relations[replica] = relations[prev_replica]
+        prev_replica = replica
 
     return relations
