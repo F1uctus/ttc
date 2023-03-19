@@ -133,14 +133,12 @@ def classify_speakers(
         # On the same line as prev replica
         if p_replica and p_replica._.end_line_no == replica._.start_line_no:
             # Replica is on the same line - probably separated by author speech
-            # Assign it to the previous speaker
-            rels[replica] = rels[p_replica]
+            rels[replica] = rels[p_replica]  # <=> previous speaker
 
         # Non-first replica fills line
         elif fills_line(replica) and (alt := alternated(rels, p_replica, replica)):
             # Line has no author speech => speakers alternation
-            # Assign replica to the penultimate speaker
-            rels[replica] = alt
+            rels[replica] = alt  # <=> penultimate speaker
 
         # After author starting ( ... [:])
         elif replica._.is_after_author_starting:
@@ -168,32 +166,29 @@ def classify_speakers(
 
             rels[replica] = search_for_speaker(search_region, rels, dep_matcher)
             if not rels[replica] and (alt := alternated(rels, p_replica, replica)):
-                # Author speech is present, but
-                # it has no reference to the speaker => speakers alternation
-                # Assign replica to the penultimate speaker
-                rels[replica] = alt
+                # Author speech is present, but it has
+                # no reference to the speaker => speakers alternation
+                rels[replica] = alt  # <=> penultimate speaker
 
         # Author insertion
         elif replica._.is_before_author_insertion and n_replica:
             search_region = doc[replica.end : n_replica.start]
             if is_parenthesized(search_region):
-                # author is commenting on a situation, there should be
+                # Author is commenting on a situation, there should be
                 # no reference to the speaker.
                 search_region = doc[replica.end : replica.end]
 
             rels[replica] = search_for_speaker(search_region, rels, dep_matcher)
             if not rels[replica] and (alt := alternated(rels, p_replica, replica)):
-                # Author speech is present, but
-                # it has no reference to the speaker => speakers alternation
-                # Assign replica to the penultimate speaker
-                rels[replica] = alt
+                # Author speech is present, but it has
+                # no reference to the speaker => speakers alternation
+                rels[replica] = alt  # <=> penultimate speaker
 
         # Fallback - repeat speaker from prev replica
         elif (i := dialogue.replicas.index(replica)) > 0 and (
             (pr := dialogue.replicas[i - 1]) and pr in rels
         ):
-            # Assign to the previous speaker
-            rels[replica] = rels[pr]
+            rels[replica] = rels[pr]  # <=> previous speaker
 
         else:
             print("MISS", replica)  # TODO: handle
