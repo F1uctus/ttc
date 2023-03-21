@@ -86,12 +86,6 @@ def extract_replicas(
 
         state = states[-1]
 
-        if t.is_space and not has_newline(t):
-            if state.startswith("replica"):
-                tokens.append(t)
-            else:
-                continue
-
         if state == "replica_by_quote":
             if is_close_quote(t):
                 if has_newline(t) or (nt and has_newline(nt)):
@@ -164,8 +158,6 @@ def extract_replicas(
                 )
                 match: Span = next(iter(results), None)  # type: ignore
                 if match:
-                    if match[0] != pt:
-                        continue
                     if any(dep_matcher(match)):
                         flush_replica(is_before_author_insertion)
                         # skip to the end of author insertion
