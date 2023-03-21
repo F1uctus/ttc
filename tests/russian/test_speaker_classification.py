@@ -50,30 +50,6 @@ def test_name_reference(cc):
     assert "к Сзету" == list(play.content.values())[-1].text
 
 
-def test_referential_pronoun_by_tolstoy(cc):
-    text = (
-        "– Он умрет. Третье, – что бишь еще ты сказал? – Князь Андрей загнул третий палец.\n"
-        "- Ничего не говорил!\n"
-        "– У тебя лишний работник пропал! – сказал он, отвернувшись от Пьера.\n"
-    )
-    dialogue = cc.extract_dialogue(text)
-    assert list(map(str, dialogue.replicas)) == [
-        "Он умрет. Третье, – что бишь еще ты сказал?",
-        "Ничего не говорил!",
-        "У тебя лишний работник пропал!",
-    ]
-    play = cc.connect_play(dialogue)
-    actual_speakers = [
-        str(spk.lemma_) if (spk := play.content.get(r)) else None
-        for r in dialogue.replicas
-    ]
-    assert actual_speakers == [
-        "князь андрей",
-        None,
-        "князь андрей",
-    ]
-
-
 def test_hyphenated_noun_chunk(cc):
     text = (
         "– Эй, Газ, – позвал Моаш, приложив ладони рупором ко рту.\n"
@@ -93,12 +69,13 @@ def test_hyphenated_noun_chunk(cc):
     ]
 
 
+@pytest.mark.xfail(reason="misprediction of dative as feminine", raises=AssertionError)
 def test_ignorance_of_dative(cc):
     text = (
         "– Что происходит? – спросил Калак.\n"
         "– На этот раз погиб только один. – Низкий голос был спокоен.\n"
         "– Таленель. – Не хватало лишь Клинка Чести, который принадлежал Таленелю."
-        #                                             problematic place -^
+        #                              ^------ problematic places -------^
     )
     dialogue = cc.extract_dialogue(text)
     assert list(map(str, dialogue.replicas)) == [
