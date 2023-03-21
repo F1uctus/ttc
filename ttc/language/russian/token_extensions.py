@@ -1,4 +1,4 @@
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 from spacy.symbols import (  # type: ignore
     VERB,
@@ -81,12 +81,13 @@ def non_word(self: Token) -> bool:
     return self.is_punct or has_newline(self)
 
 
-def expand_to_noun_chunk(self: Token) -> Span:
-    for nc in self.sent.noun_chunks:
-        if self in nc:
+def expand_to_noun_chunk(self: Union[Token, Span]) -> Span:
+    span = self if isinstance(self, Span) else as_span(self)
+    for nc in span.sent.noun_chunks:
+        if all(t in nc for t in span):
             return nc.ents[0] if len(nc) > 2 and len(nc.ents) == 1 else nc
     # cannot expand noun, use token as-is
-    return as_span(self)
+    return span
 
 
 def contains_near(self: Token, radius: int, predicate: Callable[[Token], bool]) -> bool:
@@ -96,26 +97,11 @@ def contains_near(self: Token, radius: int, predicate: Callable[[Token], bool]) 
     )
 
 
-# from least to most important
-SPEAKER_DEP_ORDER = [obl, obj, nsubj]
+def ref_matches(ref: Token, target: Span) -> bool:
+    return morph_equals(target.root, ref, "Gender", "Number")
 
 
-def speaker_dep_order(self: Token) -> int:
-    try:
-        return SPEAKER_DEP_ORDER.index(self.dep)
-    except ValueError:
-        return -1
-
-
-def ref_match(ref: Token, target: Token) -> bool:
-    return morph_equals(target, ref, "Gender", "Number")
-
-
-def ref_match_any(ref: Token, target: Span):
-    return any(ref_match(ref, t) for t in target)
-
-
-def is_speaker_noun(self: Token):
+def is_speaker_noun(self: Token) -> bool:
     return bool(
         self.pos in {NOUN, PROPN, PRON, ADJ, NUM}
         and set(self.morph.get("Case")).intersection({"Nom", "Acc", "Dat"})
