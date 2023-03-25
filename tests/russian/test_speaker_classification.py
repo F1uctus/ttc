@@ -47,7 +47,28 @@ def test_name_reference(cc):
     )
     play = cc.connect_play(dialogue)
 
-    assert "к Сзету" == list(play.content.values())[-1].text
+    assert "Сзету" == list(play.content.values())[-1].text
+
+
+def test_noun_with_aux(cc):
+    text = (
+        "– Что это такое? – Ее голос был тихим, как шепот. – Ты можешь мне показать."
+        " Я никому не расскажу. Это сокровище? Ты отрезал кусочек от покрывала"
+        " ночи и спрятал его? Это сердце жука – маленькое, но сильное?"
+    )
+    dialogue = cc.extract_dialogue(text)
+    assert list(map(str, dialogue.replicas)) == [
+        "Что это такое?",
+        "Ты можешь мне показать."
+        " Я никому не расскажу. Это сокровище? Ты отрезал кусочек от покрывала"
+        " ночи и спрятал его? Это сердце жука – маленькое, но сильное?",
+    ]
+    play = cc.connect_play(dialogue)
+    actual_speakers = [str(spk.lemma_) for spk in play.content.values() if spk]
+    assert actual_speakers == [
+        "она голос",  # ее --lemma-> она
+        "она голос",
+    ]
 
 
 def test_hyphenated_noun_chunk(cc):
