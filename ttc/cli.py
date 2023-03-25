@@ -64,6 +64,8 @@ def print_play(file: TextIO, language, with_text: bool):
         echo(f"{{:<{first_col_w}}}  ".format(str(s)), nl=False)
         echo(str(r))
 
+    echo(Style.RESET_ALL, nl=False)
+
     if with_text:
         echo("\nMarked play:")
         rs_indexed: Dict[int, Tuple[Span, Optional[Span]]] = {
@@ -75,13 +77,15 @@ def print_play(file: TextIO, language, with_text: bool):
             replica: Optional[Span]
             speaker: Optional[Span]
             replica, speaker = (
-                rs_indexed[r_starts[start_i]] if start_i < len(r_starts) else (None, None)
+                rs_indexed[r_starts[start_i]]
+                if start_i < len(r_starts)
+                else (None, None)
             )
 
             if replica and i >= replica.start_char:
                 if i == replica.start_char:
                     if speaker:
-                        echo(speaker_colors[speaker.lemma_][1] + " ", nl=False)
+                        echo(speaker_colors[speaker.lemma_][1], nl=False)
 
                 if i >= replica.end_char:
                     start_i += 1
