@@ -1,12 +1,13 @@
 from collections import OrderedDict
-from typing import Optional, Dict, List, Iterable, Generator, Callable, Union
+from operator import itemgetter
+from typing import Optional, Dict, List, Iterable, Callable, Union
 
 from spacy import Language
 from spacy.matcher import DependencyMatcher
 from spacy.symbols import VERB, nsubj  # type: ignore
 from spacy.tokens import Token, Span
 
-from ttc.iterables import iter_by_triples, flatmap
+from ttc.iterables import iter_by_triples
 from ttc.language import Dialogue
 from ttc.language.russian.dependency_patterns import (
     SPEAKING_VERB_TO_SPEAKER,
@@ -18,7 +19,6 @@ from ttc.language.russian.span_extensions import (
     expand_to_prev_line,
     expand_to_next_line,
     trim_non_word,
-    is_inside,
     is_referential,
 )
 from ttc.language.russian.token_extensions import (
@@ -39,7 +39,7 @@ def where_with_verbs(subjects: Iterable[Span]) -> List[Span]:
             and (t.dep_ in {"ROOT", "nsubj", "nmod"})
         ):
             verb_subjects.append((dep_dist_up_to(noun.root, verbal.root), noun))
-    verb_subjects.sort(key=lambda dist_and_subj: dist_and_subj[0])
+    verb_subjects.sort(key=itemgetter(0))
     return [vs for dist, vs in verb_subjects]
 
 
