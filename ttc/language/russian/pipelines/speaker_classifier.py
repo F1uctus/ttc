@@ -80,6 +80,7 @@ def ref_search_ctx(
     # add context piece between doc start and referral pronoun indices
     if (
         len(rels) == 0
+        and last_replica
         and last_replica.start > ref.i
         and len(nearest_l_ctx := trim_non_word(doc[: ref.i])) > 1
     ):
@@ -122,7 +123,10 @@ def ref_search_ctx(
 
     # add context piece between the last replica to the left
     # of the referral pronoun and the pronoun itself
-    if len(nearest_r_ctx := trim_non_word(doc[last_replica.end : ref.i])) > 1:
+    if (
+        last_replica
+        and len(nearest_r_ctx := trim_non_word(doc[last_replica.end : ref.i])) > 1
+    ):
         search_ctx.append(nearest_r_ctx)
 
     return search_ctx[::-1]
@@ -156,9 +160,12 @@ def search_for_speaker(
             speakers = unique_speakers(rels)
             if len(speakers) > 1 and (
                 s := next(
-                    s
-                    for s in rels.values()
-                    if s and s.lemma_ == speakers[-2] and ref_matches(t, s)
+                    (
+                        s
+                        for s in rels.values()
+                        if s and s.lemma_ == speakers[-2] and ref_matches(t, s)
+                    ),
+                    None,
                 )
             ):
                 return s
@@ -204,9 +211,6 @@ def search_for_speaker(
             None,
         )
 
-    if len(s_region) == 0:
-        return
-
     return None
 
 
@@ -217,7 +221,7 @@ def alternated(
 ):
     speakers = unique_speakers(relations)
     return (
-        next(s for s in relations.values() if s and s.lemma_ == speakers[-2])
+        next((s for s in relations.values() if s and s.lemma_ == speakers[-2]), None)
         if (
             p_replica
             and replica._.start_line_no - p_replica._.end_line_no == 1
@@ -245,7 +249,11 @@ def classify_speakers(
     for p_replica, replica, n_replica in iter_by_triples(dialogue.replicas):
 
         # On the same line as prev replica
-        if p_replica and p_replica._.end_line_no == replica._.start_line_no:
+        if (
+            p_replica
+            and p_replica._.end_line_no == replica._.start_line_no
+            and p_replica in rels
+        ):
             # Replica is on the same line - probably separated by author speech
             rels[replica] = rels[p_replica]  # <=> previous speaker
 
