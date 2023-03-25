@@ -5,6 +5,12 @@ This NLP library can help you with:
 - Extraction of characters' replicas from literary texts;
 - Identification of the actors owning these replicas.
 
+### Demo (CLI)
+
+![](assets/demo-cli.png)
+
+### Progress
+
 We aim to achieve the following goals:
 
 - Better accuracy on the actor classification task
