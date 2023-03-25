@@ -22,28 +22,15 @@ def one_or_more(pattern: Dict) -> Dict:
     return merge(pattern, {"OP": "+"})
 
 
-def in_same_sentence(pattern: Dict) -> Dict:
-    return merge(pattern, {"_": {"is_sent_end": False}})
-
-
-WORDS_ON_SAME_LINE = {
-    "_": {"has_newline": False},
-}
-
-IN_SAME_SENTENCE = {
-    "_": {"is_sent_end": False},
-}
-
+LINE_FILLER = some({"_": {"has_newline": False}})
 HYPHEN = {"TEXT": {"IN": HYPHENS}}
 NOT_HYPHEN = {"TEXT": {"NOT_IN": HYPHENS}}
-
 SPEAKER_WORD = {
     "POS": {"IN": ["NOUN", "PROPN", "PRON", "ADJ", "NUM"]},
     "MORPH": {"INTERSECTS": ["Case=Nom", "Case=Acc", "Case=Dat"]},
     "_": {"is_not_second_person": True},
 }
-
-VERB = {"POS": "VERB"}
+VERB = {"POS": {"IN": ["VERB", "AUX"]}}
 
 TokenMatcherClass = Literal[
     "AUTHOR_INSERTION",
@@ -61,11 +48,11 @@ class TokenPattern(Enum):
     AUTHOR_ENDING_1 = [
         text(*".,!?", *ELLIPSES),
         HYPHEN,
-        some(WORDS_ON_SAME_LINE),
-        merge(VERB, {"_": {"is_sent_end": False}}),
-        some(WORDS_ON_SAME_LINE),
+        LINE_FILLER,
+        VERB,
+        LINE_FILLER,
         one_or_more(SPEAKER_WORD),
-        some(WORDS_ON_SAME_LINE),
+        LINE_FILLER,
         merge(text(*".!?", *ELLIPSES), {"_": {"has_newline": True}}),
     ]
 
@@ -73,11 +60,11 @@ class TokenPattern(Enum):
     AUTHOR_ENDING_2 = [
         text(*".,!?", *ELLIPSES),
         HYPHEN,
-        some(WORDS_ON_SAME_LINE),
-        merge(one_or_more(SPEAKER_WORD), {"_": {"is_sent_end": False}}),
-        some(WORDS_ON_SAME_LINE),
+        LINE_FILLER,
+        one_or_more(SPEAKER_WORD),
+        LINE_FILLER,
         VERB,
-        some(WORDS_ON_SAME_LINE),
+        LINE_FILLER,
         merge(text(*".!?", *ELLIPSES), {"_": {"has_newline": True}}),
     ]
 
@@ -85,11 +72,11 @@ class TokenPattern(Enum):
     AUTHOR_INSERTION_1_1 = [
         text(*".,!?", *ELLIPSES),
         HYPHEN,
-        some(WORDS_ON_SAME_LINE),
-        in_same_sentence(VERB),
-        some(WORDS_ON_SAME_LINE),
+        LINE_FILLER,
+        VERB,
+        LINE_FILLER,
         one_or_more(SPEAKER_WORD),
-        some(WORDS_ON_SAME_LINE),
+        LINE_FILLER,
         text(*".;:", *ELLIPSES),
         some(text(")")),
         HYPHEN,
@@ -100,11 +87,11 @@ class TokenPattern(Enum):
     AUTHOR_INSERTION_1_2 = [
         text(*".,!?", *ELLIPSES),
         HYPHEN,
-        some(WORDS_ON_SAME_LINE),
-        in_same_sentence(one_or_more(SPEAKER_WORD)),
-        some(WORDS_ON_SAME_LINE),
+        LINE_FILLER,
+        one_or_more(SPEAKER_WORD),
+        LINE_FILLER,
         VERB,
-        some(WORDS_ON_SAME_LINE),
+        LINE_FILLER,
         text(*".;:", *ELLIPSES),
         some(text(")")),
         HYPHEN,
@@ -116,11 +103,11 @@ class TokenPattern(Enum):
     AUTHOR_INSERTION_2_1 = [
         text(",", *ELLIPSES),
         HYPHEN,
-        some(WORDS_ON_SAME_LINE),
-        in_same_sentence(VERB),
-        some(WORDS_ON_SAME_LINE),
+        LINE_FILLER,
+        VERB,
+        LINE_FILLER,
         one_or_more(SPEAKER_WORD),
-        some(WORDS_ON_SAME_LINE),
+        LINE_FILLER,
         text(*",;"),
         HYPHEN,
         {"IS_TITLE": False},
@@ -131,11 +118,11 @@ class TokenPattern(Enum):
     AUTHOR_INSERTION_2_2 = [
         text(",", *ELLIPSES),
         HYPHEN,
-        some(WORDS_ON_SAME_LINE),
-        in_same_sentence(one_or_more(SPEAKER_WORD)),
-        some(WORDS_ON_SAME_LINE),
+        LINE_FILLER,
+        one_or_more(SPEAKER_WORD),
+        LINE_FILLER,
         VERB,
-        some(WORDS_ON_SAME_LINE),
+        LINE_FILLER,
         text(*",;"),
         HYPHEN,
         {"IS_TITLE": False},
