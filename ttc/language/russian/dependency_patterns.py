@@ -1,4 +1,4 @@
-SPEAKER_TO_SPEAKING_VERB = [
+SPEAKING_VERB_TO_SPEAKER = [
     {  # (anchor) speaker
         "RIGHT_ID": "speaker",
         "RIGHT_ATTRS": {
@@ -17,7 +17,7 @@ SPEAKER_TO_SPEAKING_VERB = [
     },
 ]
 
-SPEAKER_CONJUNCT_SPEAKING_VERB = [
+SPEAKING_VERB_CONJUNCT_SPEAKER = [
     {  # (anchor) speaker
         "RIGHT_ID": "speaker",
         "RIGHT_ATTRS": {

@@ -10,8 +10,8 @@ from ttc.iterables import iter_by_triples, flatmap
 from ttc.language import Dialogue
 from ttc.language.russian.constants import REFERRAL_PRON
 from ttc.language.russian.dependency_patterns import (
-    SPEAKER_TO_SPEAKING_VERB,
-    SPEAKER_CONJUNCT_SPEAKING_VERB,
+    SPEAKING_VERB_TO_SPEAKER,
+    SPEAKING_VERB_CONJUNCT_SPEAKER,
 )
 from ttc.language.russian.span_extensions import (
     is_parenthesized,
@@ -243,8 +243,8 @@ def classify_speakers(
     doc = dialogue.doc
 
     dep_matcher = DependencyMatcher(language.vocab)
-    dep_matcher.add("*", [SPEAKER_TO_SPEAKING_VERB])
-    dep_matcher.add("**", [SPEAKER_CONJUNCT_SPEAKING_VERB])
+    dep_matcher.add("*", [SPEAKING_VERB_TO_SPEAKER])
+    dep_matcher.add("**", [SPEAKING_VERB_CONJUNCT_SPEAKER])
 
     for p_replica, replica, n_replica in iter_by_triples(dialogue.replicas):
 
@@ -272,10 +272,10 @@ def classify_speakers(
                 # Check if colon was on a previous line
                 # That indicates that speaker definition may be on that line.
                 leading = doc[leading.start - 2 : leading.end]
-            search_region = expand_to_prev_line(leading)
+            search_start_region = expand_to_prev_line(leading)
 
             rels[replica] = search_for_speaker(
-                search_region, rels, dep_matcher, replica=replica
+                search_start_region, rels, dep_matcher, replica=replica
             )
 
         # Before author ending ([-] ... [\n])
@@ -283,10 +283,10 @@ def classify_speakers(
             trailing = doc[replica.end : max(replica.end, replica.sent.end)]
             if len(trailing) == 0 and trailing.end + 1 < len(doc):
                 trailing = doc[trailing.start : trailing.end + 1]
-            search_region = expand_to_next_line(trailing)
+            search_start_region = expand_to_next_line(trailing)
 
             rels[replica] = search_for_speaker(
-                search_region, rels, dep_matcher, replica=replica
+                search_start_region, rels, dep_matcher, replica=replica
             )
             if not rels[replica] and (alt := alternated(rels, p_replica, replica)):
                 # Author speech is present, but it has
@@ -295,14 +295,14 @@ def classify_speakers(
 
         # Author insertion
         elif replica._.is_before_author_insertion and n_replica:
-            search_region = doc[replica.end : n_replica.start]
-            if is_parenthesized(search_region):
+            search_start_region = doc[replica.end : n_replica.start]
+            if is_parenthesized(search_start_region):
                 # Author is commenting on a situation, there should be
                 # no reference to the speaker.
-                search_region = doc[replica.end : replica.end]
+                search_start_region = doc[replica.end : replica.end]
 
             rels[replica] = search_for_speaker(
-                search_region, rels, dep_matcher, replica=replica
+                search_start_region, rels, dep_matcher, replica=replica
             )
             if not rels[replica]:
                 del rels[replica]

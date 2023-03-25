@@ -7,8 +7,8 @@ from spacy.symbols import NOUN, PRON, PROPN, parataxis  # type: ignore
 from spacy.tokens import Token, Span, Doc
 
 from ttc.language.russian.dependency_patterns import (
-    SPEAKER_TO_SPEAKING_VERB,
-    SPEAKER_CONJUNCT_SPEAKING_VERB,
+    SPEAKING_VERB_TO_SPEAKER,
+    SPEAKING_VERB_CONJUNCT_SPEAKER,
 )
 from ttc.language.russian.span_extensions import (
     is_before_author_insertion,
@@ -52,8 +52,8 @@ def extract_replicas(
     tokens: Final[List[Token]] = []
 
     dep_matcher = DependencyMatcher(language.vocab)
-    dep_matcher.add("*", [SPEAKER_TO_SPEAKING_VERB])
-    dep_matcher.add("**", [SPEAKER_CONJUNCT_SPEAKING_VERB])
+    dep_matcher.add("*", [SPEAKING_VERB_TO_SPEAKER])
+    dep_matcher.add("**", [SPEAKING_VERB_CONJUNCT_SPEAKER])
 
     def flush_replica(*tags: Callable[[Span], Any]):
         if tokens:
