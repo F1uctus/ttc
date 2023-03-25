@@ -27,7 +27,8 @@ def cli():
 @cli.command(name="print-play")
 @click.argument("file", type=click.File("r", encoding="utf-8"), nargs=1)
 @click.argument("language", type=str, nargs=1)
-def print_play(file: TextIO, language):
+@click.option("--with-text", is_flag=True)
+def print_play(file: TextIO, language, with_text: bool):
     cc = ttc.load(language)
 
     if cc is None:
@@ -45,42 +46,48 @@ def print_play(file: TextIO, language):
 
     colors = list(COLORS)
     random.shuffle(colors)
-    speaker_colors: Dict[Optional[Span], str] = {
-        s: c for s, c in zip(play.content.values(), itertools.cycle(colors))
+    speaker_colors: Dict[str, Tuple[Span, str]] = {
+        s.lemma_: (s, c)
+        for s, c in zip(play.content.values(), itertools.cycle(colors))
+        if s
     }
 
     echo("Speakers found:")
     echo(
-        ", ".join(
-            c + s.text + Style.RESET_ALL
-            for s, c in speaker_colors.items()
-            if s is not None
-        )
+        ", ".join(c + s.text + Style.RESET_ALL for _, (s, c) in speaker_colors.items())
     )
 
-    echo("Marked play:")
-    rs_indexed: Dict[int, Tuple[Span, Optional[Span]]] = {
-        r.start_char: (r, s) for r, s in play.content.items()
-    }
-    r_starts = list(rs_indexed.keys())
-    start_i = 0
-    for i, c in enumerate(text):
-        replica: Optional[Span]
-        speaker: Optional[Span]
-        replica, speaker = (
-            rs_indexed[r_starts[start_i]] if start_i < len(r_starts) else (None, None)
-        )
+    first_col_w = max(len(str(s)) for s in play.content.values())
+    for r, s in play.content.items():
+        if s:
+            echo(speaker_colors[s.lemma_][1] + " ", nl=False)
+        echo(f"{{:<{first_col_w}}}  ".format(str(s)), nl=False)
+        echo(str(r))
 
-        if replica and i >= replica.start_char:
-            if i == replica.start_char:
-                if speaker:
-                    echo(speaker_colors[speaker] + " ", nl=False)
+    if with_text:
+        echo("\nMarked play:")
+        rs_indexed: Dict[int, Tuple[Span, Optional[Span]]] = {
+            r.start_char: (r, s) for r, s in play.content.items()
+        }
+        r_starts = list(rs_indexed.keys())
+        start_i = 0
+        for i, c in enumerate(text):
+            replica: Optional[Span]
+            speaker: Optional[Span]
+            replica, speaker = (
+                rs_indexed[r_starts[start_i]] if start_i < len(r_starts) else (None, None)
+            )
 
-            if i >= replica.end_char:
-                start_i += 1
-                echo(Style.RESET_ALL, nl=False)
+            if replica and i >= replica.start_char:
+                if i == replica.start_char:
+                    if speaker:
+                        echo(speaker_colors[speaker.lemma_][1] + " ", nl=False)
 
-        echo(c, nl=False)
+                if i >= replica.end_char:
+                    start_i += 1
+                    echo(Style.RESET_ALL, nl=False)
+
+            echo(c, nl=False)
 
     echo()
 
