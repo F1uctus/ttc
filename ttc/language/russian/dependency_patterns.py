@@ -2,7 +2,7 @@ SPEAKING_VERB_TO_SPEAKER = [
     {  # (anchor) speaker
         "RIGHT_ID": "speaker",
         "RIGHT_ATTRS": {
-            "DEP": {"IN": ["nsubj", "obj"]},
+            "DEP": {"IN": ["nsubj", "obj", "acl", "acl:relcl"]},
             "POS": {"NOT_IN": ["SPACE", "PUNCT"]},
         },
     },
@@ -38,6 +38,24 @@ SPEAKING_VERB_CONJUNCT_SPEAKER = [
         "RIGHT_ATTRS": {
             "POS": "VERB",
             "_": {"is_speaking_verb": True},
+        },
+    },
+]
+
+VOICE_TO_AMOD = [
+    {
+        "RIGHT_ID": "voice_gender_specifier",
+        "RIGHT_ATTRS": {
+            "DEP": "amod",
+            "LEMMA": {"IN": ["женский", "мужской"]},
+        },
+    },
+    {
+        "LEFT_ID": "voice_gender_specifier",
+        "REL_OP": "<",
+        "RIGHT_ID": "voice_noun",
+        "RIGHT_ATTRS": {
+            "LEMMA": "голос",
         },
     },
 ]
