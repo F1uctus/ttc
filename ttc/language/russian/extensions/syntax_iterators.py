@@ -1,4 +1,4 @@
-from typing import Iterator, Union, Tuple, Optional, Collection
+from typing import Iterator, Union, Tuple, Optional
 
 from spacy import Errors
 from spacy.symbols import (  # type: ignore
@@ -12,93 +12,108 @@ from spacy.symbols import (  # type: ignore
     ADP,
     CCONJ,
     punct,
+    nmod,
+    appos,
 )
 from spacy.tokens import Doc, Span, Token
 
 from ttc.language.russian.constants import HYPHENS
-from ttc.language.russian.token_extensions import morph_equals
+from ttc.language.russian.token_extensions import morph_equals, is_speaker_noun
 
 
-def next_with_pos(
-    *,
-    from_: Token,
-    max_distance: int = 2**32,
-    poss: Collection[int],
-) -> Optional[Token]:
-    max_distance = min(max_distance, len(from_.doc) - from_.i)
-    if from_.dep == punct:
-        try:
-            from_ = from_.nbor(+1)
-        except IndexError:
-            return None
-    i = 1
-    while i < max_distance:
-        from_ = from_.nbor(+1)
-        if from_.pos in poss:
-            return from_
-        i += 1
-    return None
+def can_mark_chunk(t: Token):
+    return t.pos in {PROPN, NOUN, PRON, NUM}
+
+
+LEFT_DEP_LABELS = [
+    "det",
+    # common
+    "fixed",
+    "nmod:poss",
+    "nmod",
+    "amod",
+    "flat",
+    "goeswith",
+    "nummod",
+    "obl",
+    "appos",
+]
+RIGHT_DEP_LABELS = [
+    # common
+    "fixed",
+    "nmod:poss",
+    "nmod",
+    "amod",
+    "flat",
+    "goeswith",
+    "nummod",
+    "obl",
+    "appos",
+]
+
+
+def get_right_adp(t: Token) -> Optional[Token]:
+    """e.g: t=человек + [с ножом]"""
+    if t.i + 2 >= len(t.doc):
+        return None
+    nt, nnt = t.nbor(+1), t.nbor(+2)
+    return nnt if nt.pos == ADP and (nt.dep_ == "case" and can_mark_chunk(nnt)) else None
 
 
 def noun_chunks(doclike: Union[Doc, Span]) -> Iterator[Tuple[int, int, int]]:
-    def is_verb_token(t: Token) -> bool:
-        return t.pos in [VERB, AUX]
-
-    def is_conj(t: Token) -> bool:
-        return t.pos == CCONJ or t.text in HYPHENS
-
     def are_uniform(t1: Token, t2: Token) -> bool:
-        return t1.pos == t2.pos and morph_equals(
-            t1, t2, "Number", "Case", "Voice", "Animacy"
-        )
+        return morph_equals(t1, t2, "Number", "Case", "Voice")
 
     def get_left_bound(root: Token) -> Token:
-        left_bound = root
-        for tok in reversed(list(root.lefts)):
-            if tok.dep in np_left_deps:
-                left_bound = tok
-        # immediately preceding uniform words
-        while True:
-            try:
-                prev_t = left_bound.nbor(-1)
-                if left_bound.pos != PROPN and are_uniform(prev_t, left_bound):
-                    left_bound = prev_t
-                else:
-                    break
-            except IndexError:
-                break
-        return left_bound
+        l_bound = root
+        old_l_bound = None
+        while old_l_bound != l_bound:
+            old_l_bound = l_bound
+
+            for t in root.lefts:
+                if t.dep in np_left_deps and t.i < l_bound.i:
+                    l_bound = t
+
+            # immediately preceding uniform words
+            if l_bound.i and (
+                (prev_t := l_bound.nbor(-1))
+                and prev_t.dep in np_left_deps
+                and l_bound.pos != PROPN
+                and are_uniform(prev_t, l_bound)
+            ):
+                l_bound = prev_t
+
+        return l_bound
 
     def get_right_bound(root: Token) -> Token:
-        right_bound = root
-        for tok in root.rights:
-            if tok.dep in np_right_deps:
-                right = get_right_bound(tok)
-                if list(filter(is_verb_token, doc[root.i : right.i])):
-                    break
-                else:
-                    right_bound = right
-        # immediately following uniform words
-        while True:
+        r_bound = root
+        old_r_bound = None
+        while old_r_bound != r_bound:
+            old_r_bound = r_bound
+
+            for t in r_bound.rights:
+                if t.dep in np_right_deps:
+                    r_bound = t
+
+            # immediately following uniform words
             try:
-                next_t = right_bound.nbor(+1)
-                if is_conj(next_t) and are_uniform(right_bound, next_t.nbor(+1)):
-                    # noun-noun, e.g. коротышка-сержант
-                    # or conj-ed parts, e.g. <noun> смешной и бесполезный
-                    right_bound = next_t.nbor(+1)
-                elif right_bound.pos != PROPN and are_uniform(right_bound, next_t):
-                    right_bound = next_t
-                else:
-                    break
+                nt = r_bound.nbor(+1)
+                if r_bound.pos != PROPN and are_uniform(r_bound, nt):
+                    r_bound = nt
+                elif adp := get_right_adp(r_bound):
+                    r_bound = adp
+                # should support things like "все, кроме A"
+                # but should ignore things like "A и B"
+                elif (nt.pos == CCONJ or nt.text in HYPHENS) and are_uniform(
+                    r_bound, nnt := nt.nbor(+1)
+                ):
+                    # noun-noun, e.g: коротышка-сержант
+                    # or conj-ed parts, e.g: <noun> смешной и бесполезный
+                    r_bound = nnt
             except IndexError:
-                break
-        # complement noun phrase
-        complement_np_adp = next_with_pos(from_=right_bound, max_distance=2, poss={ADP})
-        if complement_np_adp:
-            complement_np_noun = next_with_pos(from_=complement_np_adp, poss=nn_poss)
-            if complement_np_noun and complement_np_noun.is_ancestor(complement_np_adp):
-                right_bound = get_right_bound(complement_np_noun)
-        return right_bound
+                pass
+
+        return r_bound
 
     def get_bounds(root):
         return get_left_bound(root), get_right_bound(root)
@@ -111,46 +126,17 @@ def noun_chunks(doclike: Union[Doc, Span]) -> Iterator[Tuple[int, int, int]]:
     if not len(doc):
         return
 
-    left_labels = [
-        "det",
-        "case",
-        "fixed",
-        "nmod:poss",
-        "nmod",
-        "amod",
-        "flat",
-        "goeswith",
-        "nummod",
-        "obl",
-        "appos",
-    ]
-    right_labels = [
-        "fixed",
-        "nmod:poss",
-        "nmod",
-        "amod",
-        "flat",
-        "goeswith",
-        "nummod",
-        "obl",
-        "appos",
-    ]
-
     np_label = doc.vocab.strings.add("NP")
-    np_left_deps = {doc.vocab.strings.add(label) for label in left_labels}
-    np_right_deps = {doc.vocab.strings.add(label) for label in right_labels}
-    nn_poss = {PROPN, NOUN, PRON, DET, NUM}
+    np_left_deps = {doc.vocab.strings.add(label) for label in LEFT_DEP_LABELS}
+    np_right_deps = {doc.vocab.strings.add(label) for label in RIGHT_DEP_LABELS}
 
     prev_right = -1
-    for token in doclike:
+    for token in doc:
         if token.i < prev_right:
             continue
-        if token.pos in nn_poss:
+        if can_mark_chunk(token):
             left, right = get_bounds(token)
             if left.i <= prev_right:
-                continue
-            # leave specific 1-word spans to the next iteration (e.g. один, мой)
-            if token.pos in {NUM, DET} and left.i == right.i:
                 continue
             yield left.i, right.i + 1, np_label
             prev_right = right.i
