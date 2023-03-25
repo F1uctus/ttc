@@ -1,9 +1,17 @@
-from typing import Dict, Callable, Literal, Any, TypeVar, cast
 from functools import wraps
+from typing import Dict, Callable, Literal, Any, TypeVar, cast
 
+from spacy.matcher import DependencyMatcher
 from spacy.tokens import Token, Span
 
-from ttc.language.russian.token_extensions import non_word, has_newline, contains_near
+from ttc.language.russian.constants import REFERRAL_PRON
+from ttc.language.russian.dependency_patterns import VOICE_TO_AMOD
+from ttc.language.russian.token_extensions import (
+    non_word,
+    has_newline,
+    contains_near,
+    expand_to_noun_chunk,
+)
 
 ExtensionKind = Literal["method", "getter", "default"]
 Ext = TypeVar("Ext", bound=Callable[..., Any])
@@ -85,6 +93,15 @@ def is_parenthesized(self: Span):
     return contains_near(self[0], 3, lambda t: t.text == "(") and contains_near(
         self[-1], 3, lambda t: t.text == ")"
     )
+
+
+@span_extension("getter")
+def is_referential(noun: Span):
+    if noun.lemma_ in REFERRAL_PRON:
+        return True
+    dm = DependencyMatcher(noun.vocab)
+    dm.add(0, [VOICE_TO_AMOD])
+    return bool(dm(expand_to_noun_chunk(noun)))
 
 
 @span_extension("getter")

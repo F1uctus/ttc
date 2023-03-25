@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Optional, Dict, List, Iterable, Generator, Callable
+from typing import Optional, Dict, List, Iterable, Generator, Callable, Union
 
 from spacy import Language
 from spacy.matcher import DependencyMatcher
@@ -8,7 +8,6 @@ from spacy.tokens import Token, Span
 
 from ttc.iterables import iter_by_triples, flatmap
 from ttc.language import Dialogue
-from ttc.language.russian.constants import REFERRAL_PRON
 from ttc.language.russian.dependency_patterns import (
     SPEAKING_VERB_TO_SPEAKER,
     SPEAKING_VERB_CONJUNCT_SPEAKER,
@@ -20,38 +19,33 @@ from ttc.language.russian.span_extensions import (
     expand_to_next_line,
     trim_non_word,
     is_inside,
+    is_referential,
 )
 from ttc.language.russian.token_extensions import (
     ref_matches,
     is_speaker_noun,
     expand_to_noun_chunk,
     as_span,
+    lowest_linked_verbal,
+    dep_dist_up_to,
 )
 
 
-def lowest_linked_verb(t: Token) -> Optional[Token]:
-    p = [t.head]
-    while p[0] and p[0] != p[0].head:
-        p = [p[0].head] + p
-    return next((t for t in p if t.pos == VERB), None)
-
-
-def where_with_verbs(subjects: Iterable[Span]) -> Generator[Span, None, None]:
-    return (
-        noun
-        for noun in subjects
-        if is_speaker_noun(t := noun.root)
-        and (
-            (verb := lowest_linked_verb(t))
-            and t in verb.children
-            and ("nsubj" in t.dep_ or t.dep_ == "ROOT")
-        )
-    )
+def where_with_verbs(subjects: Iterable[Span]) -> List[Span]:
+    verb_subjects = []
+    for noun in subjects:
+        if is_speaker_noun(t := noun.root) and (
+            (verbal := lowest_linked_verbal(t))
+            and (t.dep_ in {"ROOT", "nsubj", "nmod"})
+        ):
+            verb_subjects.append((dep_dist_up_to(noun.root, verbal.root), noun))
+    verb_subjects.sort(key=lambda dist_and_subj: dist_and_subj[0])
+    return [vs for dist, vs in verb_subjects]
 
 
 def nearest_with_verbs(subjects: Iterable[Span]) -> Optional[Span]:
     # TODO: Rank subjects by frequency in rels
-    subjects = list(where_with_verbs(subjects))
+    subjects = where_with_verbs(subjects)
     for subj in subjects:
         # If subject is in the sentence immediately preceding a replica with a colon,
         # Then it is more likely to be the speaker than subjects from earlier sentences.
@@ -69,11 +63,15 @@ def unique_speakers(relations: Dict[Span, Optional[Span]]) -> List[str]:
 def ref_search_ctx(
     *,
     rels: Dict[Span, Optional[Span]],
-    last_replica: Span,
-    ref: Token,
+    last_replica: Optional[Span] = None,
+    ref: Union[Token, Span],
 ):
+    if isinstance(ref, Span):
+        ref = ref.root
     doc = ref.doc
-    reps = [*rels.keys(), last_replica]
+    reps = list(rels.keys())
+    if last_replica:
+        reps.append(last_replica)
     reps_to_search_between = reps[max(0, len(reps) - 4) :]
     search_ctx = []
 
@@ -89,36 +87,8 @@ def ref_search_ctx(
     # add context pieces between some replicas
     # laying before the referral pronoun
     for l, r in zip(reps_to_search_between, reps_to_search_between[1:]):
-        between_reps = trim_non_word(doc[l[-1].i + 1 : r[0].i])
-        # if that span contains an already annotated matching speaker
-        if prev_spk := next(
-            filter(
-                lambda s: s and is_inside(s, between_reps) and ref_matches(ref, s),
-                rels.values(),
-            ),
-            None,
-        ):
-            # exclude the speaker and all matching nouns
-            # of its subtree from the search context
-            matching_subtree: List[Token] = sorted(
-                set(flatmap(lambda tt: tt.head.children, prev_spk)),
-                key=lambda t: t.i,
-            )
-            ll = doc[
-                between_reps.start : matching_subtree[0].i
-                if matching_subtree
-                else prev_spk.start
-            ]
-            if len(ll) > 1:
-                search_ctx.append(ll)
-            rr = doc[
-                matching_subtree[-1].i + 1
-                if matching_subtree
-                else prev_spk.end : between_reps.end + 1
-            ]
-            if len(rr) > 1:
-                search_ctx.append(rr)
-        elif len(between_reps) > 1:
+        between_reps = trim_non_word(doc[l.end : r.start])
+        if len(between_reps) > 1:
             search_ctx.append(between_reps)
 
     # add context piece between the last replica to the left
@@ -146,7 +116,8 @@ def search_for_speaker(
     for match_id, token_ids in dep_matcher(s_region):
         # For this matcher speaker is the first token in a pattern
         t = s_region[token_ids[0]]
-        if t.lemma_ in REFERRAL_PRON:
+        if is_referential(as_span(t)):
+            speakers = unique_speakers(rels)
             if replica:
                 spans = ref_search_ctx(rels=rels, last_replica=replica, ref=t)
                 for span in spans:
@@ -154,10 +125,12 @@ def search_for_speaker(
                         span,
                         rels,
                         dep_matcher,
-                        speaker_pred=lambda sp: ref_matches(t, sp),
+                        speaker_pred=lambda sp: (
+                            ref_matches(t, sp)
+                            and (not speakers or sp.lemma_ != speakers[-1])
+                        ),
                     ):
                         return s
-            speakers = unique_speakers(rels)
             if len(speakers) > 1 and (
                 s := next(
                     (
@@ -172,20 +145,32 @@ def search_for_speaker(
             if len(rels) == 2 and len(speakers) == 1:
                 return rels[list(rels.keys())[-1]]
 
-        return expand_to_noun_chunk(t)
+        if any(select([as_span(t)])):
+            return expand_to_noun_chunk(t)
 
     if rels and (prev_speaker := rels[next(reversed(rels.keys()))]):
-        for ref_t in [
-            r[0] for r in s_region.noun_chunks if r[0].lemma_ in REFERRAL_PRON
-        ]:
+        for chunk in s_region.noun_chunks:
+            if not is_referential(ref := chunk):
+                continue
             if len(s_region.ents) == 1 and (
-                (ent := s_region.ents[0]).end < ref_t.i
-                and ref_matches(ref_t, ent)
+                (ent := s_region.ents[0]).end < ref.start
+                and ref_matches(ref, ent)
                 and (not speaker_pred or speaker_pred(ent))
             ):
                 return s_region.ents[0]
-            if ref_matches(ref_t, prev_speaker):
+            if ref_matches(ref, prev_speaker):
                 return prev_speaker
+
+            preceding_rels = {r: s for r, s in rels.items() if r.end <= ref.start}
+            spans = ref_search_ctx(rels=preceding_rels, ref=ref)
+            for span in spans:
+                if s := search_for_speaker(
+                    span,
+                    preceding_rels,
+                    dep_matcher,
+                    speaker_pred=lambda spk: ref_matches(ref, spk),
+                ):
+                    return s
 
     if named_entity := nearest_with_verbs(select(s_region.ents)):
         return named_entity
@@ -326,5 +311,7 @@ def classify_speakers(
         else:
             rels[replica] = None
             print("MISS", replica)  # TODO: handle
+
+        # TODO: handle "голос" speaker by the nearest context [with gender-based filtering at least]
 
     return rels

@@ -2,6 +2,7 @@ from typing import Callable, Optional, Union
 
 from spacy.symbols import (  # type: ignore
     VERB,
+    AUX,
     NOUN,
     PROPN,
     PRON,
@@ -21,10 +22,6 @@ from ttc.language.russian.constants import (
 )
 
 
-def is_sent_end(self: Token):
-    return self.is_sent_end
-
-
 def is_hyphen(self: Token):
     return self.text in HYPHENS
 
@@ -38,6 +35,7 @@ def is_close_quote(self: Token):
 
 
 def is_speaking_verb(self: Token):
+    """Used in dependency matching"""
     return any(v in self.lemma_ for v in SPEAKING_VERBS)
 
 
@@ -61,16 +59,6 @@ def morph_equals(
     if self.morph is None or other.morph is None:
         return False
     return all(self.morph.get(k) == other.morph.get(k) for k in morphs)
-
-
-def linked_verb(self: Token) -> Optional[Token]:
-    head: Token = self.head
-    while head and head.pos != VERB:
-        if head == head.head:
-            return None
-        head = head.head
-    else:
-        return head
 
 
 def as_span(self: Token) -> Span:
@@ -97,7 +85,9 @@ def contains_near(self: Token, radius: int, predicate: Callable[[Token], bool]) 
     )
 
 
-def ref_matches(ref: Token, target: Span) -> bool:
+def ref_matches(ref: Union[Token, Span], target: Span) -> bool:
+    if isinstance(ref, Span):
+        ref = ref.root
     return morph_equals(target.root, ref, "Gender", "Number")
 
 
@@ -107,6 +97,24 @@ def is_speaker_noun(self: Token) -> bool:
         and set(self.morph.get("Case")).intersection({"Nom", "Acc", "Dat"})
         and is_not_second_person(self)
     )
+
+
+def lowest_linked_verbal(t: Token) -> Optional[Span]:
+    p = [t.head]
+    while p[0] and p[0] != p[0].head:
+        p = [p[0].head] + p
+    for child in p[0].children:
+        if child.dep_ == "cop":
+            return t.doc[child.i : p[0].i + 1]
+    return next((as_span(t) for t in p if t.pos in {VERB, AUX}), None)
+
+
+def dep_dist_up_to(self: Token, parent: Token):
+    dist = 0
+    while self != parent:
+        self = self.head
+        dist += 1
+    return dist
 
 
 TOKEN_EXTENSIONS = {

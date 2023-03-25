@@ -1,8 +1,6 @@
 from spacy import Language
-from spacy.symbols import PART  # type: ignore
+from spacy.symbols import PART, VERB  # type: ignore
 from spacy.tokens import Doc
-
-from ttc.language.russian.token_extensions import linked_verb
 
 NAME = "correct_mispredictions"
 
@@ -128,6 +126,21 @@ PARTICLES = {
 PARTICLE_ENDINGS = {" ли", " ль", "-то", "-тка", "-де", "-ка", "-точь", "-с"}
 
 
+# TODO: Не хватало лишь Клинка Чести.
+#          -------      not fem
+#          ^ deduce from that
+
+
+def nearest_linked_verb(t):
+    head = t.head
+    while head and head.pos != VERB:
+        if head == head.head:
+            return None
+        head = head.head
+    else:
+        return head
+
+
 @Language.component(NAME)
 def _correct_mispredictions(doc: Doc):
     for token in doc:
@@ -142,7 +155,7 @@ def _correct_mispredictions(doc: Doc):
         if token.is_title and token.pos == PART and token.lower_ not in PARTICLES:
             if any(token.lower_.endswith(e) for e in PARTICLE_ENDINGS):
                 continue
-            if linked_verb(token):
+            if nearest_linked_verb(token):
                 token.pos_ = "PROPN"
 
     return doc
