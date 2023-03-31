@@ -211,7 +211,7 @@ def extract_replicas(
             # Автор: [«"]Реплика[»"]
             states.append("replica_by_colon_and_quote")
 
-        elif is_open_quote(t):
+        elif (not pt or pt.is_punct) and is_open_quote(t):
             # "Реплика" — автор
             states.append("replica_by_quote")
 

@@ -141,3 +141,13 @@ def test_replica_with_repetitive_onomatopoeia(cc):
     assert list(map(str, d.replicas)) == [
         "Все тихо, и вдруг — бам-бам-бам! — заколотили в дверь...",
     ]
+
+
+def test_false_quoted_piece_with_trailing_hyphen(cc):
+    text = (
+        "Она – Каладин вдруг понял, что воспринимает"
+        " спрена ветра как «ее», – носила простое платье."
+        # problematic piece ^^
+    )
+    d = cc.extract_dialogue(text)
+    assert list(map(str, d.replicas)) == []
