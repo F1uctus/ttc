@@ -4,7 +4,7 @@ from typing import Optional, Dict, List, Iterable, Callable, Union
 
 from spacy import Language
 from spacy.matcher import DependencyMatcher
-from spacy.symbols import VERB, nsubj  # type: ignore
+from spacy.symbols import VERB, root, nsubj, nmod  # type: ignore
 from spacy.tokens import Token, Span
 
 from ttc.iterables import iter_by_triples
@@ -35,8 +35,7 @@ def where_with_verbs(subjects: Iterable[Span]) -> List[Span]:
     verb_subjects = []
     for noun in subjects:
         if is_speaker_noun(t := noun.root) and (
-            (verbal := lowest_linked_verbal(t))
-            and (t.dep_ in {"ROOT", "nsubj", "nmod"})
+            (verbal := lowest_linked_verbal(t)) and (t.dep in {root, nsubj, nmod})
         ):
             verb_subjects.append((dep_dist_up_to(noun.root, verbal.root), noun))
     verb_subjects.sort(key=itemgetter(0))
