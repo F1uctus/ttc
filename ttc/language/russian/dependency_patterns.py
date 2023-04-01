@@ -1,3 +1,6 @@
+from ttc.language.russian.constants import REFERRAL_PRON
+
+
 SPEAKING_VERB_TO_SPEAKER = [
     {  # (anchor) speaker
         "RIGHT_ID": "speaker",
@@ -47,7 +50,7 @@ VOICE_TO_AMOD = [
         "RIGHT_ID": "voice_gender_specifier",
         "RIGHT_ATTRS": {
             "DEP": "amod",
-            "LEMMA": {"IN": ["женский", "мужской"]},
+            "LEMMA": {"IN": ["женский", "мужской"] + list(REFERRAL_PRON)},
         },
     },
     {
