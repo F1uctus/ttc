@@ -123,7 +123,7 @@ def test_text_to_play(cc, file_name):
     print()
     print(play)
     print("\n")
-    assert [cc.language(s)[:].lemma_ for s in expected_speakers] == [
-        s.lemma_ for s in play.content.values() if s
+    assert [str(s).lower() for s in expected_speakers] == [
+        str(s).lower() for s in play.content.values() if s
     ]
     assert expected_replicas == list(map(str, play.content.keys()))
