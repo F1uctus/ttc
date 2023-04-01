@@ -47,7 +47,7 @@ def test_name_reference(cc):
     )
     play = cc.connect_play(dialogue)
 
-    assert "Сзету" == list(play.content.values())[-1].text
+    assert "Сзету" == play.last_speaker.text
 
 
 def test_noun_with_aux(cc):
@@ -64,7 +64,7 @@ def test_noun_with_aux(cc):
         " ночи и спрятал его? Это сердце жука – маленькое, но сильное?",
     ]
     play = cc.connect_play(dialogue)
-    actual_speakers = [str(spk.lemma_) for spk in play.content.values() if spk]
+    actual_speakers = [str(s.lemma_) for s in play.speakers if s]
     assert actual_speakers == [
         "она голос",  # ее --lemma-> она
         "она голос",
@@ -83,7 +83,7 @@ def test_hyphenated_noun_chunk(cc):
         "Чего надо?",
     ]
     play = cc.connect_play(dialogue)
-    actual_speakers = [str(spk.lemma_) for spk in play.content.values() if spk]
+    actual_speakers = [str(s.lemma_) for s in play.speakers if s]
     assert actual_speakers == [
         "моаш",
         "одноглазый коротышка-сержант",
@@ -105,7 +105,7 @@ def test_ignorance_of_dative(cc):
         "Таленель.",
     ]
     play = cc.connect_play(dialogue)
-    actual_speakers = [str(spk.lemma_) for spk in play.content.values() if spk]
+    actual_speakers = [str(s.lemma_) for s in play.speakers if s]
     assert actual_speakers == [
         "калак",
         "низкий голос",
@@ -124,6 +124,6 @@ def test_text_to_play(cc, file_name):
     print(play)
     print("\n")
     assert [str(s).lower() for s in expected_speakers] == [
-        str(s).lower() for s in play.content.values() if s
+        str(s).lower() for s in play.speakers if s
     ]
-    assert expected_replicas == list(map(str, play.content.keys()))
+    assert expected_replicas == list(map(str, play.replicas))

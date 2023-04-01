@@ -1,5 +1,5 @@
 import itertools
-from typing import Iterable, TypeVar, Optional, List, Tuple, Dict
+from typing import Iterable, TypeVar, Optional, List, Tuple, Dict, OrderedDict
 
 T = TypeVar("T")
 
@@ -26,6 +26,10 @@ def iter_by_triples(
 
 def flatmap(func, *iterable: Iterable[T]) -> Iterable[T]:
     return itertools.chain.from_iterable(map(func, *iterable))
+
+
+def deduplicate(iterable: Iterable[T]) -> List[T]:
+    return list(OrderedDict.fromkeys(iterable))
 
 
 def merge(destination: Dict, source: Dict) -> Dict:

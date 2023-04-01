@@ -66,7 +66,4 @@ class RussianConversationClassifier(ConversationClassifier):
         )
 
     def connect_play(self, dialogue: Dialogue) -> Play:
-        return Play(
-            self.language,
-            classify_speakers(self.language, dialogue),
-        )
+        return classify_speakers(self.language, dialogue)

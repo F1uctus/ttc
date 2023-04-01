@@ -47,9 +47,7 @@ def print_play(file: TextIO, language, with_text: bool):
     colors = list(COLORS)
     random.shuffle(colors)
     speaker_colors: Dict[str, Tuple[Span, str]] = {
-        s.lemma_: (s, c)
-        for s, c in zip(play.content.values(), itertools.cycle(colors))
-        if s
+        s.lemma_: (s, c) for s, c in zip(play.speakers, itertools.cycle(colors)) if s
     }
 
     echo("Speakers found:")
@@ -57,8 +55,8 @@ def print_play(file: TextIO, language, with_text: bool):
         ", ".join(c + s.text + Style.RESET_ALL for _, (s, c) in speaker_colors.items())
     )
 
-    first_col_w = max(len(str(s)) for s in play.content.values())
-    for r, s in play.content.items():
+    first_col_w = max(len(str(s)) for s in play.speakers)
+    for r, s in play.lines:
         if s:
             echo(speaker_colors[s.lemma_][1] + " ", nl=False)
         echo(f"{{:<{first_col_w}}}  ".format(str(s)), nl=False)
@@ -69,7 +67,7 @@ def print_play(file: TextIO, language, with_text: bool):
     if with_text:
         echo("\nMarked play:")
         rs_indexed: Dict[int, Tuple[Span, Optional[Span]]] = {
-            r.start_char: (r, s) for r, s in play.content.items()
+            r.start_char: (r, s) for r, s in play.lines
         }
         r_starts = list(rs_indexed.keys())
         r_start_i = 0
