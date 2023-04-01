@@ -4,7 +4,7 @@ from typing import TextIO, Tuple, Dict, Optional
 
 import click
 from click import echo
-from colorama import init as colorama_init, Fore, Style  # type: ignore
+from colorama import init as colorama_init, Fore, Back, Style  # type: ignore
 from spacy.tokens import Span
 
 import ttc
@@ -72,23 +72,29 @@ def print_play(file: TextIO, language, with_text: bool):
             r.start_char: (r, s) for r, s in play.content.items()
         }
         r_starts = list(rs_indexed.keys())
-        start_i = 0
+        r_start_i = 0
         for i, c in enumerate(text):
             replica: Optional[Span]
             speaker: Optional[Span]
             replica, speaker = (
-                rs_indexed[r_starts[start_i]]
-                if start_i < len(r_starts)
+                rs_indexed[r_starts[r_start_i]]
+                if r_start_i < len(r_starts)
                 else (None, None)
             )
+
+            if speaker:
+                if i == speaker.start_char:
+                    echo(Back.GREEN, nl=False)
+                elif i == speaker.end_char:
+                    echo(Style.RESET_ALL, nl=False)
 
             if replica and i >= replica.start_char:
                 if i == replica.start_char:
                     if speaker:
                         echo(speaker_colors[speaker.lemma_][1], nl=False)
 
-                if i >= replica.end_char:
-                    start_i += 1
+                if i == replica.end_char:
+                    r_start_i += 1
                     echo(Style.RESET_ALL, nl=False)
 
             echo(c, nl=False)
