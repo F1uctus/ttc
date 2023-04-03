@@ -6,6 +6,7 @@ from spacy.symbols import (  # type: ignore
     NOUN,
     PROPN,
     PRON,
+    DET,
     ADJ,
     NUM,
     nsubj,
@@ -43,8 +44,8 @@ def ref_matches(ref: Union[Token, Span], target: Span) -> bool:
 
 def is_speaker_noun(self: Token) -> bool:
     return bool(
-        self.pos in {NOUN, PROPN, PRON, ADJ, NUM}
-        and set(self.morph.get("Case")).intersection({"Nom", "Acc", "Dat"})
+        self.pos in {PROPN, PRON, NOUN, ADJ, NUM, DET}
+        and set(self.morph.get("Case")).intersection({"Nom", "Acc", "Dat", "Gen"})
         and is_not_second_person(self)
     )
 
