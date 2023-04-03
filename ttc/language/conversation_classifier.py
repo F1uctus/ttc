@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 from spacy import Language
+
 from ttc.language.dialogue import Dialogue
 from ttc.language.play import Play
 

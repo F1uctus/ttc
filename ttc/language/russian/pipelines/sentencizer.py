@@ -3,7 +3,8 @@ from typing import Optional, List, Callable
 import spacy
 from spacy import Language
 
-from ttc.language.russian.token_extensions import has_newline, is_hyphen
+from ttc.language.common.token_extensions import has_newline
+from ttc.language.russian.token_extensions import is_hyphen
 
 NAME = "patched_sentencizer"
 

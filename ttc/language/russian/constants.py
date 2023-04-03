@@ -1,15 +1,3 @@
-from spacy.lang.char_classes import LIST_HYPHENS
-
-HYPHENS = "".join(LIST_HYPHENS)
-
-OPEN_QUOTES = frozenset({'"', "'", "`", "«", "‘", "‚", "“", "„", "‹", "❮", "''", "``"})
-
-CLOSE_QUOTES = frozenset({'"', "'", "`", "»", "’", "‛", "”", "‟", "›", "❯", "''", "``"})
-
-QUOTES = frozenset(OPEN_QUOTES | CLOSE_QUOTES)
-
-ELLIPSES = {"…", "...", "....", ".....", "......", ".......", "........"}
-
 REFERRAL_PRON = {
     "мужчина",
     "парень",
@@ -36,8 +24,6 @@ REFERRAL_PRON = {
 }
 
 PERSONAL_PRON = {"Fem": {"женщина"}, "Masc": {"мужчина"}}
-
-AUTHOR_INSERTION_MAX_LENGTH = 50
 
 SPEAKING_VERBS = {
     "бормо",

@@ -1,6 +1,5 @@
 from ttc.language.russian.constants import REFERRAL_PRON
 
-
 SPEAKING_VERB_TO_SPEAKER = [
     {  # (anchor) speaker
         "RIGHT_ID": "speaker",

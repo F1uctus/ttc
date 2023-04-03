@@ -1,7 +1,7 @@
 from spacy import Language
 from spacy.tokens import Doc, Token, Span
 
-from ttc.language.russian.token_extensions import has_newline
+from ttc.language.common.token_extensions import has_newline
 
 NAME = "line_numerator"
 

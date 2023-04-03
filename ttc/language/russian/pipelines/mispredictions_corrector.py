@@ -144,7 +144,6 @@ def nearest_linked_verb(t):
 @Language.component(NAME)
 def _correct_mispredictions(doc: Doc):
     for token in doc:
-
         norm_text = token.text.strip().lower()
 
         if norm_text in MISPREDICTED_VERBS:

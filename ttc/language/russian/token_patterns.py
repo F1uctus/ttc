@@ -2,7 +2,7 @@ from enum import Enum
 from typing import Any, Literal, Set, List, Dict, Tuple
 
 from ttc.iterables import merge
-from ttc.language.russian.constants import (
+from ttc.language.common.constants import (
     HYPHENS as HYPHENS_STR,
     ELLIPSES as ELLIPSES_STR,
 )

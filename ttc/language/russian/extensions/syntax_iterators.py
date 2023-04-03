@@ -17,8 +17,8 @@ from spacy.symbols import (  # type: ignore
 )
 from spacy.tokens import Doc, Span, Token
 
-from ttc.language.russian.constants import HYPHENS
-from ttc.language.russian.token_extensions import morph_equals, is_speaker_noun
+from ttc.language.common.constants import HYPHENS
+from ttc.language.common.token_extensions import morph_equals
 
 
 def can_mark_chunk(t: Token):
@@ -57,7 +57,9 @@ def get_right_adp(t: Token) -> Optional[Token]:
     if t.i + 2 >= len(t.doc):
         return None
     nt, nnt = t.nbor(+1), t.nbor(+2)
-    return nnt if nt.pos == ADP and (nt.dep_ == "case" and can_mark_chunk(nnt)) else None
+    return (
+        nnt if nt.pos == ADP and (nt.dep_ == "case" and can_mark_chunk(nnt)) else None
+    )
 
 
 def noun_chunks(doclike: Union[Doc, Span]) -> Iterator[Tuple[int, int, int]]:

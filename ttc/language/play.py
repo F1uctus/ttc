@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, Callable, List, Dict, Tuple
+from typing import Optional, Callable, List, Dict
 
 from spacy import Language
 from spacy.tokens import Span

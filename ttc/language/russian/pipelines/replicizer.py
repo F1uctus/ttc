@@ -6,20 +6,22 @@ from spacy.matcher import Matcher, DependencyMatcher
 from spacy.symbols import NOUN, PRON, PROPN, parataxis  # type: ignore
 from spacy.tokens import Token, Span, Doc
 
-from ttc.language.russian.dependency_patterns import (
-    SPEAKING_VERB_TO_SPEAKER,
-    SPEAKING_VERB_CONJUNCT_SPEAKER,
-)
-from ttc.language.russian.span_extensions import (
+from ttc.language.common.span_extensions import (
     is_before_author_insertion,
     is_before_author_ending,
     is_after_author_starting,
     is_unannotated_alternation,
 )
-from ttc.language.russian.token_extensions import (
-    has_newline,
+from ttc.language.common.token_extensions import (
     is_open_quote,
     is_close_quote,
+    has_newline,
+)
+from ttc.language.russian.dependency_patterns import (
+    SPEAKING_VERB_TO_SPEAKER,
+    SPEAKING_VERB_CONJUNCT_SPEAKER,
+)
+from ttc.language.russian.token_extensions import (
     is_hyphen,
 )
 from ttc.language.russian.token_patterns import TokenMatcherClass

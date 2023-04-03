@@ -1,6 +1,5 @@
-from collections import OrderedDict
 from operator import itemgetter
-from typing import Optional, Dict, List, Iterable, Callable, Union
+from typing import Optional, List, Iterable, Callable, Union
 
 from spacy import Language
 from spacy.matcher import DependencyMatcher
@@ -9,25 +8,28 @@ from spacy.tokens import Token, Span
 
 from ttc.iterables import iter_by_triples
 from ttc.language import Dialogue, Play
-from ttc.language.russian.dependency_patterns import (
-    SPEAKING_VERB_TO_SPEAKER,
-    SPEAKING_VERB_CONJUNCT_SPEAKER,
-)
-from ttc.language.russian.span_extensions import (
+from ttc.language.common.span_extensions import (
     is_parenthesized,
     fills_line,
     expand_to_prev_line,
     expand_to_next_line,
     trim_non_word,
-    is_referential,
+)
+from ttc.language.common.token_extensions import (
+    expand_to_noun_chunk,
+    as_span,
+    dep_dist_up_to,
+)
+from ttc.language.russian.constants import REFERRAL_PRON
+from ttc.language.russian.dependency_patterns import (
+    SPEAKING_VERB_TO_SPEAKER,
+    SPEAKING_VERB_CONJUNCT_SPEAKER,
+    VOICE_TO_AMOD,
 )
 from ttc.language.russian.token_extensions import (
     ref_matches,
     is_speaker_noun,
-    expand_to_noun_chunk,
-    as_span,
     lowest_linked_verbal,
-    dep_dist_up_to,
 )
 
 
@@ -51,6 +53,16 @@ def nearest_with_verbs(subjects: Iterable[Span]) -> Optional[Span]:
         if subj.sent.text.endswith(":") and subj.sent[-1]._.has_newline:
             return subj
     return subjects[0] if subjects else None
+
+
+def is_referential(noun: Union[Span, Token]):
+    if isinstance(noun, Token):
+        noun = as_span(noun)
+    if any(t.lemma_ in REFERRAL_PRON for t in noun):
+        return True
+    dm = DependencyMatcher(noun.vocab)
+    dm.add(0, [VOICE_TO_AMOD])
+    return bool(dm(expand_to_noun_chunk(noun)))
 
 
 def ref_search_ctx(
@@ -208,7 +220,6 @@ def classify_speakers(
     dep_matcher.add("**", [SPEAKING_VERB_CONJUNCT_SPEAKER])
 
     for p_replica, replica, n_replica in iter_by_triples(dialogue.replicas):
-
         # On the same line as prev replica
         if (
             p_replica
