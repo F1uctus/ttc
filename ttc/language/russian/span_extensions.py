@@ -1,5 +1,5 @@
 from functools import wraps
-from typing import Dict, Callable, Literal, Any, TypeVar, cast
+from typing import Union, Dict, Callable, Literal, Any, TypeVar, cast
 
 from spacy.matcher import DependencyMatcher
 from spacy.tokens import Token, Span
@@ -11,6 +11,7 @@ from ttc.language.russian.token_extensions import (
     has_newline,
     contains_near,
     expand_to_noun_chunk,
+    as_span,
 )
 
 ExtensionKind = Literal["method", "getter", "default"]
@@ -83,11 +84,6 @@ def non_overlapping_span_len(self: Span, inner: Span) -> int:
     return abs(self.start - inner.start) + abs(self.end - inner.end)
 
 
-@span_extension("method")
-def sent_resembles_replica(self: Span, replica: Span) -> bool:
-    return non_overlapping_span_len(self, replica) <= 3  # type: ignore
-
-
 @span_extension("getter")
 def is_parenthesized(self: Span):
     return contains_near(self[0], 3, lambda t: t.text == "(") and contains_near(
@@ -96,8 +92,10 @@ def is_parenthesized(self: Span):
 
 
 @span_extension("getter")
-def is_referential(noun: Span):
-    if noun.lemma_ in REFERRAL_PRON:
+def is_referential(noun: Union[Span, Token]):
+    if isinstance(noun, Token):
+        noun = as_span(noun)
+    if any(t.lemma_ in REFERRAL_PRON for t in noun):
         return True
     dm = DependencyMatcher(noun.vocab)
     dm.add(0, [VOICE_TO_AMOD])
@@ -106,14 +104,15 @@ def is_referential(noun: Span):
 
 @span_extension("getter")
 def fills_line(self: Span) -> bool:
+    threshold = 3
     doc = self.doc
     return (
-        self.start - 3 >= 0
-        and self.end + 3 < len(doc)  # TODO: Rewrite and check end-of-doc case
-        and any(has_newline(t) for t in doc[self.start - 3 : self.start])
+        self.start - threshold >= 0
+        and self.end + threshold < len(doc)  # TODO: Rewrite and check end-of-doc case
+        and any(has_newline(t) for t in doc[self.start - threshold : self.start])
         # colon means that the author still annotates the replica, just on previous line
-        and not any(t.text == ":" for t in doc[self.start - 3 : self.start])
-        and any(has_newline(t) for t in doc[self.end - 1 : self.end + 3])
+        and not any(t.text == ":" for t in doc[self.start - threshold : self.start])
+        and any(has_newline(t) for t in doc[self.end - 1 : self.end + threshold])
     )
 
 
