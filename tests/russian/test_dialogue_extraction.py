@@ -151,3 +151,16 @@ def test_false_quoted_piece_with_trailing_hyphen(cc):
     )
     d = cc.extract_dialogue(text)
     assert list(map(str, d.replicas)) == []
+
+
+def test_quoted_insertion_with_no_speaking_verb(cc):
+    text = (
+        "«Постоянный кашель, – всплыло в памяти Каладина,"
+        " – сопровождаемый избытком мокроты и ночным"
+        " лихорадочным бредом. Скорее всего, кашель-скрежетун»."
+    )
+    d = cc.extract_dialogue(text)
+    assert list(map(str, d.replicas)) == [
+        "Постоянный кашель,",
+        "сопровождаемый избытком мокроты и ночным лихорадочным бредом. Скорее всего, кашель-скрежетун",
+    ]
