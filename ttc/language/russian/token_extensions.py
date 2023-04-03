@@ -52,7 +52,7 @@ def is_speaker_noun(self: Token) -> bool:
 
 def lowest_linked_verbal(t: Token) -> Optional[Span]:
     p = [t.head]
-    while p[0] and p[0] != p[0].head:
+    while p[0] and p[0] != p[0].head and p[0].dep_ != "parataxis":
         p = [p[0].head] + p
     for child in p[0].children:
         if child.dep_ == "cop":
