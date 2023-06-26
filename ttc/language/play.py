@@ -81,5 +81,5 @@ class Play:
         s = ""
         first_col_w = max(len(str(s)) for s in self._rels.values())
         for replica, speaker in self._rels.items():
-            s += f"{{:<{first_col_w}}}  {{:<200}}\n".format(str(speaker), str(replica))
+            s += f"{{:<{first_col_w}}} | {{:<200}}\n".format(str(speaker), str(replica))
         return s

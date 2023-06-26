@@ -24,8 +24,8 @@ def iter_by_triples(
         yield prv, cur, None
 
 
-def flatmap(func, *iterable: Iterable[T]) -> Iterable[T]:
-    return itertools.chain.from_iterable(map(func, *iterable))
+def flatten(*iterable: Iterable[T]) -> Iterable[T]:
+    return itertools.chain.from_iterable(iterable)
 
 
 def deduplicate(iterable: Iterable[T]) -> List[T]:

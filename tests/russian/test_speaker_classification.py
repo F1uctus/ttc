@@ -119,10 +119,7 @@ def test_text_to_play(cc, file_name):
     expected_replicas, expected_speakers = expected_result
     dialogue = cc.extract_dialogue(text)
     play = cc.connect_play(dialogue)
-    print()
-    print(play)
-    print("\n")
-    assert [str(s).lower() for s in expected_speakers] == [
-        str(s).lower() for s in play.speakers if s
-    ]
-    assert expected_replicas == list(map(str, play.replicas))
+    print("\n", play, sep="")
+    expected_play_rels = {a: b for a, b in zip(expected_replicas, expected_speakers)}
+    actual_play_rels = {str(r): str(s).lower() for r, s in play.lines}
+    assert expected_play_rels == actual_play_rels

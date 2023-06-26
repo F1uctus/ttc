@@ -30,7 +30,19 @@ def span_extension(kind: ExtensionKind, default_value: Any = None):
 
 
 @span_extension("method")
-def expand_to_prev_line(self: Span):
+def adj_prev_sent(self: Span):
+    if len(self) == 0:
+        return self
+    t = self[0]
+    if t.is_sent_start and t.i > 0:
+        t = t.nbor(-1)
+    while t.i > 0 and not t._.has_newline and not t.is_sent_start:
+        t = t.nbor(-1)
+    return self.doc[t.i : self.end]
+
+
+@span_extension("method")
+def expand_line_start(self: Span):
     t = self[0]
     while t.i > 0 and not t._.has_newline:
         t = t.nbor(-1)
@@ -38,7 +50,7 @@ def expand_to_prev_line(self: Span):
 
 
 @span_extension("method")
-def expand_to_next_line(self: Span):
+def expand_line_end(self: Span):
     t = self[-1]
     while t.i < len(self.doc) and not t._.has_newline:
         t = t.nbor()
