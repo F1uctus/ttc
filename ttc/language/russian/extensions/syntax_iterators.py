@@ -5,15 +5,9 @@ from spacy.symbols import (  # type: ignore
     NOUN,
     PROPN,
     PRON,
-    DET,
     NUM,
-    VERB,
-    AUX,
     ADP,
     CCONJ,
-    punct,
-    nmod,
-    appos,
 )
 from spacy.tokens import Doc, Span, Token
 
@@ -62,6 +56,7 @@ def get_right_adp(t: Token) -> Optional[Token]:
     )
 
 
+# TODO: caching
 def noun_chunks(doclike: Union[Doc, Span]) -> Iterator[Tuple[int, int, int]]:
     def are_uniform(t1: Token, t2: Token) -> bool:
         return morph_equals(t1, t2, "Number", "Case", "Voice")

@@ -79,14 +79,6 @@ def is_inside(self: Span, outer: Span):
     return self.start >= outer.start and self.end <= outer.end
 
 
-@span_extension("method")
-def non_overlapping_span_len(self: Span, inner: Span) -> int:
-    self, inner = trim(self, non_word), trim(inner, non_word)
-    if is_inside(self, inner):
-        return 0  # outer must be a strict superset of inner
-    return abs(self.start - inner.start) + abs(self.end - inner.end)
-
-
 @span_extension("getter")
 def is_parenthesized(self: Span):
     return contains_near(self[0], 3, lambda t: t.text == "(") and contains_near(

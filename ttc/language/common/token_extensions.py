@@ -57,14 +57,6 @@ def contains_near(self: Token, radius: int, predicate: Callable[[Token], bool]) 
     )
 
 
-def dep_dist_up_to(self: Token, parent: Token):
-    dist = 0
-    while self != parent and self != self.head:
-        self = self.head
-        dist += 1
-    return dist if self == parent else -1
-
-
 TOKEN_EXTENSIONS = {
     name: {"getter": f}
     for name, f in locals().items()

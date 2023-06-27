@@ -1,13 +1,10 @@
-from operator import itemgetter
-from typing import Optional, List, Callable, Union, DefaultDict, Tuple
+from typing import Optional, List, Callable, Union, DefaultDict
 
 from spacy import Language
 from spacy.matcher import DependencyMatcher
 from spacy.symbols import (  # type: ignore
     VERB,
     AUX,
-    ADJ,
-    ADV,
     PROPN,
     nsubj,
     obj,
@@ -191,18 +188,6 @@ def search_for_speaker(
                 ),
             ):
                 return expand_to_noun_chunk(s)
-
-        if len(speakers) > 1 and (
-            s := next(
-                (
-                    s
-                    for s in play.speakers
-                    if s and s.lemma_ == speakers[-2] and ref_matches(noun, s)
-                ),
-                None,
-            )
-        ):
-            return s
 
     # try harder to find some noun (whatever)
     # => walk on previous sentences until the start of line.
