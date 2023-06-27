@@ -40,7 +40,7 @@ jobs:
           # This is required to do as of @actions/checkout@v3
           # to prevent default action python from being used
           poetry env use ${{ matrix.python-version }}
-          poetry install --no-interaction -E dev
+          poetry install --no-interaction --with dev
 
       - name: Check with MyPy
         run: |
