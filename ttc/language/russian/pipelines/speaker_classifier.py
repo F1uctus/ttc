@@ -101,6 +101,8 @@ def potential_speaker(word):
 
 
 def verb_child_nouns(region: Span, replica: Optional[Span]) -> List[Token]:
+    replica = replica or region[0:0]
+
     def pick_verb(top_token):
         if top_token.pos == VERB:
             return top_token

@@ -28,7 +28,10 @@ def morph_equals(
 ) -> bool:
     if self.morph is None or other.morph is None:
         return False
-    return all(self.morph.get(k) == other.morph.get(k) for k in morphs)
+    return all(
+        self.morph.get(k, default=None) == other.morph.get(k, default=None)
+        for k in morphs
+    )
 
 
 def as_span(self: Union[Token, Span]) -> Span:
