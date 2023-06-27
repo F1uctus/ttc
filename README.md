@@ -57,7 +57,7 @@ poetry shell
 Install project dependencies:
 
 ```console
-poetry install [-E dev]
+poetry install [--with dev,large_models_ru]
 ```
 
 Contributions are very welcome!
