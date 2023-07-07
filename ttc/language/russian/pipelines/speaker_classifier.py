@@ -51,13 +51,23 @@ def ref_search_ctx(
     reps = list(play.replicas) + (
         [last_replica] if last_replica and last_replica not in play else []
     )
-    reps = reps[max(0, len(reps) - 4) :]
+    all_reps = reps
+    reps = reps[max(0, len(reps) - 5) :]
     search_ctx = []
 
-    # add context piece between doc start and referral pronoun indices
-    r_bound = min(reps[0].start, ref.start) if reps else ref.start
-    if len(nearest_l_ctx := trim_non_word(doc[:r_bound])) > 1:
-        search_ctx.append(nearest_l_ctx)
+    if reps[0]._.is_after_author_starting:
+        # take this: ______________
+        # [replica?] <author text>:
+        # - <reps[0]> - <author text>
+        # ...
+        # - <reps[-1]> - <author... |-ref-| ...text>
+        above_line = expand_line_start(reps[0][0].nbor(-2).sent)
+        try:
+            above_rep = all_reps[all_reps.index(reps[0]) - 1]
+            filtered = doc[max(above_rep.end, above_line.start) : above_line.end]
+            search_ctx.append(filtered)
+        except IndexError:
+            pass
 
     # add context pieces between some replicas
     # laying before the referral pronoun
