@@ -269,10 +269,12 @@ def classify_speakers(
             play[replica] = search_for_speaker(
                 search_start_region, play, dep_matcher, replica=replica
             )
-            if not play[replica] and (alt := play.alternated(p_replica, replica)):
-                # Author speech is present, but it has
-                # no reference to the speaker => speakers alternation
-                play[replica] = alt  # <=> penultimate speaker
+            if not play[replica]:
+                del play[replica]
+                if alt := play.alternated(p_replica, replica):
+                    # Author speech is present, but it has
+                    # no reference to the speaker => speakers alternation
+                    play[replica] = alt  # <=> penultimate speaker
 
         # Author insertion
         elif replica._.is_before_author_insertion and n_replica:
