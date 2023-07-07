@@ -97,7 +97,8 @@ def is_referential(noun: Union[Span, Token]):
 
 def potential_speaker(word):
     return (
-        word.dep in {obj}
+        not word.is_punct
+        and word.dep in {obj}
         or "nsubj" in word.dep_
         # exact subject noun must be present for word to be a speaker
         # e.g.: [слушатели<--NEEDED] повернулись [к __] != снова посмотрела [на __]
@@ -121,6 +122,9 @@ def verb_child_nouns(region: Span, replica: Optional[Span]) -> List[Token]:
             return top_token.head
         return None
 
+    def adequate(t: Token):
+        return t not in replica and not t.is_punct
+
     candidates = DefaultDict[Token, List[Token]](list)
     for t in region:
         if not (verb := pick_verb(t)):
@@ -128,15 +132,11 @@ def verb_child_nouns(region: Span, replica: Optional[Span]) -> List[Token]:
         if verb.dep == advcl and verb.head.pos in {VERB, AUX}:
             # TODO check skip adverbial clause modifiers
             continue
-        if verb.dep in {amod} and verb.head not in replica:
+        if verb.dep in {amod} and adequate(verb.head):
             candidates[verb].append(verb.head)
         for child in verb.children:
-            if potential_speaker(child) and child not in replica:
+            if potential_speaker(child) and adequate(child):
                 candidates[verb].append(child)
-        for co in verb.conjuncts:
-            if co in candidates:
-                continue
-            candidates[co].extend(candidates[verb])
 
     results: List[Token] = list(flatten(*candidates.values()))
     return results
