@@ -24,7 +24,7 @@ def cli():
     pass
 
 
-@cli.command(name="print-play")
+@cli.command("print-play")  # type: ignore
 @click.argument("file", type=click.File("r", encoding="utf-8"), nargs=1)
 @click.argument("language", type=str, nargs=1)
 @click.option("--with-text", is_flag=True)
