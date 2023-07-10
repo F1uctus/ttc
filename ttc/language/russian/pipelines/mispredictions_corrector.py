@@ -126,11 +126,6 @@ PARTICLES = {
 PARTICLE_ENDINGS = {" ли", " ль", "-то", "-тка", "-де", "-ка", "-точь", "-с"}
 
 
-# TODO: Не хватало лишь Клинка Чести.
-#          -------      not fem
-#          ^ deduce from that
-
-
 def nearest_linked_verb(t):
     head = t.head
     while head and head.pos != VERB:

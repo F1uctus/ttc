@@ -21,17 +21,16 @@ def has_newline(self: Token):
     )
 
 
-def morph_equals(
-    self: Token,
-    other: Token,
-    *morphs: str,  # Morph
-) -> bool:
+def morph_distance(self: Token, other: Token, *morphs: str) -> int:
     if self.morph is None or other.morph is None:
-        return False
-    return all(
-        self.morph.get(k, default=None) == other.morph.get(k, default=None)
-        for k in morphs
+        return len(morphs)
+    return len(morphs) - sum(
+        self.morph.get(m, None) == other.morph.get(m, None) for m in morphs
     )
+
+
+def morph_equals(self: Token, other: Token, *morphs: str) -> bool:
+    return morph_distance(self, other, *morphs) == 0
 
 
 def as_span(self: Union[Token, Span]) -> Span:
@@ -44,10 +43,13 @@ def non_word(self: Token) -> bool:
     return self.is_punct or has_newline(self)
 
 
-def expand_to_noun_chunk(self: Union[Token, Span]) -> Span:
+def noun_chunk(self: Union[Token, Span]) -> Span:
+    from ttc.language.common.span_extensions import is_inside
+
     span = self if isinstance(self, Span) else as_span(self)
     for nc in span.sent.noun_chunks:
-        if all(t in nc for t in span):
+        if is_inside(span, nc):
+            # tighten the chunk using bounds from NER
             return nc.ents[0] if len(nc) > 2 and len(nc.ents) == 1 else nc
     # cannot expand noun, use token as-is
     return span

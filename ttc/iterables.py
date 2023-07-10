@@ -1,5 +1,14 @@
 import itertools
-from typing import Iterable, TypeVar, Optional, List, Tuple, Dict, OrderedDict
+from typing import (
+    Iterable,
+    Iterator,
+    TypeVar,
+    Optional,
+    List,
+    Tuple,
+    Dict,
+    OrderedDict,
+)
 
 T = TypeVar("T")
 
@@ -24,7 +33,7 @@ def iter_by_triples(
         yield prv, cur, None
 
 
-def flatten(*iterable: Iterable[T]) -> Iterable[T]:
+def flatten(iterable: Iterator[Iterable[T]]) -> Iterable[T]:
     return itertools.chain.from_iterable(iterable)
 
 

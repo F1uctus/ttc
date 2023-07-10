@@ -89,8 +89,7 @@ def test_hyphenated_noun_chunk(cc):
     ]
 
 
-@pytest.mark.xfail(reason="misprediction of dative as feminine", raises=AssertionError)
-def test_ignorance_of_dative(cc):
+def test_ignorance_of_impersonal(cc):
     text = (
         "– Что происходит? – спросил Калак.\n"
         "– На этот раз погиб только один. – Низкий голос был спокоен.\n"
@@ -109,6 +108,27 @@ def test_ignorance_of_dative(cc):
         "калак",
         "низкий голос",
         "калак",
+    ]
+
+
+def test_context_without_punct(cc):
+    text = (
+        "– Понял, – пробормотал общительный раб, – видимо, стоит задать вопрос по-другому. За что ты получил первое клеймо?\n"
+        "Каладин выпрямился, чувствуя, как что-то постукивает под днищем катящегося фургона.\n"
+        "– Я убил светлоглазого."
+    )
+    dialogue = cc.extract_dialogue(text)
+    assert list(map(str, dialogue.replicas)) == [
+        "Понял,",
+        "видимо, стоит задать вопрос по-другому. За что ты получил первое клеймо?",
+        "Я убил светлоглазого.",
+    ]
+    play = cc.connect_play(dialogue)
+    actual_speakers = [str(s.lemma_) for s in play.speakers if s]
+    assert actual_speakers == [
+        "общительный раб",
+        "общительный раб",
+        "каладин",
     ]
 
 

@@ -39,13 +39,7 @@ class Play:
             [s.lemma_ if s else "" for s in self._rels.values()][::-1],
         )[::-1]
 
-    def alternated(
-        self,
-        p_replica: Optional[Span],
-        replica: Span,
-    ) -> Optional[Span]:
-        if not p_replica or replica._.start_line_no - p_replica._.end_line_no != 1:
-            return None
+    def alternated(self) -> Optional[Span]:
         uniq_speakers = self.unique_speaker_lemmas()
         return (
             next(
