@@ -46,19 +46,17 @@ def print_play(file: TextIO, language, with_text: bool):
 
     colors = list(COLORS)
     random.shuffle(colors)
-    speaker_colors: Dict[str, Tuple[Span, str]] = {
-        s.lemma_: (s, c) for s, c in zip(play.speakers, itertools.cycle(colors)) if s
+    actor_colors: Dict[str, Tuple[Span, str]] = {
+        s.lemma_: (s, c) for s, c in zip(play.actors, itertools.cycle(colors)) if s
     }
 
-    echo("Speakers found:")
-    echo(
-        ", ".join(c + s.text + Style.RESET_ALL for _, (s, c) in speaker_colors.items())
-    )
+    echo("Actors found:")
+    echo(", ".join(c + s.text + Style.RESET_ALL for _, (s, c) in actor_colors.items()))
 
-    first_col_w = max(len(str(s)) for s in play.speakers)
+    first_col_w = max(len(str(s)) for s in play.actors)
     for r, s in play.lines:
         if s:
-            echo(speaker_colors[s.lemma_][1] + " ", nl=False)
+            echo(actor_colors[s.lemma_][1] + " ", nl=False)
         echo(f"{{:<{first_col_w}}}  ".format(str(s)), nl=False)
         echo(str(r))
 
@@ -73,23 +71,23 @@ def print_play(file: TextIO, language, with_text: bool):
         r_start_i = 0
         for i, c in enumerate(text):
             replica: Optional[Span]
-            speaker: Optional[Span]
-            replica, speaker = (
+            actor: Optional[Span]
+            replica, actor = (
                 rs_indexed[r_starts[r_start_i]]
                 if r_start_i < len(r_starts)
                 else (None, None)
             )
 
-            if speaker:
-                if i == speaker.start_char:
+            if actor:
+                if i == actor.start_char:
                     echo(Back.GREEN, nl=False)
-                elif i == speaker.end_char:
+                elif i == actor.end_char:
                     echo(Style.RESET_ALL, nl=False)
 
             if replica and i >= replica.start_char:
                 if i == replica.start_char:
-                    if speaker:
-                        echo(speaker_colors[speaker.lemma_][1], nl=False)
+                    if actor:
+                        echo(actor_colors[actor.lemma_][1], nl=False)
 
                 if i == replica.end_char:
                     r_start_i += 1

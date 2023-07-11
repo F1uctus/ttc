@@ -2,16 +2,16 @@ from spacy.tokens import Token
 from spacy.symbols import AUX, cop  # type: ignore
 
 from ttc.language.common.constants import HYPHENS
-from ttc.language.russian.constants import SPEAKING_VERBS
+from ttc.language.russian.constants import ACTION_VERBS
 
 
 def is_hyphen(self: Token):
     return self.text in HYPHENS
 
 
-def is_speaking_verb(self: Token):
+def is_action_verb(self: Token):
     """Used in dependency matching"""
-    return any(v in self.lemma_ for v in SPEAKING_VERBS)
+    return any(v in self.lemma_ for v in ACTION_VERBS)
 
 
 def is_copula(self: Token):

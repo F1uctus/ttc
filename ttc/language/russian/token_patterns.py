@@ -25,7 +25,7 @@ def one_or_more(pattern: Dict) -> Dict:
 LINE_FILLER = some({"_": {"has_newline": False}})
 HYPHEN = {"TEXT": {"IN": HYPHENS}}
 NOT_HYPHEN = {"TEXT": {"NOT_IN": HYPHENS}}
-SPEAKER_WORD = {
+ACTION_WORD = {
     "POS": {"IN": ["NOUN", "PROPN", "PRON", "ADJ", "NUM"]},
     "MORPH": {"INTERSECTS": ["Case=Nom", "Case=Acc", "Case=Dat"]},
     "_": {"is_not_second_person": True},
@@ -51,7 +51,7 @@ class TokenPattern(Enum):
         LINE_FILLER,
         VERB,
         LINE_FILLER,
-        one_or_more(SPEAKER_WORD),
+        one_or_more(ACTION_WORD),
         LINE_FILLER,
         merge(text(*".!?", *ELLIPSES), {"_": {"has_newline": True}}),
     ]
@@ -61,7 +61,7 @@ class TokenPattern(Enum):
         text(*".,!?", *ELLIPSES),
         HYPHEN,
         LINE_FILLER,
-        one_or_more(SPEAKER_WORD),
+        one_or_more(ACTION_WORD),
         LINE_FILLER,
         VERB,
         LINE_FILLER,
@@ -75,7 +75,7 @@ class TokenPattern(Enum):
         LINE_FILLER,
         VERB,
         LINE_FILLER,
-        one_or_more(SPEAKER_WORD),
+        one_or_more(ACTION_WORD),
         LINE_FILLER,
         text(*".;:", *ELLIPSES),
         some(text(")")),
@@ -88,7 +88,7 @@ class TokenPattern(Enum):
         text(*".,!?", *ELLIPSES),
         HYPHEN,
         LINE_FILLER,
-        one_or_more(SPEAKER_WORD),
+        one_or_more(ACTION_WORD),
         LINE_FILLER,
         VERB,
         LINE_FILLER,
@@ -106,7 +106,7 @@ class TokenPattern(Enum):
         LINE_FILLER,
         VERB,
         LINE_FILLER,
-        one_or_more(SPEAKER_WORD),
+        one_or_more(ACTION_WORD),
         LINE_FILLER,
         text(*",;"),
         HYPHEN,
@@ -119,7 +119,7 @@ class TokenPattern(Enum):
         text(",", *ELLIPSES),
         HYPHEN,
         LINE_FILLER,
-        one_or_more(SPEAKER_WORD),
+        one_or_more(ACTION_WORD),
         LINE_FILLER,
         VERB,
         LINE_FILLER,

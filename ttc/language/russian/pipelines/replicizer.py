@@ -18,8 +18,8 @@ from ttc.language.common.token_extensions import (
     has_newline,
 )
 from ttc.language.russian.dependency_patterns import (
-    SPEAKING_VERB_TO_SPEAKER,
-    SPEAKING_VERB_CONJUNCT_SPEAKER,
+    ACTION_VERB_TO_ACTOR,
+    ACTION_VERB_CONJUNCT_ACTOR,
 )
 from ttc.language.russian.token_extensions import (
     is_hyphen,
@@ -54,8 +54,8 @@ def extract_replicas(
     tokens: Final[List[Token]] = []
 
     dep_matcher = DependencyMatcher(language.vocab)
-    dep_matcher.add("*", [SPEAKING_VERB_TO_SPEAKER])
-    dep_matcher.add("**", [SPEAKING_VERB_CONJUNCT_SPEAKER])
+    dep_matcher.add("*", [ACTION_VERB_TO_ACTOR])
+    dep_matcher.add("**", [ACTION_VERB_CONJUNCT_ACTOR])
 
     def flush_replica(*tags: Callable[[Span], Any]):
         if tokens:

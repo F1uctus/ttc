@@ -10,7 +10,6 @@ TEXTS_PATH: Final = Path(__file__).parent / "texts"
 
 def find_test_texts(path: Path):
     return [e.name for e in path.iterdir() if e.suffix == ".txt"]
-    # return [[e.name for e in path.iterdir() if "dekret" in str(e)][0]]
 
 
 def parse_conversation(text: str) -> Tuple[List[str], List[str]]:
@@ -46,7 +45,7 @@ def test_name_reference(cc):
     )
     play = cc.connect_play(dialogue)
 
-    assert "Сзету" == play.last_speaker.text
+    assert "Сзету" == play.last_actor.text
 
 
 def test_noun_with_aux(cc):
@@ -63,8 +62,8 @@ def test_noun_with_aux(cc):
         " ночи и спрятал его? Это сердце жука – маленькое, но сильное?",
     ]
     play = cc.connect_play(dialogue)
-    actual_speakers = [str(s.lemma_) for s in play.speakers if s]
-    assert actual_speakers == [
+    actual_actors = [str(s.lemma_) for s in play.actors if s]
+    assert actual_actors == [
         "она голос",  # ее --lemma-> она
         "она голос",
     ]
@@ -82,8 +81,8 @@ def test_hyphenated_noun_chunk(cc):
         "Чего надо?",
     ]
     play = cc.connect_play(dialogue)
-    actual_speakers = [str(s.lemma_) for s in play.speakers if s]
-    assert actual_speakers == [
+    actual_actors = [str(s.lemma_) for s in play.actors if s]
+    assert actual_actors == [
         "моаш",
         "одноглазый коротышка-сержант",
     ]
@@ -103,8 +102,8 @@ def test_ignorance_of_impersonal(cc):
         "Таленель.",
     ]
     play = cc.connect_play(dialogue)
-    actual_speakers = [str(s.lemma_) for s in play.speakers if s]
-    assert actual_speakers == [
+    actual_actors = [str(s.lemma_) for s in play.actors if s]
+    assert actual_actors == [
         "калак",
         "низкий голос",
         "калак",
@@ -124,8 +123,8 @@ def test_context_without_punct(cc):
         "Я убил светлоглазого.",
     ]
     play = cc.connect_play(dialogue)
-    actual_speakers = [str(s.lemma_) for s in play.speakers if s]
-    assert actual_speakers == [
+    actual_actors = [str(s.lemma_) for s in play.actors if s]
+    assert actual_actors == [
         "общительный раб",
         "общительный раб",
         "каладин",
@@ -136,10 +135,10 @@ def test_context_without_punct(cc):
 @pytest.mark.parametrize("file_name", find_test_texts(TEXTS_PATH))
 def test_text_to_play(cc, file_name):
     text, expected_result = load_test(TEXTS_PATH, file_name)
-    expected_replicas, expected_speakers = expected_result
+    expected_replicas, expected_actors = expected_result
     dialogue = cc.extract_dialogue(text)
     play = cc.connect_play(dialogue)
     print("\n", play, sep="")
-    expected_play_rels = {a: b for a, b in zip(expected_replicas, expected_speakers)}
+    expected_play_rels = {a: b for a, b in zip(expected_replicas, expected_actors)}
     actual_play_rels = {str(r): str(s).lower() for r, s in play.lines}
     assert expected_play_rels == actual_play_rels

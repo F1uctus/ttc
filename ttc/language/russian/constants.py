@@ -27,7 +27,7 @@ PRON_MORPHS = {
 
 REFERRAL_PRON = list(PRON_MORPHS.keys())
 
-SPEAKING_VERBS = {
+ACTION_VERBS = {
     "бормо",
     "брякну",
     "бубне",

@@ -153,7 +153,7 @@ def test_false_quoted_piece_with_trailing_hyphen(cc):
     assert list(map(str, d.replicas)) == []
 
 
-def test_quoted_insertion_with_no_speaking_verb(cc):
+def test_quoted_insertion_with_no_action_verb(cc):
     text = (
         "«Постоянный кашель, – всплыло в памяти Каладина,"
         " – сопровождаемый избытком мокроты и ночным"

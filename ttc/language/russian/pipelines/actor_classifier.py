@@ -38,8 +38,8 @@ from ttc.language.common.token_extensions import (
 from ttc.language.russian.token_extensions import is_copula
 from ttc.language.russian.constants import REFERRAL_PRON, PRON_MORPHS
 from ttc.language.russian.dependency_patterns import (
-    SPEAKING_VERB_TO_SPEAKER,
-    SPEAKING_VERB_CONJUNCT_SPEAKER,
+    ACTION_VERB_TO_ACTOR,
+    ACTION_VERB_CONJUNCT_ACTOR,
     VOICE_TO_AMOD,
 )
 
@@ -80,8 +80,8 @@ def top_verbs(span: Span, replica: Span) -> List[Token]:
     return verbs
 
 
-def potential_speakers(verb: Token, replica: Span) -> Generator[Token, None, None]:
-    """speaker, related verb"""
+def potential_actors(verb: Token, replica: Span) -> Generator[Token, None, None]:
+    """actor, related verb"""
 
     def in_region(t):
         return t not in replica and not t.is_punct
@@ -105,7 +105,7 @@ def potential_speakers(verb: Token, replica: Span) -> Generator[Token, None, Non
         if (
             (word.dep in {obj} and ref_matches(verb, word))
             or "nsubj" in word.dep_
-            # exact subject noun must be present for word to be a speaker
+            # exact subject noun must be present for word to be an actor
             # e.g.: [слушатели<--NEEDED] повернулись [к __] != снова посмотрела [на __]
             or (
                 word.dep == obl
@@ -168,7 +168,7 @@ def reference_resolution_context(bounds: List[Span]) -> Generator[Span, None, No
             yield leading
 
 
-def speaker_search(
+def actor_search(
     span: Span,
     play: Play,
     dep_matcher: DependencyMatcher,
@@ -181,17 +181,15 @@ def speaker_search(
     ref = ref_chain[-1] if ref_chain else None
     ref_matcher = morph_aligns_with(ref) if ref else lambda _: True
 
-    # Pick all the matching speaker candidates from the search [span]
+    # Pick all the matching actor candidates from the search [span]
     root_verbs = top_verbs(span, replica)
-    candidates = list(
-        flatten(list(potential_speakers(rv, replica)) for rv in root_verbs)
-    )
+    candidates = list(flatten(list(potential_actors(rv, replica)) for rv in root_verbs))
 
     if (roots := [r for r in span if r.dep_ == "ROOT"]) and (
         all("Neut" in r.morph.get("Gender", []) for r in roots)
     ):
         # Neutral-gender root verb usually indicates
-        # a description of situation, not speaker denotation.
+        # a description of situation, not actor denotation.
         matching = []
     else:
         # Order of candidates is better to be preserved.
@@ -203,15 +201,15 @@ def speaker_search(
     exacts = {noun_chunk(m).root.lemma_: m for m in matching if exact_enough(m)}
     if len(exacts) == 1:
         m = exacts[next(iter(exacts))]
-        speaker = noun_chunk(m)
-        if speaker == play.last_speaker:
+        actor = noun_chunk(m)
+        if actor == play.last_actor:
             if contiguous(play.last_replica, replica):
-                # Discard repeated speaker
+                # Discard repeated actor
                 matching.remove(m)
         # Index check ensures that no other matches closer to the replica are missed
         elif candidates.index(m) == 0:
             # Single matching non-ref candidate is good enough
-            return speaker
+            return actor
 
     # Reference resolution
     if resolve_refs:
@@ -220,7 +218,7 @@ def speaker_search(
         if m_refs:
             ref_roots = m_refs + m_verbs  # Verbs improve the ref resolution
         else:
-            # Pick only verbs which are distinct from the found speakers
+            # Pick only verbs which are distinct from the found actors
             # (this is empty most of the time).
             m_verbs = [
                 v
@@ -249,7 +247,7 @@ def speaker_search(
                 if word.i <= region.end or ref and ref.i <= region.end:
                     continue
                 depth += 1
-                ante = speaker_search(
+                ante = actor_search(
                     region, play, dep_matcher, replica, ref_chain=ref_chain + [word]
                 )
                 if ante and ante.start != word.i:
@@ -262,24 +260,17 @@ def speaker_search(
         if not ref:
             return noun_chunk(matching[0])
         elif first := next((m for m in matching if not is_ref(m)), None):
-            if (speaker := noun_chunk(first)) == play.last_speaker and (
+            if (actor := noun_chunk(first)) == play.last_actor and (
                 line_breaks_between(first, ref_chain[0]) < 2
             ):
                 pass
             else:
-                return speaker
-            # return noun_chunk(first)
+                return actor
 
     return noun_chunk(ref) if ref else None
 
 
-# TODO: Handle "-кий голос" speaker by the nearest context [with gender-based filtering at least]
-# TODO: Setup linked list based on next-prev replica span indices as spaCy extension props.
-#       Then do full-list improvements by finding phrases such as "Я - X", etc.
-# TODO: Save verbs associated with speakers, such as "продолжил" to correct predictions.
-
-
-def classify_speakers(
+def classify_actors(
     language: Language,
     dialogue: Dialogue,
 ) -> Play:
@@ -291,8 +282,8 @@ def classify_speakers(
     doc = dialogue.doc
 
     dep_matcher = DependencyMatcher(language.vocab)
-    dep_matcher.add("*", [SPEAKING_VERB_TO_SPEAKER])
-    dep_matcher.add("**", [SPEAKING_VERB_CONJUNCT_SPEAKER])
+    dep_matcher.add("*", [ACTION_VERB_TO_ACTOR])
+    dep_matcher.add("**", [ACTION_VERB_CONJUNCT_ACTOR])
 
     for p_replica, replica, n_replica in iter_by_triples(dialogue.replicas):
         # On the same line as prev replica
@@ -302,7 +293,7 @@ def classify_speakers(
             and p_replica in p
         ):
             # Replica is on the same line - probably separated by author speech
-            p[replica] = p[p_replica]  # <=> previous speaker
+            p[replica] = p[p_replica]  # <=> previous actor
 
         # Non-first replica fills line
         elif (
@@ -310,8 +301,8 @@ def classify_speakers(
             and line_breaks_between(replica, p_replica) == 1
             and (alt := p.alternated())
         ):
-            # Line has no author speech => speakers alternation
-            p[replica] = alt  # <=> penultimate speaker
+            # Line has no author speech => actor alternation
+            p[replica] = alt  # <=> penultimate actor
 
         # After author starting ( ... [:])
         elif replica._.is_after_author_starting:
@@ -321,7 +312,7 @@ def classify_speakers(
                 and doc[leading.start - 1]._.has_newline
             ):
                 # Check if colon was on a previous line
-                # That indicates that speaker definition may be on that line.
+                # That indicates that actor definition may be on that line.
                 leading = doc[leading.start - 2 : leading.end]
             search_span = expand_line_start(leading)
 
@@ -329,7 +320,7 @@ def classify_speakers(
             if len(sents := list(search_span.sents)) > 1:
                 search_span = sents[-2]
 
-            p[replica] = speaker_search(search_span, p, dep_matcher, replica)
+            p[replica] = actor_search(search_span, p, dep_matcher, replica)
 
         # Before author ending ([-] ... [\n])
         elif replica._.is_before_author_ending:
@@ -344,29 +335,29 @@ def classify_speakers(
                 search_span = expand_line_end(trailing)
             search_span = trim_non_word(search_span)
 
-            p[replica] = speaker_search(search_span, p, dep_matcher, replica)
+            p[replica] = actor_search(search_span, p, dep_matcher, replica)
             if not p[replica]:
                 del p[replica]
                 if alt := p.alternated():
                     # Author speech is present, but it has
-                    # no reference to the speaker => speakers alternation
-                    p[replica] = alt  # <=> penultimate speaker
+                    # no reference to the actor => actor alternation
+                    p[replica] = alt  # <=> penultimate actor
 
         # Author insertion
         elif replica._.is_before_author_insertion and n_replica:
             search_span = doc[replica.end : n_replica.start]
             if is_parenthesized(search_span):
                 # Author is commenting on a situation, there should be
-                # no reference to the speaker.
+                # no reference to the actor.
                 search_span = doc[replica.end : replica.end]
 
-            p[replica] = speaker_search(search_span, p, dep_matcher, replica)
+            p[replica] = actor_search(search_span, p, dep_matcher, replica)
             if not p[replica]:
                 del p[replica]
                 if alt := p.alternated():
                     # Author speech is present, but it has
-                    # no reference to the speaker => speakers alternation
-                    p[replica] = alt  # <=> penultimate speaker
+                    # no reference to the actor => actor alternation
+                    p[replica] = alt  # <=> penultimate actor
 
         # Fallback, similar to ( ... [:]), but constrained
         # to a single line between replicas (purely heuristically)
@@ -383,17 +374,17 @@ def classify_speakers(
             if len(sents := list(search_span.sents)) > 1:
                 search_span = sents[-1]
 
-            s = speaker_search(search_span, p, dep_matcher, replica, resolve_refs=False)
+            s = actor_search(search_span, p, dep_matcher, replica, resolve_refs=False)
             if s and is_ref(s) and (alt := p.alternated()):
                 # Author speech is present, but it has
-                # no reference to the speaker => speakers alternation
-                p[replica] = alt  # <=> penultimate speaker
+                # no reference to the actor => actor alternation
+                p[replica] = alt  # <=> penultimate actor
             else:
                 p[replica] = s
 
-        # Fallback - repeat speaker from prev replica
+        # Fallback - repeat actor from prev replica
         elif fills_line(replica) and p_replica and p_replica in p:
-            p[replica] = p[p_replica]  # <=> previous speaker
+            p[replica] = p[p_replica]  # <=> previous actor
 
         else:
             p[replica] = None

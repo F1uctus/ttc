@@ -12,7 +12,7 @@ from ttc.language.common.span_extensions import SPAN_EXTENSIONS
 from ttc.language.common.token_extensions import TOKEN_EXTENSIONS as TOKEN_EXTS
 from ttc.language.russian.extensions.syntax_iterators import noun_chunks
 from ttc.language.russian.pipelines.replicizer import extract_replicas
-from ttc.language.russian.pipelines.speaker_classifier import classify_speakers
+from ttc.language.russian.pipelines.actor_classifier import classify_actors
 from ttc.language.russian.token_extensions import TOKEN_EXTENSIONS as RU_TOKEN_EXTS
 from ttc.language.russian.token_patterns import (
     TokenMatcherClass,
@@ -67,4 +67,4 @@ class RussianConversationClassifier(ConversationClassifier):
         )
 
     def connect_play(self, dialogue: Dialogue) -> Play:
-        return classify_speakers(self.language, dialogue)
+        return classify_actors(self.language, dialogue)
