@@ -82,16 +82,15 @@ def top_verbs(span: Span, replica: Span) -> List[Token]:
 def potential_actors(verb: Token, replica: Span) -> Generator[Token, None, None]:
     """actor, related verb"""
 
-    def in_region(t):
-        return t not in replica and not t.is_punct
-
     for word in verb.children:
-        if not in_region(word):
+        if word in replica or word.is_punct:
             continue
+
         if word.dep == obl and (
             det := next((c for c in word.children if c.pos == DET), None)
         ):
             yield det  # rel. verb == None
+
         if (
             (word.dep in {obj} and ref_matches(verb, word))
             or "nsubj" in word.dep_
