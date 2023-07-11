@@ -131,6 +131,49 @@ def test_context_without_punct(cc):
     ]
 
 
+def test_unannotated_alternation(cc):
+    text = (
+        "Каладин отвернулся, всматриваясь в бесконечные холмы и беспокойную, подвижную траву. Продолжая сидеть, свесив ноги наружу, он положил руку поперек прутьев клетки и уперся в нее лбом.\n"
+        "– Ну? – спросил раб.\n"
+        "– Ты дурак. Будешь отдавать мне половину своей еды – слишком ослабеешь к моменту побега, если я таковой устрою. А я не устрою. Ничего не получится.\n"
+        "– Но…"
+    )
+    dialogue = cc.extract_dialogue(text)
+    assert list(map(str, dialogue.replicas)) == [
+        "Ну?",
+        "Ты дурак. Будешь отдавать мне половину своей еды – слишком ослабеешь к моменту побега, если я таковой устрою. А я не устрою. Ничего не получится.",
+        "Но…",
+    ]
+    play = cc.connect_play(dialogue)
+    actual_actors = [str(s.lemma_) for s in play.actors if s]
+    assert actual_actors == [
+        "раб",
+        "каладин",
+        "раб",
+    ]
+
+
+def test_allow_sparse_repetition(cc):
+    text = (
+        "«Не дури», – приказал себе Каладин.\n"
+        "Дверь клетки вернулась на прежнее место, щелкнул замок. Клетки необходимы – Твлакву приходилось защищать свое хрупкое имущество от Великих бурь.\n"
+        "Блат подтащил раба к костру, к непочатому бочонку с водой. Каладин почувствовал облегчение. «Ну вот, – подумал он. – Возможно, ты еще можешь кому-то помочь»"
+    )
+    dialogue = cc.extract_dialogue(text)
+    assert list(map(str, dialogue.replicas)) == [
+        "Не дури",
+        "Ну вот,",
+        "Возможно, ты еще можешь кому-то помочь",
+    ]
+    play = cc.connect_play(dialogue)
+    actual_actors = [str(s.lemma_) for s in play.actors if s]
+    assert actual_actors == [
+        "каладин",
+        "каладин",
+        "каладин",
+    ]
+
+
 @pytest.mark.xfail(reason="some test files are still failing", raises=AssertionError)
 @pytest.mark.parametrize("file_name", find_test_texts(TEXTS_PATH))
 def test_text_to_play(cc, file_name):
