@@ -11,7 +11,9 @@ from spacy.symbols import (  # type: ignore
     DET,
     obj,
     obl,
+    acl,
     advcl,
+    parataxis,
 )
 from spacy.tokens import Token, Span
 
@@ -62,15 +64,18 @@ def top_verbs(span: Span, replica: Span) -> List[Token]:
         if (
             t.pos == VERB
             and t.dep not in {advcl}
-            and (t.dep_ == "ROOT" or t.head in list(replica) + verbs)
-            or is_copula(t)
+            and (
+                t.dep_ == "ROOT"
+                or t.dep in {acl, parataxis}
+                or t.head in list(replica) + verbs
+            )
         ):
             if t.text.endswith("вшись"):
                 verbs.extend(tt for tt in t.children if tt.pos in {VERB, AUX})
-            elif is_copula(t):
-                verbs.append(t.head)
             else:
                 verbs.append(t)
+        elif is_copula(t):
+            verbs.append(t.head)
     return verbs
 
 
