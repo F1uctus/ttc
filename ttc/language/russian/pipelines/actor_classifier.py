@@ -133,6 +133,9 @@ def morph_aligns_with(target: Token) -> Callable[[Token], bool]:
 
 
 def reference_resolution_context(bounds: List[Span]) -> Generator[Span, None, None]:
+    """Yields all the spans between `bounds`, from bottom to the top.
+    Each span is split into sentences, if needed.
+    """
     if not bounds:
         return
     doc = bounds[0].doc
@@ -142,7 +145,11 @@ def reference_resolution_context(bounds: List[Span]) -> Generator[Span, None, No
         if not (bet := trim_non_word(doc[l_bound.end : r_bound.start])):
             continue
         split_idxs = sorted(
-            (i for i in doc._.nl_indices if bet.start_char <= i <= bet.end_char),
+            (
+                i
+                for s in doc.sents
+                if bet.start_char <= (i := s.end_char) <= bet.end_char
+            ),
             reverse=True,
         )
         if not split_idxs:
