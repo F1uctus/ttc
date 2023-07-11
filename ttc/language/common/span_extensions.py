@@ -48,18 +48,6 @@ def line_breaks_between(a: Union[Span, Token], b: Union[Span, Token]) -> int:
 
 
 @span_extension("method")
-def adj_prev_sent(self: Span):
-    if len(self) == 0:
-        return self
-    t = self[0]
-    if t.is_sent_start and t.i > 0:
-        t = t.nbor(-1)
-    while t.i > 0 and not t._.has_newline and not t.is_sent_start:
-        t = t.nbor(-1)
-    return self.doc[t.i : self.end]
-
-
-@span_extension("method")
 def expand_line_start(self: Union[Span, Token]):
     if isinstance(self, Token):
         self = as_span(self)

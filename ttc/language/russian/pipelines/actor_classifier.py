@@ -11,8 +11,6 @@ from spacy.symbols import (  # type: ignore
     DET,
     obj,
     obl,
-    amod,
-    nmod,
     advcl,
 )
 from spacy.tokens import Token, Span
@@ -44,11 +42,7 @@ from ttc.language.russian.dependency_patterns import (
 )
 
 
-def ref_matches(ref: Union[Token, Span], target: Union[Token, Span]) -> bool:
-    if isinstance(ref, Span):
-        ref = ref.root
-    if isinstance(target, Span):
-        target = target.root
+def ref_matches(ref: Token, target: Token) -> bool:
     return morph_distance(target, ref, "Gender", "Number", "Tense") < 2
 
 
@@ -85,15 +79,6 @@ def potential_actors(verb: Token, replica: Span) -> Generator[Token, None, None]
 
     def in_region(t):
         return t not in replica and not t.is_punct
-
-    if verb.dep == amod and in_region(verb.head):
-        yield verb.head  # rel. verb == verb
-        return
-
-    siblings = list(verb.children)
-    if len(siblings) == 1 and ((word := siblings[0]).dep == nmod and verb.dep == obj):
-        yield word  # rel. verb == verb.head
-        return
 
     for word in verb.children:
         if not in_region(word):
