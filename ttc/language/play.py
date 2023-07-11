@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import Optional, Callable, List, Dict
+from dataclasses import dataclass, field
+from typing import Optional, Callable, List, Tuple, Dict
 
 from spacy import Language
 from spacy.tokens import Span
@@ -10,8 +10,12 @@ from ttc.iterables import deduplicate
 @dataclass
 class Play:
     language: Language
-    _rels: Dict[Span, Optional[Span]]
+
+    _rels: Dict[Span, Optional[Span]] = field(default_factory=dict)
     """Replica -> Actor"""
+
+    _refs: Dict[Span, Optional[Span]] = field(default_factory=dict)
+    """Reference -> Actor"""
 
     @property
     def lines(self):
@@ -50,6 +54,9 @@ class Play:
             else None
         )
 
+    def reference(self, word) -> Optional[Span]:
+        return self._refs.get(word, None)
+
     def slice(self, predicate: Callable[[Span, Optional[Span]], bool]):
         return Play(
             self.language,
@@ -65,8 +72,18 @@ class Play:
     def __getitem__(self, item):
         return self._rels[item]
 
-    def __setitem__(self, replica, actor):
-        self._rels[replica] = actor
+    def __setitem__(self, replica, val):
+        if isinstance(val, Tuple):
+            if (isinstance(actor := val[0], Span) or actor is None) and isinstance(
+                ref_chain := val[1], List
+            ):
+                for ref in ref_chain:
+                    self._refs[ref] = actor
+                self._rels[replica] = actor
+            else:
+                raise ValueError
+        else:
+            self._rels[replica] = val
 
     def __delitem__(self, key):
         del self._rels[key]

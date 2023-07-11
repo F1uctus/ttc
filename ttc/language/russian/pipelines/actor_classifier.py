@@ -173,7 +173,8 @@ def actor_search(
     ref_chain: Optional[List[Token]] = None,
     resolve_refs: bool = True,
 ) -> Optional[Span]:
-    ref_chain = ref_chain or []
+    if ref_chain is None:
+        ref_chain = []
     ref = ref_chain[-1] if ref_chain else None
     ref_matcher = morph_aligns_with(ref) if ref else lambda _: True
 
@@ -211,7 +212,16 @@ def actor_search(
     if resolve_refs:
         m_refs = list(filter(is_ref, matching))
         m_verbs = list(filter(ref_matcher, root_verbs))
-        if m_refs:
+        if (
+            not ref
+            and len(m_refs) == 1
+            and play.last_replica
+            and line_breaks_between(play.last_replica, replica) == 1
+            and (alt := play.alternated())
+        ):
+            ref_chain.extend(m_refs)
+            return alt
+        elif m_refs:
             ref_roots = m_refs + m_verbs  # Verbs improve the ref resolution
         else:
             # Pick only verbs which are distinct from the found actors
@@ -233,6 +243,8 @@ def actor_search(
         )
         cached_ctx: List[Span] = []
         for word in ref_roots:
+            if bound := play.reference(word):
+                return bound
             ante = None
             depth = 1
             for i, region in enumerate(chain(cached_ctx, search_ctx)):
@@ -243,11 +255,14 @@ def actor_search(
                 if word.i <= region.end or ref and ref.i <= region.end:
                     continue
                 depth += 1
+                ref_chain.append(word)
                 ante = actor_search(
-                    region, play, dep_matcher, replica, ref_chain=ref_chain + [word]
+                    region, play, dep_matcher, replica, ref_chain=ref_chain
                 )
                 if ante and ante.start != word.i:
                     return noun_chunk(ante)
+                else:
+                    ref_chain.pop()
             else:
                 if ref and ante and ref.lemma_ == ante.lemma_:
                     return noun_chunk(ante)
@@ -270,7 +285,7 @@ def classify_actors(
     language: Language,
     dialogue: Dialogue,
 ) -> Play:
-    p = Play(language, {})
+    p = Play(language)
 
     if len(dialogue.replicas) == 0:
         return p
@@ -282,6 +297,7 @@ def classify_actors(
     dep_matcher.add("**", [ACTION_VERB_CONJUNCT_ACTOR])
 
     for p_replica, replica, n_replica in iter_by_triples(dialogue.replicas):
+        ref_chain: List[Token] = []
         # On the same line as prev replica
         if (
             p_replica
@@ -293,12 +309,28 @@ def classify_actors(
 
         # Non-first replica fills line
         elif (
-            fills_line(replica)
+            p_replica
+            and fills_line(replica)
             and line_breaks_between(replica, p_replica) == 1
-            and (alt := p.alternated())
         ):
-            # Line has no author speech => actor alternation
-            p[replica] = alt  # <=> penultimate actor
+            if alt := p.alternated():
+                # Line has no author speech => speakers alternation
+                p[replica] = alt  # <=> penultimate speaker
+            elif p_replica.start > 1:
+                # [replica] is second in play; [p_replica] & [replica] are contiguous
+                # => search for the speaker above the [p_replica].
+                leading = doc[
+                    min(p_replica.start, p_replica.sent.start) - 2 : p_replica.start
+                ]
+                search_span = trim_non_word(expand_line_start(leading))
+                if len(sents := list(search_span.sents)) > 1:
+                    search_span = sents[-1]
+                p[replica] = (
+                    actor_search(
+                        search_span, p, dep_matcher, replica, ref_chain=ref_chain
+                    ),
+                    ref_chain,
+                )
 
         # After author starting ( ... [:])
         elif replica._.is_after_author_starting:
@@ -316,7 +348,10 @@ def classify_actors(
             if len(sents := list(search_span.sents)) > 1:
                 search_span = sents[-2]
 
-            p[replica] = actor_search(search_span, p, dep_matcher, replica)
+            p[replica] = (
+                actor_search(search_span, p, dep_matcher, replica, ref_chain=ref_chain),
+                ref_chain,
+            )
 
         # Before author ending ([-] ... [\n])
         elif replica._.is_before_author_ending:
@@ -331,7 +366,10 @@ def classify_actors(
                 search_span = expand_line_end(trailing)
             search_span = trim_non_word(search_span)
 
-            p[replica] = actor_search(search_span, p, dep_matcher, replica)
+            p[replica] = (
+                actor_search(search_span, p, dep_matcher, replica, ref_chain=ref_chain),
+                ref_chain,
+            )
             if not p[replica]:
                 del p[replica]
                 if alt := p.alternated():
@@ -346,8 +384,12 @@ def classify_actors(
                 # Author is commenting on a situation, there should be
                 # no reference to the actor.
                 search_span = doc[replica.end : replica.end]
+            search_span = trim_non_word(search_span)
 
-            p[replica] = actor_search(search_span, p, dep_matcher, replica)
+            p[replica] = (
+                actor_search(search_span, p, dep_matcher, replica, ref_chain=ref_chain),
+                ref_chain,
+            )
             if not p[replica]:
                 del p[replica]
                 if alt := p.alternated():
