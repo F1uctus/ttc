@@ -25,7 +25,7 @@ def morph_distance(self: Token, other: Token, *morphs: str) -> int:
     if self.morph is None or other.morph is None:
         return len(morphs)
     return len(morphs) - sum(
-        self.morph.get(m, None) == other.morph.get(m, None) for m in morphs
+        self.morph.get(m) == other.morph.get(m) for m in morphs  # type: ignore
     )
 
 

@@ -1,4 +1,4 @@
-from typing import Optional, List, Callable, Union, Dict, Generator
+from typing import Optional, List, Callable, Union, Dict, Generator, Final
 from collections import Counter
 
 from itertools import chain
@@ -19,6 +19,7 @@ from spacy.tokens import Token, Span
 
 from ttc.iterables import iter_by_triples, flatten
 from ttc.language import Dialogue, Play
+from ttc.language.types import Morph
 from ttc.language.common.span_extensions import (
     is_parenthesized,
     fills_line,
@@ -43,9 +44,13 @@ from ttc.language.russian.dependency_patterns import (
     VOICE_TO_AMOD,
 )
 
+Gender: Final[Morph] = "Gender"
+Number: Final[Morph] = "Number"
+Tense: Final[Morph] = "Tense"
+
 
 def ref_matches(ref: Token, target: Token) -> bool:
-    return morph_distance(target, ref, "Gender", "Number", "Tense") < 2
+    return morph_distance(target, ref, Gender, Number, Tense) < 2
 
 
 def is_ref(noun: Union[Span, Token]):
@@ -110,7 +115,7 @@ def morph_aligns_with(target: Token) -> Callable[[Token], bool]:
     def aligned_gender(tk) -> Optional[str]:
         t = noun_chunk(tk)
         if len(t) == 1:
-            return t.root.morph.get("Gender", [None])[0]  # type: ignore
+            return [*t.root.morph.get(Gender), None][0]  # type: ignore
         morphs: Dict[str, str] = next(
             (
                 v
@@ -120,15 +125,15 @@ def morph_aligns_with(target: Token) -> Callable[[Token], bool]:
             ),
             {},
         )
-        stats = Counter(tk.morph.get("Gender", [None])[0] for tk in t)  # type: ignore
-        return morphs.get("Gender", max(stats, key=stats.get))  # type: ignore
+        stats = Counter([*tk.morph.get(Gender), None][0] for tk in t)  # type: ignore
+        return morphs.get(Gender, max(stats, key=stats.get))  # type: ignore
 
     target_gender = aligned_gender(target)
     return lambda ref: (
-        aligned_gender(ref) == target_gender and morph_equals(ref, target, "Number")
+        aligned_gender(ref) == target_gender and morph_equals(ref, target, Number)
         if target_gender
         else ref_matches(ref, target)
-        or (morph_equals(ref, target, "Number") and ref_matches(ref.head, target))
+        or (morph_equals(ref, target, Number) and ref_matches(ref.head, target))
     )
 
 
@@ -183,7 +188,7 @@ def actor_search(
     candidates = list(flatten(list(potential_actors(rv, replica)) for rv in root_verbs))
 
     if (roots := [r for r in span if r.dep_ == "ROOT"]) and (
-        all("Neut" in r.morph.get("Gender", []) for r in roots)
+        all("Neut" in r.morph.get(Gender) for r in roots)  # type: ignore
     ):
         # Neutral-gender root verb usually indicates
         # a description of situation, not actor denotation.
@@ -230,7 +235,7 @@ def actor_search(
                 v
                 for v in m_verbs
                 if set(v.children).isdisjoint(matching)
-                and "Neut" not in v.morph.get("Gender", [])
+                and ("Neut" not in v.morph.get(Gender))  # type: ignore
             ]
             ref_roots = m_verbs
 
