@@ -222,7 +222,7 @@ def actor_search(
             and len(m_refs) == 1
             and play.last_replica
             and line_breaks_between(play.last_replica, replica) == 1
-            and (alt := play.alternated())
+            and (alt := play.penult())
         ):
             ref_chain.extend(m_refs)
             return alt
@@ -318,9 +318,9 @@ def classify_actors(
             and fills_line(replica)
             and line_breaks_between(replica, p_replica) == 1
         ):
-            if alt := p.alternated():
+            if penult := p.penult():
                 # Line has no author speech => speakers alternation
-                p[replica] = alt  # <=> penultimate speaker
+                p[replica] = penult
             elif p_replica.start > 1:
                 # [replica] is second in play; [p_replica] & [replica] are contiguous
                 # => search for the speaker above the [p_replica].
@@ -377,10 +377,10 @@ def classify_actors(
             )
             if not p[replica]:
                 del p[replica]
-                if alt := p.alternated():
+                if penult := p.penult():
                     # Author speech is present, but it has
                     # no reference to the actor => actor alternation
-                    p[replica] = alt  # <=> penultimate actor
+                    p[replica] = penult
 
         # Author insertion
         elif replica._.is_before_author_insertion and n_replica:
@@ -397,10 +397,10 @@ def classify_actors(
             )
             if not p[replica]:
                 del p[replica]
-                if alt := p.alternated():
+                if penult := p.penult():
                     # Author speech is present, but it has
                     # no reference to the actor => actor alternation
-                    p[replica] = alt  # <=> penultimate actor
+                    p[replica] = penult
 
         # Fallback, similar to ( ... [:]), but
         # constrained to a single line between replicas

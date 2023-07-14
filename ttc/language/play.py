@@ -43,7 +43,7 @@ class Play:
             [s.lemma_ if s else "" for s in self._rels.values()][::-1],
         )[::-1]
 
-    def alternated(self) -> Optional[Span]:
+    def penult(self) -> Optional[Span]:
         uniq = self.unique_actor_lemmas()
         return (
             next(
