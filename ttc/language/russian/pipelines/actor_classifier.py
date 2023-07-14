@@ -402,8 +402,8 @@ def classify_actors(
                     # no reference to the actor => actor alternation
                     p[replica] = alt  # <=> penultimate actor
 
-        # Fallback, similar to ( ... [:]), but constrained
-        # to a single line between replicas (purely heuristically)
+        # Fallback, similar to ( ... [:]), but
+        # constrained to a single line between replicas
         elif (
             fills_line(replica)
             and p_replica
@@ -413,17 +413,13 @@ def classify_actors(
                 and sum(not t.is_stop and not t.is_punct for t in search_span) >= 5
             )
         ):
-            # start with the nearest sentence before ":"
+            # TODO: check for appeal in the replica text, then fallback on actor_search.
+
+            # Start with the sentence nearest to the replica
             if len(sents := list(search_span.sents)) > 1:
                 search_span = sents[-1]
 
-            s = actor_search(search_span, p, dep_matcher, replica, resolve_refs=False)
-            if s and is_ref(s) and (alt := p.alternated()):
-                # Author speech is present, but it has
-                # no reference to the actor => actor alternation
-                p[replica] = alt  # <=> penultimate actor
-            else:
-                p[replica] = s
+            p[replica] = actor_search(search_span, p, dep_matcher, replica)
 
         # Fallback - repeat actor from prev replica
         elif fills_line(replica) and p_replica and p_replica in p:
