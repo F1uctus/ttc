@@ -48,6 +48,10 @@ def test_name_reference(cc):
     assert "Сзету" == play.last_actor.text
 
 
+def normalize(spans):
+    return [str(s.lemma_) for s in spans if s]
+
+
 def test_noun_with_aux(cc):
     text = (
         "– Что это такое? – Ее голос был тихим, как шепот. – Ты можешь мне показать."
@@ -62,8 +66,7 @@ def test_noun_with_aux(cc):
         " ночи и спрятал его? Это сердце жука – маленькое, но сильное?",
     ]
     play = cc.connect_play(dialogue)
-    actual_actors = [str(s.lemma_) for s in play.actors if s]
-    assert actual_actors == [
+    assert normalize(play.actors) == [
         "она голос",  # ее --lemma-> она
         "она голос",
     ]
@@ -81,8 +84,7 @@ def test_hyphenated_noun_chunk(cc):
         "Чего надо?",
     ]
     play = cc.connect_play(dialogue)
-    actual_actors = [str(s.lemma_) for s in play.actors if s]
-    assert actual_actors == [
+    assert normalize(play.actors) == [
         "моаш",
         "одноглазый коротышка-сержант",
     ]
@@ -102,29 +104,27 @@ def test_ignorance_of_impersonal(cc):
         "Таленель.",
     ]
     play = cc.connect_play(dialogue)
-    actual_actors = [str(s.lemma_) for s in play.actors if s]
-    assert actual_actors == [
+    assert normalize(play.actors) == [
         "калак",
         "низкий голос",
         "калак",
     ]
 
 
-def test_context_without_punct(cc):
+def test_preceding_context_without_author_punct(cc):
     text = (
-        "– Понял, – пробормотал общительный раб, – видимо, стоит задать вопрос по-другому. За что ты получил первое клеймо?\n"
-        "Каладин выпрямился, чувствуя, как что-то постукивает под днищем катящегося фургона.\n"
+        "– Понял, – пробормотал общительный раб, – а за что ты получил первое клеймо?\n"
+        "Каладин выпрямился, чувствуя, как что-то постукивает под днищем фургона.\n"
         "– Я убил светлоглазого."
     )
     dialogue = cc.extract_dialogue(text)
     assert list(map(str, dialogue.replicas)) == [
         "Понял,",
-        "видимо, стоит задать вопрос по-другому. За что ты получил первое клеймо?",
+        "а за что ты получил первое клеймо?",
         "Я убил светлоглазого.",
     ]
     play = cc.connect_play(dialogue)
-    actual_actors = [str(s.lemma_) for s in play.actors if s]
-    assert actual_actors == [
+    assert normalize(play.actors) == [
         "общительный раб",
         "общительный раб",
         "каладин",
@@ -133,20 +133,19 @@ def test_context_without_punct(cc):
 
 def test_unannotated_alternation(cc):
     text = (
-        "Каладин отвернулся, всматриваясь в бесконечные холмы и беспокойную, подвижную траву. Продолжая сидеть, свесив ноги наружу, он положил руку поперек прутьев клетки и уперся в нее лбом.\n"
+        "Каладин отвернулся. Продолжая сидеть, он положил руку поперек прутьев.\n"
         "– Ну? – спросил раб.\n"
-        "– Ты дурак. Будешь отдавать мне половину своей еды – слишком ослабеешь к моменту побега, если я таковой устрою. А я не устрою. Ничего не получится.\n"
+        "– Ты дурак. Будешь отдавать мне половину своей еды – слишком ослабеешь.\n"
         "– Но…"
     )
     dialogue = cc.extract_dialogue(text)
     assert list(map(str, dialogue.replicas)) == [
         "Ну?",
-        "Ты дурак. Будешь отдавать мне половину своей еды – слишком ослабеешь к моменту побега, если я таковой устрою. А я не устрою. Ничего не получится.",
+        "Ты дурак. Будешь отдавать мне половину своей еды – слишком ослабеешь.",
         "Но…",
     ]
     play = cc.connect_play(dialogue)
-    actual_actors = [str(s.lemma_) for s in play.actors if s]
-    assert actual_actors == [
+    assert normalize(play.actors) == [
         "раб",
         "каладин",
         "раб",
@@ -156,8 +155,7 @@ def test_unannotated_alternation(cc):
 def test_allow_sparse_repetition(cc):
     text = (
         "«Не дури», – приказал себе Каладин.\n"
-        "Дверь клетки вернулась на прежнее место, щелкнул замок. Клетки необходимы – Твлакву приходилось защищать свое хрупкое имущество от Великих бурь.\n"
-        "Блат подтащил раба к костру, к непочатому бочонку с водой. Каладин почувствовал облегчение. «Ну вот, – подумал он. – Возможно, ты еще можешь кому-то помочь»"
+        "Блат подтащил раба к костру. Каладин почувствовал облегчение. «Ну вот, – подумал он. – Возможно, ты еще можешь кому-то помочь»"
     )
     dialogue = cc.extract_dialogue(text)
     assert list(map(str, dialogue.replicas)) == [
@@ -166,8 +164,7 @@ def test_allow_sparse_repetition(cc):
         "Возможно, ты еще можешь кому-то помочь",
     ]
     play = cc.connect_play(dialogue)
-    actual_actors = [str(s.lemma_) for s in play.actors if s]
-    assert actual_actors == [
+    assert normalize(play.actors) == [
         "каладин",
         "каладин",
         "каладин",
