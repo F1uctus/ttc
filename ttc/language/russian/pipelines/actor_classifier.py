@@ -187,7 +187,7 @@ def actor_search(
     candidates = list(flatten(potential_actors(rv, replica) for rv in root_verbs))
 
     if (roots := [r for r in span if r.dep_ == "ROOT"]) and (
-        all("Neut" in r.morph.get(Gender) for r in roots)  # type: ignore
+        all("Gender=Neut" in r.morph for r in roots)
     ):
         # Neutral-gender root verb usually indicates
         # a description of situation, not actor denotation.
@@ -235,8 +235,7 @@ def actor_search(
             m_verbs = [
                 v
                 for v in m_verbs
-                if set(v.children).isdisjoint(matching)
-                and ("Neut" not in v.morph.get(Gender))  # type: ignore
+                if set(v.children).isdisjoint(matching) and "Gender=Neut" not in v.morph
             ]
             ref_roots = m_verbs
 
