@@ -7,6 +7,7 @@ from spacy.matcher import DependencyMatcher
 from spacy.symbols import (  # type: ignore
     VERB,
     AUX,
+    PRON,
     PROPN,
     DET,
     obj,
@@ -31,7 +32,6 @@ from ttc.language.common.span_extensions import (
     line_above,
 )
 from ttc.language.common.token_extensions import (
-    as_span,
     noun_chunk,
     morph_equals,
     morph_distance,
@@ -55,8 +55,8 @@ def ref_matches(ref: Token, target: Token) -> bool:
 
 def is_ref(noun: Union[Span, Token]):
     if isinstance(noun, Token):
-        noun = as_span(noun)
-    if any(t.lemma_ in REFERRAL_PRON for t in noun):
+        return noun.pos == PRON or noun.lemma_ in REFERRAL_PRON
+    if any(t.pos == PRON for t in noun) or any(t.lemma_ in REFERRAL_PRON for t in noun):
         return True
     dm = DependencyMatcher(noun.vocab)
     dm.add(0, [VOICE_TO_AMOD])
