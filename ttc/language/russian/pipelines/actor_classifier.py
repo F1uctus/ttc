@@ -210,7 +210,7 @@ def actor_search(
             if contiguous(play.last_replica, replica):
                 # Discard repeated actor
                 matching.remove(m)
-        # Index check ensures that no other matches closer to the replica are missed
+        # Ensures that no other matches closer to the replica are missed
         elif candidates.index(m) == 0:
             # Single matching non-ref candidate is good enough
             return actor
@@ -241,9 +241,8 @@ def actor_search(
             ]
             ref_roots = m_verbs
 
-        # Spans between which the antecedent will be searched
-        # (replicas & currently processed span)
         search_ctx = reference_resolution_context(
+            # Spans between which the antecedent will be searched
             list(play.replicas)
             + ([] if ref else ([replica] if replica else []))
             + [span]
@@ -391,6 +390,7 @@ def classify_actors(
                 # Author is commenting on a situation, there should be
                 # no reference to the actor.
                 search_span = doc[replica.end : replica.end]
+
             search_span = trim_non_word(search_span)
 
             p[replica] = (
