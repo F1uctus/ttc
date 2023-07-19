@@ -198,7 +198,9 @@ def actor_search(
         matching = list(filter(ref_matcher, candidates))
 
     def exact_enough(n):
-        return not is_ref(n) and ("nsubj" in n.dep_ or n.ent_iob_ in "IB")
+        return not is_ref(n) and (
+            "nsubj" in n.dep_ or n.ent_iob_ in "IB" or n.ent_type_ == "PER"
+        )
 
     exacts = {noun_chunk(m).root.lemma_: m for m in matching if exact_enough(m)}
     if len(exacts) == 1:
