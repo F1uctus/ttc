@@ -39,8 +39,6 @@ from ttc.language.common.token_extensions import (
 from ttc.language.russian.token_extensions import is_copula
 from ttc.language.russian.constants import REFERRAL_PRON, PRON_MORPHS
 from ttc.language.russian.dependency_patterns import (
-    ACTION_VERB_TO_ACTOR,
-    ACTION_VERB_CONJUNCT_ACTOR,
     VOICE_TO_AMOD,
 )
 
