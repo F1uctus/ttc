@@ -261,9 +261,7 @@ def actor_search(
                     continue
                 depth += 1
                 ref_chain.append(word)
-                ante = actor_search(
-                    region, play, dep_matcher, replica, ref_chain=ref_chain
-                )
+                ante = actor_search(region, play, replica, ref_chain=ref_chain)
                 if ante and ante.start != word.i:
                     return noun_chunk(ante)
                 else:
@@ -414,7 +412,7 @@ def classify_actors(
             if len(sents := list(search_span.sents)) > 1:
                 search_span = sents[-1]
 
-            p[replica] = actor_search(search_span, p, dep_matcher, replica)
+            p[replica] = actor_search(search_span, p, replica)
 
         # Fallback - repeat actor from prev replica
         elif fills_line(replica) and p_replica and p_replica in p:
