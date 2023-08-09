@@ -172,7 +172,6 @@ def reference_resolution_context(bounds: List[Span]) -> Generator[Span, None, No
 def actor_search(
     span: Span,
     play: Play,
-    dep_matcher: DependencyMatcher,
     replica: Span,
     *,
     ref_chain: Optional[List[Token]] = None,
@@ -185,7 +184,7 @@ def actor_search(
 
     # Pick all the matching actor candidates from the search [span]
     root_verbs = top_verbs(span, replica)
-    candidates = list(flatten(list(potential_actors(rv, replica)) for rv in root_verbs))
+    candidates = list(flatten(potential_actors(rv, replica) for rv in root_verbs))
 
     if (roots := [r for r in span if r.dep_ == "ROOT"]) and (
         all("Neut" in r.morph.get(Gender) for r in roots)  # type: ignore
@@ -298,10 +297,6 @@ def classify_actors(
 
     doc = dialogue.doc
 
-    dep_matcher = DependencyMatcher(language.vocab)
-    dep_matcher.add("*", [ACTION_VERB_TO_ACTOR])
-    dep_matcher.add("**", [ACTION_VERB_CONJUNCT_ACTOR])
-
     for p_replica, replica, n_replica in iter_by_triples(dialogue.replicas):
         ref_chain: List[Token] = []
         # On the same line as prev replica
@@ -332,9 +327,7 @@ def classify_actors(
                 if len(sents := list(search_span.sents)) > 1:
                     search_span = sents[-1]
                 p[replica] = (
-                    actor_search(
-                        search_span, p, dep_matcher, replica, ref_chain=ref_chain
-                    ),
+                    actor_search(search_span, p, replica, ref_chain=ref_chain),
                     ref_chain,
                 )
 
@@ -355,7 +348,7 @@ def classify_actors(
                 search_span = sents[-2]
 
             p[replica] = (
-                actor_search(search_span, p, dep_matcher, replica, ref_chain=ref_chain),
+                actor_search(search_span, p, replica, ref_chain=ref_chain),
                 ref_chain,
             )
 
@@ -373,7 +366,7 @@ def classify_actors(
             search_span = trim_non_word(search_span)
 
             p[replica] = (
-                actor_search(search_span, p, dep_matcher, replica, ref_chain=ref_chain),
+                actor_search(search_span, p, replica, ref_chain=ref_chain),
                 ref_chain,
             )
             if not p[replica]:
@@ -394,7 +387,7 @@ def classify_actors(
             search_span = trim_non_word(search_span)
 
             p[replica] = (
-                actor_search(search_span, p, dep_matcher, replica, ref_chain=ref_chain),
+                actor_search(search_span, p, replica, ref_chain=ref_chain),
                 ref_chain,
             )
             if not p[replica]:
