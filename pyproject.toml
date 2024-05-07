@@ -10,17 +10,17 @@ repository = "https://github.com/f1uctus/ttc"
 [tool.poetry.dependencies]
 # required
 python = ">=3.8,<3.13"
-click = ">=8.0.0"
-numpy = ">=1.24.0"
-spacy = ">=3.5.0"
-ru_core_news_sm = { url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_sm-3.5.0/ru_core_news_sm-3.5.0.tar.gz" }
+click = ">=8.0,<9.0"
+numpy = ">=1.24.0,<2.0.0"
+spacy = ">=3.5.0,<4.0.0"
+ru_core_news_sm = { url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_sm-3.7.0/ru_core_news_sm-3.7.0.tar.gz" }
 
 [tool.poetry.group.large_models_ru]
 optional = true
 
 [tool.poetry.group.large_models_ru.dependencies]
-ru_core_news_md = { url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_md-3.5.0/ru_core_news_md-3.5.0.tar.gz" }
-ru_core_news_lg = { url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_lg-3.5.0/ru_core_news_lg-3.5.0.tar.gz" }
+ru_core_news_md = { url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_md-3.7.0/ru_core_news_md-3.7.0.tar.gz" }
+ru_core_news_lg = { url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_lg-3.7.0/ru_core_news_lg-3.7.0.tar.gz" }
 
 [tool.poetry.group.dev]
 optional = true
