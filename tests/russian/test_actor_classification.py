@@ -111,7 +111,7 @@ def test_ignorance_of_impersonal(cc):
     ]
 
 
-def test_preceding_context_without_author_punct(cc):
+def test_preceding_line_without_author_punct_with_one_sent(cc):
     text = (
         "– Понял, – пробормотал общительный раб, – а за что ты получил первое клеймо?\n"
         "Каладин выпрямился, чувствуя, как что-то постукивает под днищем фургона.\n"
@@ -128,6 +128,43 @@ def test_preceding_context_without_author_punct(cc):
         "общительный раб",
         "общительный раб",
         "каладин",
+    ]
+
+    text = (
+        "– Ваши атрибуты, моя госпожа. – Ялб сделал ударение на «и».\n"
+        "Шаллан вскинула бровь.\n"
+        "– Мои… атрибуты?"
+    )
+    dialogue = cc.extract_dialogue(text)
+    assert list(map(str, dialogue.replicas)) == [
+        "Ваши атрибуты, моя госпожа.",
+        "Мои… атрибуты?",
+    ]
+    play = cc.connect_play(dialogue)
+    assert normalize(play.actors) == [
+        "ялб",
+        "шаллан",
+    ]
+
+
+@pytest.mark.xfail(reason="This requires replica analysis", raises=AssertionError)
+def test_preceding_line_without_author_punct_with_multiple_sents(cc):
+    text = (
+        "Парень закрыл глаза и уткнулся лбом в прутья клетки:\n"
+        "– Я так устал…\n"
+        "Он не имел в виду физическое изнеможение. Каладин просто чувствовал… усталость. Он так устал…\n"
+        #                                          (*)
+        "– Ты и раньше уставал.\n"
+    )
+    dialogue = cc.extract_dialogue(text)
+    assert list(map(str, dialogue.replicas)) == [
+        "Я так устал…",
+        "Ты и раньше уставал.",
+    ]
+    play = cc.connect_play(dialogue)
+    assert normalize(play.actors) == [
+        "парень",
+        "none",  # FIXME: Now this is (*)
     ]
 
 
@@ -168,6 +205,50 @@ def test_allow_sparse_repetition(cc):
         "каладин",
         "каладин",
         "каладин",
+    ]
+
+
+def test_allow_actor_in_acl_relcl(cc):
+    text = (
+        "Вдвоем они направились по коридору к той двери, откуда вышла Ясна.\n"
+        "– Отец? – окликнула она. – Ты что-то от меня скрываешь?"
+    )
+    dialogue = cc.extract_dialogue(text)
+    assert list(map(str, dialogue.replicas)) == [
+        "Отец?",
+        "Ты что-то от меня скрываешь?",
+    ]
+    play = cc.connect_play(dialogue)
+    assert normalize(play.actors) == [
+        "ясна",
+        "ясна",
+    ]
+
+    text = (
+        "– Это что? – Разбойник вытащил камень из ладони того, который считал добычу."
+    )
+    dialogue = cc.extract_dialogue(text)
+    assert list(map(str, dialogue.replicas)) == [
+        "Это что?",
+    ]
+    play = cc.connect_play(dialogue)
+    assert normalize(play.actors) == [
+        "разбойник",
+    ]
+
+
+def test_verb_only_reference(cc):
+    text = (
+        "Йезриен поднял меч и вонзил его в камень. Ненадолго застыл, а потом склонил голову и отвернулся, словно его одолел стыд:\n"
+        "– Мы по собственной воле взвалили это бремя на свои плечи."
+    )
+    dialogue = cc.extract_dialogue(text)
+    assert list(map(str, dialogue.replicas)) == [
+        "Мы по собственной воле взвалили это бремя на свои плечи.",
+    ]
+    play = cc.connect_play(dialogue)
+    assert normalize(play.actors) == [
+        "йезриен",
     ]
 
 

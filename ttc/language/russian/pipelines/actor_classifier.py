@@ -1,7 +1,7 @@
-from typing import Optional, List, Callable, Union, Dict, Generator, Final
 from collections import Counter
-
 from itertools import chain
+from typing import Optional, List, Callable, Union, Dict, Generator, Final
+
 from spacy import Language
 from spacy.matcher import DependencyMatcher
 from spacy.symbols import (  # type: ignore
@@ -10,9 +10,10 @@ from spacy.symbols import (  # type: ignore
     PRON,
     PROPN,
     DET,
+    NOUN,
     obj,
+    iobj,
     obl,
-    acl,
     advcl,
     parataxis,
 )
@@ -20,27 +21,28 @@ from spacy.tokens import Token, Span
 
 from ttc.iterables import iter_by_triples, flatten
 from ttc.language import Dialogue, Play
-from ttc.language.types import Morph
 from ttc.language.common.span_extensions import (
     is_parenthesized,
     fills_line,
+    sents_between,
     line_breaks_between,
     expand_line_start,
     expand_line_end,
     trim_non_word,
     contiguous,
-    line_above,
 )
 from ttc.language.common.token_extensions import (
+    has_dep,
     noun_chunk,
     morph_equals,
     morph_distance,
 )
-from ttc.language.russian.token_extensions import is_copula
 from ttc.language.russian.constants import REFERRAL_PRON, PRON_MORPHS
 from ttc.language.russian.dependency_patterns import (
     VOICE_TO_AMOD,
 )
+from ttc.language.russian.token_extensions import is_copula
+from ttc.language.types import Morph
 
 Gender: Final[Morph] = "Gender"
 Number: Final[Morph] = "Number"
@@ -61,19 +63,20 @@ def is_ref(noun: Union[Span, Token]):
     return bool(dm(noun_chunk(noun)))
 
 
-def top_verbs(span: Span, replica: Span) -> List[Token]:
+def predicate_verbs(span: Span) -> List[Token]:
     verbs: List[Token] = []
     for t in span:
         if (
             t.pos == VERB
             and t.dep not in {advcl}
             and (
-                t.dep_ == "ROOT"
-                or t.dep in {acl, parataxis}
-                or t.head in list(replica) + verbs
+                has_dep(t, parataxis, "ROOT", "ccomp", "xcomp", "acl")
+                or t.head in verbs  # FIXME: also pick children of root verbs?
+                or t.head not in span
             )
         ):
-            if t.text.endswith("вшись"):
+            if t.text.endswith("вшись"):  # verbal adverb
+                # e.g.: t=напившись --> становится[VERB]
                 verbs.extend(tt for tt in t.children if tt.pos in {VERB, AUX})
             else:
                 verbs.append(t)
@@ -82,21 +85,35 @@ def top_verbs(span: Span, replica: Span) -> List[Token]:
     return verbs
 
 
-def potential_actors(verb: Token, replica: Span) -> Generator[Token, None, None]:
+def potential_actors(verb: Token, span: Span) -> Generator[Token, None, None]:
     """actor, related verb"""
 
+    if any(
+        t in span and t.i < verb.i and any(has_dep(c, "nsubj") for c in t.children)
+        for t in verb.conjuncts
+    ):
+        return
+
     for word in verb.children:
-        if word in replica or word.is_punct:
+        if word not in span or word.is_punct:
             continue
 
-        if word.dep == obl and (
-            det := next((c for c in word.children if c.pos == DET), None)
-        ):
-            yield det  # rel. verb == None
+        if verb.dep_ == "acl:relcl" and word.pos == PRON:
+            continue
+
+        if word.dep == obl:
+            if det := next((c for c in word.children if c.pos == DET), None):
+                yield det  # rel. verb == None
+            elif (
+                "Animacy=Inan" not in word.morph or word.ent_type_ == "PER"
+            ) and word.pos in {NOUN, PRON, PROPN}:
+                yield word  # rel. verb == verb
+
+        # if verb.dep_ in {"ccomp", "xcomp"} and word.pos
 
         if (
-            (word.dep in {obj} and ref_matches(verb, word))
-            or "nsubj" in word.dep_
+            (word.dep == obj and ref_matches(verb, word))
+            or has_dep(word, iobj, "nsubj")
             # exact subject noun must be present for word to be an actor
             # e.g.: [слушатели<--NEEDED] повернулись [к __] != снова посмотрела [на __]
             or (
@@ -135,36 +152,14 @@ def morph_aligns_with(target: Token) -> Callable[[Token], bool]:
     )
 
 
-def reference_resolution_context(bounds: List[Span]) -> Generator[Span, None, None]:
-    """Yields all the spans between `bounds`, from bottom to the top.
-    Each span is split into sentences, if needed.
-    """
-    if not bounds:
-        return
-    doc = bounds[0].doc
-    bounds = sorted(bounds, key=lambda sp: sp.start, reverse=True) + [doc[0:0]]
-    # Read context pieces between bounds
-    for r_bound, l_bound in zip(bounds, bounds[1:]):
-        if not (bet := trim_non_word(doc[l_bound.end : r_bound.start])):
-            continue
-        split_idxs = sorted(
-            (
-                i
-                for s in doc.sents
-                if bet.start_char <= (i := s.end_char) <= bet.end_char
-            ),
-            reverse=True,
-        )
-        if not split_idxs:
-            yield bet
-            continue
-        if trailing := doc.char_span(split_idxs[0] + 1, bet.end_char):
-            yield trailing
-        for ri, li in zip(split_idxs, split_idxs[1:]):
-            if middle := doc.char_span(li + 1, ri):
-                yield middle
-        if leading := doc.char_span(bet.start_char, split_idxs[-1]):
-            yield leading
+def head_not_in(t: Token, span: Union[Span, List[Token]]):
+    h = t.head
+    while True:
+        if h in span:
+            return h == t.head
+        if h == h.head:
+            return True
+        h = h.head
 
 
 def actor_search(
@@ -181,53 +176,54 @@ def actor_search(
     ref_matcher = morph_aligns_with(ref) if ref else lambda _: True
 
     # Pick all the matching actor candidates from the search [span]
-    root_verbs = top_verbs(span, replica)
-    candidates = list(flatten(potential_actors(rv, replica) for rv in root_verbs))
+    pred_verbs = predicate_verbs(span)
+    candidates = list(flatten(potential_actors(v, span) for v in pred_verbs))
 
-    if (roots := [r for r in span if r.dep_ == "ROOT"]) and (
-        all("Gender=Neut" in r.morph for r in roots)
-    ):
+    if all("Gender=Neut" in v.morph for v in pred_verbs if head_not_in(v, pred_verbs)):
         # Neutral-gender root verb usually indicates
         # a description of situation, not actor denotation.
         matching = []
     else:
-        # Order of candidates is better to be preserved.
         matching = list(filter(ref_matcher, candidates))
 
-    def exact_enough(n):
+    def is_proper_subject(n):
         return not is_ref(n) and (
-            "nsubj" in n.dep_ or n.ent_iob_ in "IB" or n.ent_type_ == "PER"
+            (has_dep(n, "nsubj") and ("Case=Nom" in n.morph or "Case=Acc" in n.morph))
+            or n.ent_iob_ in "IB"
+            or n.ent_type_ == "PER"
         )
 
-    exacts = {noun_chunk(m).root.lemma_: m for m in matching if exact_enough(m)}
-    if len(exacts) == 1:
-        m = exacts[next(iter(exacts))]
-        actor = noun_chunk(m)
-        if actor == play.last_actor:
-            if contiguous(play.last_replica, replica):
-                # Discard repeated actor
-                matching.remove(m)
-        # Ensures that no other matches closer to the replica are missed
-        elif candidates.index(m) == 0:
+    psubjs = {noun_chunk(m).root.lemma_: m for m in matching if is_proper_subject(m)}
+    if len(psubjs) == 1:
+        first_subj = psubjs[next(iter(psubjs))]
+        actor = noun_chunk(first_subj)
+        # TODO: Here we need to remove more actors that are already present
+        #  in the play (need to check more contiguous replicas than just this & prev)
+        if actor == play.last_actor and contiguous(play.last_replica, replica):
+            # Discard repeated actor
+            candidates.remove(first_subj)
+            matching.remove(first_subj)
+        else:
             # Single matching non-ref candidate is good enough
             return actor
 
     # Reference resolution
     if resolve_refs:
         m_refs = list(filter(is_ref, matching))
-        m_verbs = list(filter(ref_matcher, root_verbs))
         if (
             not ref
             and len(m_refs) == 1
             and play.last_replica
-            and line_breaks_between(play.last_replica, replica) == 1
+            and contiguous(play.last_replica, replica)
             and (alt := play.penult())
         ):
             ref_chain.extend(m_refs)
             return alt
-        elif m_refs:
+
+        m_verbs = list(filter(ref_matcher, pred_verbs))
+        if m_refs:
             ref_roots = m_refs + m_verbs  # Verbs improve the ref resolution
-        else:
+        elif matching:
             # Pick only verbs which are distinct from the found actors
             # (this is empty most of the time).
             m_verbs = [
@@ -236,12 +232,17 @@ def actor_search(
                 if set(v.children).isdisjoint(matching) and "Gender=Neut" not in v.morph
             ]
             ref_roots = m_verbs
+        elif ref or not candidates:
+            ref_roots = m_verbs
+        else:
+            ref_roots = []
 
-        search_ctx = reference_resolution_context(
+        search_ctx = sents_between(
             # Spans between which the antecedent will be searched
             list(play.replicas)
             + ([] if ref else ([replica] if replica else []))
-            + [span]
+            + [span],
+            reverse=True,
         )
         cached_ctx: List[Span] = []
         for word in ref_roots:
@@ -249,13 +250,20 @@ def actor_search(
                 return bound
             ante = None
             depth = 1
-            for i, region in enumerate(chain(cached_ctx, search_ctx)):
+            trailing_span: Optional[Span] = (
+                span[: word.i - span.start]
+                if span.start + 1 < word.i <= span.end
+                else None
+            )
+            trailing_ctx = [trailing_span] if trailing_span else []
+            for i, region in enumerate(chain(trailing_ctx, cached_ctx, search_ctx)):
                 if depth == 5:
                     break
-                if i == len(cached_ctx):
-                    cached_ctx.append(region)
-                if word.i <= region.end or ref and ref.i <= region.end:
-                    continue
+                if region != trailing_span:
+                    if i == len(cached_ctx):
+                        cached_ctx.append(region)
+                    if word.i <= region.end or ref and ref.i <= region.end:
+                        continue
                 depth += 1
                 ref_chain.append(word)
                 ante = actor_search(region, play, replica, ref_chain=ref_chain)
@@ -267,18 +275,16 @@ def actor_search(
                 if ref and ante and ref.lemma_ == ante.lemma_:
                     return noun_chunk(ante)
 
-    if len(matching) > 0:
-        if not ref:
-            return noun_chunk(matching[0])
-        elif first := next((m for m in matching if not is_ref(m)), None):
-            if (actor := noun_chunk(first)) == play.last_actor and (
-                line_breaks_between(first, ref_chain[0]) < 2
-            ):
-                pass
-            else:
-                return actor
+    # TODO: Add "ref_resolved" to the resolved and check it in is_ref()
+    if first := next((m for m in matching if not is_ref(m)), None):
+        if (actor := noun_chunk(first)) == play.last_actor and (
+            line_breaks_between(first, ref_chain[0]) < 2
+        ):
+            pass
+        else:
+            return actor
 
-    return noun_chunk(ref) if ref else None
+    return noun_chunk(ref) if ref else noun_chunk(matching[0]) if matching else None
 
 
 def classify_actors(
@@ -303,28 +309,15 @@ def classify_actors(
             # Replica is on the same line - probably separated by author speech
             p[replica] = p[p_replica]  # <=> previous actor
 
-        # Non-first replica fills line
-        elif (
-            p_replica
-            and fills_line(replica)
-            and line_breaks_between(replica, p_replica) == 1
+        # Alternation
+        # - ["xxx"] - A - ["yyy"] <- pick A <-|
+        # - ["zzz"] - B - ["www"]             |- 2 line breaks between
+        # - @replica                       <--|
+        elif fills_line(replica) and (
+            (penult := p.penult())
+            and line_breaks_between(list(p.replicas_of(penult))[-1], replica) == 2
         ):
-            if penult := p.penult():
-                # Line has no author speech => speakers alternation
-                p[replica] = penult
-            elif p_replica.start > 1:
-                # [replica] is second in play; [p_replica] & [replica] are contiguous
-                # => search for the speaker above the [p_replica].
-                leading = doc[
-                    min(p_replica.start, p_replica.sent.start) - 2 : p_replica.start
-                ]
-                search_span = trim_non_word(expand_line_start(leading))
-                if len(sents := list(search_span.sents)) > 1:
-                    search_span = sents[-1]
-                p[replica] = (
-                    actor_search(search_span, p, replica, ref_chain=ref_chain),
-                    ref_chain,
-                )
+            p[replica] = penult
 
         # After author starting ( ... [:])
         elif replica._.is_after_author_starting:
@@ -380,6 +373,9 @@ def classify_actors(
                 search_span = doc[replica.end : replica.end]
 
             search_span = trim_non_word(search_span)
+            # Limit to the sentence nearest to the replica
+            if len(sents := list(search_span.sents)) > 1:
+                search_span = sents[0]
 
             p[replica] = (
                 actor_search(search_span, p, replica, ref_chain=ref_chain),
@@ -394,22 +390,33 @@ def classify_actors(
 
         # Fallback, similar to ( ... [:]), but
         # constrained to a single line between replicas
-        elif (
-            fills_line(replica)
-            and p_replica
-            and line_breaks_between(replica, p_replica) == 2
-            and (
-                (search_span := line_above(replica))
-                and sum(not t.is_stop and not t.is_punct for t in search_span) >= 5
+        elif fills_line(replica) and (
+            search_span := next(
+                filter(
+                    # Span contains words
+                    lambda s: any(t.is_alpha for t in s)
+                    and (
+                        fills_line(s)
+                        # Span does not immediately precede the replica
+                        or any(t.is_alpha for t in doc[s.end : replica.start])
+                    ),
+                    # Checking every sentence between replicas from bottom to top
+                    sents_between(
+                        [replica] + list(reversed(p.replicas)) + [doc[0:0]],
+                        reverse=True,
+                    ),
+                ),
+                None,
             )
         ):
             # TODO: check for appeal in the replica text, then fallback on actor_search.
-
-            # Start with the sentence nearest to the replica
-            if len(sents := list(search_span.sents)) > 1:
-                search_span = sents[-1]
-
+            # if len(list(search_span.sents)) == 1:
+            search_span = list(trim_non_word(search_span).sents)[-1]
             p[replica] = actor_search(search_span, p, replica)
+            # elif penult := p.penult():
+            #     # Author speech has multiple sentences, so it more possibly has
+            #     # no reference to the actor => actor alternation
+            #     p[replica] = penult
 
         # Fallback - repeat actor from prev replica
         elif fills_line(replica) and p_replica and p_replica in p:
