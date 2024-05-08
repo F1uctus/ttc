@@ -158,7 +158,7 @@ def extract_replicas(
                 results = matchers["AUTHOR_INSERTION"](
                     doc[pt.i : line_end_i + 1], as_spans=True
                 )
-                match: Span = next(iter(results), None)  # type: ignore
+                match: Optional[Span] = next(iter(results), None)
                 if match:
                     if any(dep_matcher(match)):
                         flush_replica(is_before_author_insertion)
