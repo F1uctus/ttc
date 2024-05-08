@@ -11,8 +11,8 @@ from ttc.language import ConversationClassifier, Dialogue, Play
 from ttc.language.common.span_extensions import SPAN_EXTENSIONS
 from ttc.language.common.token_extensions import TOKEN_EXTENSIONS as TOKEN_EXTS
 from ttc.language.russian.extensions.syntax_iterators import noun_chunks
-from ttc.language.russian.pipelines.replicizer import extract_replicas
 from ttc.language.russian.pipelines.actor_classifier import classify_actors
+from ttc.language.russian.pipelines.replicizer import extract_replicas
 from ttc.language.russian.token_extensions import TOKEN_EXTENSIONS as RU_TOKEN_EXTS
 from ttc.language.russian.token_patterns import (
     TokenMatcherClass,

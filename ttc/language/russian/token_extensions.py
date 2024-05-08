@@ -1,5 +1,5 @@
-from spacy.tokens import Token
 from spacy.symbols import AUX, cop  # type: ignore
+from spacy.tokens import Token
 
 from ttc.language.common.constants import HYPHENS
 from ttc.language.russian.constants import ACTION_VERBS
