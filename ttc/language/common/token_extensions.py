@@ -13,6 +13,15 @@ def is_close_quote(self: Token):
     return self.text in CLOSE_QUOTES
 
 
+def has_dep(self: Token, *deps: Union[int, str]) -> bool:
+    for d in deps:
+        if isinstance(d, int) and self.dep == d:
+            return True
+        if isinstance(d, str) and self.dep_.startswith(d):
+            return True
+    return False
+
+
 def has_newline(self: Token):
     start = self.idx + len(self.text)
     return self.i == len(self.doc) - 1 or any(

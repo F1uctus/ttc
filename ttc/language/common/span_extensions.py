@@ -1,5 +1,5 @@
 from functools import wraps
-from typing import Dict, Callable, Literal, Any, Union, TypeVar, cast
+from typing import Dict, List, Generator, Callable, Literal, Any, Union, TypeVar, cast
 
 from spacy.tokens import Token, Span
 
@@ -28,6 +28,36 @@ def span_extension(kind: ExtensionKind, default_value: Any = None):
         return cast(Ext, wrapper)
 
     return ext
+
+
+def sents_between(bounds: List[Span], reverse=False) -> Generator[Span, None, None]:
+    """Yields all the sentences between `bounds`."""
+    if not bounds:
+        return
+    doc = bounds[0].doc
+    bounds = sorted(bounds, key=lambda sp: sp.start, reverse=reverse) + [doc[0:0]]
+    # Read pieces between bounds
+    for r_bound, l_bound in zip(bounds, bounds[1:]):
+        if not (bet := trim_non_word(doc[l_bound.end : r_bound.start])):
+            continue
+        split_idxs = sorted(
+            (
+                i
+                for s in doc.sents
+                if bet.start_char <= (i := s.end_char) <= bet.end_char
+            ),
+            reverse=True,
+        )
+        if not split_idxs:
+            yield bet
+            continue
+        if trailing := doc.char_span(split_idxs[0] + 1, bet.end_char):
+            yield trailing
+        for ri, li in zip(split_idxs, split_idxs[1:]):
+            if middle := doc.char_span(li + 1, ri):
+                yield middle
+        if leading := doc.char_span(bet.start_char, split_idxs[-1]):
+            yield leading
 
 
 ############
