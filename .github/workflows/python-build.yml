@@ -42,6 +42,10 @@ jobs:
           poetry env use ${{ matrix.python-version }}
           poetry install --no-interaction --with dev
 
+      - name: Lint with Ruff
+        run: |
+          poetry run ruff check --output-format=github .
+
       - name: Check with MyPy
         run: |
           poetry run mypy ttc
