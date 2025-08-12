@@ -21,7 +21,7 @@ jobs:
         python-version: [ "3.8", "3.9", "3.10" ]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install poetry
         run: |
           curl -sSL https://install.python-poetry.org > install-poetry.py
@@ -37,7 +37,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # This is required to do as of @actions/checkout@v4
+          # This is required to do as of @actions/checkout@v5
           # to prevent default action python from being used
           poetry env use ${{ matrix.python-version }}
           poetry install --no-interaction --with dev
