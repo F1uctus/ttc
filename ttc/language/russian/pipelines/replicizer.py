@@ -61,7 +61,7 @@ def extract_replicas(
         if tokens:
             replica_span = doc[tokens[0].i : tokens[-1].i + 1]
             for tag in tags:
-                replica_span._.set(tag.__name__, True)
+                replica_span._.set(getattr(tag, "__name__", str(tag)), True)
             replicas.append(replica_span)
             tokens.clear()
 
@@ -177,7 +177,7 @@ def extract_replicas(
                     doc[pt.i : line_end_i + 1], as_spans=True
                 )
                 for match in results:
-                    match: Span = match  # type: ignore
+                    match: Span = match
                     # may be an interrogative or exclamatory ending of a speech
                     # e.g. После всего этого, — что ты еще сказал?
                     if match[0] != pt and match[0].is_punct:

@@ -4,7 +4,7 @@ from typing import TextIO, Tuple, Dict, Optional
 
 import click
 from click import echo
-from colorama import init as colorama_init, Fore, Back, Style  # type: ignore
+from colorama import init as colorama_init, Fore, Back, Style
 from spacy.tokens import Span
 
 import ttc
@@ -35,6 +35,8 @@ def print_play(file: TextIO, language, with_text: bool):
         echo("Specified language is not supported")
         exit(1)
 
+    assert cc is not None
+
     text = file.read().split("-" * 20)[0]
     file.close()
 
@@ -51,7 +53,7 @@ def print_play(file: TextIO, language, with_text: bool):
     }
 
     echo("Actors found:")
-    echo(", ".join(c + s.text + Style.RESET_ALL for _, (s, c) in actor_colors.items()))
+    echo(", ".join(c + s.text + str(Style.RESET_ALL) for _, (s, c) in actor_colors.items()))
 
     first_col_w = max(len(str(s)) for s in play.actors)
     for r, s in play.lines:

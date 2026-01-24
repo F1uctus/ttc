@@ -81,7 +81,7 @@ def trim(self: Span, should_trim: Callable[[Token], bool]) -> Span:
 
 @span_extension("method")
 def trim_non_word(self: Span) -> Span:
-    return trim(self, non_word)  # type: ignore
+    return trim(self, non_word)
 
 
 @span_extension("method")

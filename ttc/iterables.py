@@ -1,4 +1,5 @@
 import itertools
+from collections import OrderedDict
 from typing import (
     Iterable,
     Iterator,
@@ -7,7 +8,6 @@ from typing import (
     List,
     Tuple,
     Dict,
-    OrderedDict,
 )
 
 T = TypeVar("T")

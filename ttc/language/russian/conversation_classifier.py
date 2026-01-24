@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, Any
 
 import spacy
 from spacy import Language
@@ -32,7 +32,7 @@ class RussianConversationClassifier(ConversationClassifier):
 
         russian_pipelines.register_for(self.language)
 
-        self.language.vocab.get_noun_chunks = noun_chunks
+        self.language.vocab.get_noun_chunks = noun_chunks  # type: ignore
 
         if not Doc.has_extension("nl_indices"):
             Doc.set_extension("nl_indices", default=frozenset())

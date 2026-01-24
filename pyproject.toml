@@ -1,59 +1,43 @@
-[tool.poetry]
+[project]
 name = "ttc"
 version = "0.1.0"
 description = "A Text-To-Conversation Natural Language Processing toolkit."
-authors = ["Ilya I. Nikitin <ilya.i.nikitin@proton.me>"]
-license = "GPL-3.0+"
 readme = "README.md"
-repository = "https://github.com/f1uctus/ttc"
+license = "GPL-3.0-or-later"
+authors = [
+  { name = "Ilya Nikitin", email = "ilya.i.nikitin@proton.me" }
+]
+requires-python = ">=3.10"
+dependencies = [
+  "click>=8.0,<9.0",
+  "numpy>=1.24.0,<2.0.0",
+  "spacy>=3.8,<4.0",
+  "ru_core_news_sm @ https://github.com/explosion/spacy-models/releases/download/ru_core_news_sm-3.8.0/ru_core_news_sm-3.8.0.tar.gz"
+]
 
-[tool.poetry.dependencies]
-# required
-python = ">=3.8,<3.13"
-click = ">=8.0,<9.0"
-numpy = ">=1.24.0,<2.0.0"
-spacy = ">=3.5.0,<4.0.0"
-ru_core_news_sm = { url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_sm-3.7.0/ru_core_news_sm-3.7.0.tar.gz" }
-
-[tool.poetry.group.large_models_ru]
-optional = true
-
-[tool.poetry.group.large_models_ru.dependencies]
-ru_core_news_md = { url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_md-3.7.0/ru_core_news_md-3.7.0.tar.gz" }
-ru_core_news_lg = { url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_lg-3.7.0/ru_core_news_lg-3.7.0.tar.gz" }
-
-[tool.poetry.group.dev]
-optional = true
-
-[tool.poetry.group.dev.dependencies]
-pytest = { version = ">=7.2.1" }
-jupyter = { version = ">=1.0.0" }
-mypy = { version = ">=1.0" }
-black = { version = ">=23.1" }
-ruff = {version = ">=0.0.275"}
-
-[tool.poetry.scripts]
-ttc = "ttc:cli.cli"
+[tool.uv.build-backend]
+module-name = "ttc"
+module-root = "."
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build"]
+build-backend = "uv_build"
 
-[tool.mypy]
-python_version = "3.8"
-implicit_reexport = true
-show_error_context = true
-show_column_numbers = true
-show_error_codes = true
-warn_return_any = true
-warn_unused_configs = true
-warn_unused_ignores = true
-warn_redundant_casts = true
-strict_optional = true
+[project.optional-dependencies]
+large_models_ru = [
+  "ru_core_news_md @ https://github.com/explosion/spacy-models/releases/download/ru_core_news_md-3.8.0/ru_core_news_md-3.8.0.tar.gz",
+  "ru_core_news_lg @ https://github.com/explosion/spacy-models/releases/download/ru_core_news_lg-3.8.0/ru_core_news_lg-3.8.0.tar.gz"
+]
+dev = [
+  "pytest>=7.2.1",
+  "jupyter>=1.0.0",
+  "ty",
+  "black>=23.1",
+  "ruff>=0.0.275"
+]
 
-[[tool.mypy.overrides]]
-module = "tests.*"
-ignore_errors = true
+[project.scripts]
+ttc = "ttc.cli:cli"
 
 [tool.black]
 line-length = 88
