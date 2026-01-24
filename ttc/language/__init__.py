@@ -4,5 +4,7 @@ from ttc.language.conversation_classifier import ConversationClassifier
 from ttc.language.dialogue import Dialogue
 from ttc.language.play import Play
 
+__all__ = ["ConversationClassifier", "Dialogue", "Play"]
+
 LanguageCode = Literal["ru", "en"]
 """IETF language code, such as 'ru' or 'en'."""

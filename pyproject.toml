@@ -49,3 +49,7 @@ include = '''
   )
 )
 '''
+
+[tool.ruff]
+extend-exclude = ["*.ipynb"]
+lint.ignore = ["E741"]
