@@ -7,7 +7,7 @@ license = "GPL-3.0-or-later"
 authors = [
   { name = "Ilya Nikitin", email = "ilya.i.nikitin@proton.me" }
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
   "click>=8.0,<9.0",
   "numpy>=1.24.0,<2.0.0",
