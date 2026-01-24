@@ -3,20 +3,12 @@ import random
 from typing import TextIO, Tuple, Dict, Optional
 
 import click
-from click import echo
-from colorama import init as colorama_init, Fore, Back, Style
+from click import echo, style
 from spacy.tokens import Span
 
 import ttc
 
-colorama_init()
-
-COLORS = [
-    value
-    for name, value in Fore.__dict__.items()
-    if name[0] != "_"
-    and not any(c in name for c in ["BLACK", "WHITE", "RESET", "LIGHT"])
-]
+COLORS = ["red", "green", "yellow", "blue", "magenta", "cyan"]
 
 
 @click.group
@@ -53,16 +45,18 @@ def print_play(file: TextIO, language, with_text: bool):
     }
 
     echo("Actors found:")
-    echo(", ".join(c + s.text + str(Style.RESET_ALL) for _, (s, c) in actor_colors.items()))
+    echo(
+        ", ".join(
+            style(s.text, fg=c) for _, (s, c) in actor_colors.items()
+        )
+    )
 
     first_col_w = max(len(str(s)) for s in play.actors)
     for r, s in play.lines:
         if s:
-            echo(actor_colors[s.lemma_][1] + " ", nl=False)
-        echo(f"{{:<{first_col_w}}}  ".format(str(s)), nl=False)
+            echo(style(" ", fg=actor_colors[s.lemma_][1]), nl=False)
+        echo(f"{str(s):<{first_col_w}}  ", nl=False)
         echo(str(r))
-
-    echo(Style.RESET_ALL, nl=False)
 
     if with_text:
         echo("\nMarked play:")
@@ -82,18 +76,23 @@ def print_play(file: TextIO, language, with_text: bool):
 
             if actor:
                 if i == actor.start_char:
-                    echo(Back.GREEN, nl=False)
+                    echo(style("", bg="green", reset=False), nl=False)
                 elif i == actor.end_char:
-                    echo(Style.RESET_ALL, nl=False)
+                    echo(style("", reset=True), nl=False)
 
             if replica and i >= replica.start_char:
                 if i == replica.start_char:
                     if actor:
-                        echo(actor_colors[actor.lemma_][1], nl=False)
+                        echo(
+                            style(
+                                "", fg=actor_colors[actor.lemma_][1], reset=False
+                            ),
+                            nl=False,
+                        )
 
                 if i == replica.end_char:
                     r_start_i += 1
-                    echo(Style.RESET_ALL, nl=False)
+                    echo(style("", reset=True), nl=False)
 
             echo(c, nl=False)
 
