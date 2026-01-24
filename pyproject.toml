@@ -23,7 +23,7 @@ module-root = "."
 requires = ["uv_build"]
 build-backend = "uv_build"
 
-[project.optional-dependencies]
+[dependency-groups]
 large_models_ru = [
   "ru_core_news_md @ https://github.com/explosion/spacy-models/releases/download/ru_core_news_md-3.8.0/ru_core_news_md-3.8.0.tar.gz",
   "ru_core_news_lg @ https://github.com/explosion/spacy-models/releases/download/ru_core_news_lg-3.8.0/ru_core_news_lg-3.8.0.tar.gz"
