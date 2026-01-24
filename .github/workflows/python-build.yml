@@ -32,7 +32,7 @@ jobs:
         run: uv run ruff check --output-format=github .
 
       - name: Check with Ty
-        run: uv run ty ttc
+        run: uv run ty check ttc
 
       - name: Test with pytest
         run: uv run pytest --maxfail=8
