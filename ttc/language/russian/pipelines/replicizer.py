@@ -3,7 +3,7 @@ from typing import Literal, Callable, Optional, List, Dict, Set, Deque, Final, A
 
 from spacy import Language
 from spacy.matcher import Matcher, DependencyMatcher
-from spacy.symbols import NOUN, PRON, PROPN, parataxis  # type: ignore
+from spacy.symbols import NOUN, PRON, PROPN, VERB, AUX, parataxis  # type: ignore
 from spacy.tokens import Token, Span, Doc
 
 from ttc.language.common.span_extensions import (
@@ -11,6 +11,7 @@ from ttc.language.common.span_extensions import (
     is_before_author_ending,
     is_after_author_starting,
     is_unannotated_alternation,
+    trim_non_word,
 )
 from ttc.language.common.token_extensions import (
     is_open_quote,
@@ -56,6 +57,52 @@ def extract_replicas(
     dep_matcher = DependencyMatcher(language.vocab)
     dep_matcher.add("*", [ACTION_VERB_TO_ACTOR])
     dep_matcher.add("**", [ACTION_VERB_CONJUNCT_ACTOR])
+
+    SENTENCE_END_PUNCT = {".", "!", "?", "…", "..."}
+    MAX_AUTHOR_TOKENS = 30
+
+    def has_explicit_subject(match: Span) -> bool:
+        sample = match
+        if len(match) > 2 and is_hyphen(match[-2]) and match[-1].is_title:
+            sample = match[:-2]
+        sample = trim_non_word(sample)
+        return any(
+            "nsubj" in t.dep_ and t.pos in (NOUN, PROPN, PRON) for t in sample
+        )
+
+    def is_author_annotation(match: Span) -> bool:
+        sample = match
+        if len(match) > 2 and is_hyphen(match[-2]) and match[-1].is_title:
+            sample = match[:-2]
+
+        sample = trim_non_word(sample)
+        if not sample:
+            return False
+
+        if any(dep_matcher(sample)):
+            return True
+
+        alpha_tokens = [t for t in sample if t.is_alpha]
+        if not alpha_tokens:
+            return False
+
+        if any(
+            p in ("First", "Second")
+            for t in alpha_tokens
+            for p in t.morph.get("Person")
+        ):
+            return False
+
+        if len(alpha_tokens) > MAX_AUTHOR_TOKENS:
+            return False
+
+        if not any(t.pos in (VERB, AUX) for t in sample):
+            return False
+
+        if not any(t.pos in (NOUN, PROPN, PRON) for t in sample):
+            return False
+
+        return True
 
     def flush_replica(*tags: Callable[[Span], Any]):
         if tokens:
@@ -158,15 +205,20 @@ def extract_replicas(
                 results = matchers["AUTHOR_INSERTION"](
                     doc[pt.i : line_end_i + 1], as_spans=True
                 )
-                match: Optional[Span] = next(iter(results), None)
+                match: Optional[Span] = None
+                for m in results:
+                    if m.start != pt.i:
+                        continue
+                    if not is_author_annotation(m):
+                        continue
+                    if depends_on(m, phrase) and not (
+                        (pt and pt.text in SENTENCE_END_PUNCT)
+                        or has_explicit_subject(m)
+                    ):
+                        continue
+                    match = m
+                    break
                 if match:
-                    if any(dep_matcher(match)):
-                        flush_replica(is_before_author_insertion)
-                        # skip to the end of author insertion
-                        ti = match[:-2].end
-                        continue
-                    if depends_on(match, phrase):
-                        continue
                     flush_replica(is_before_author_insertion)
                     # skip to the end of author insertion
                     ti = match[:-2].end
@@ -178,21 +230,29 @@ def extract_replicas(
                 )
                 for match in results:
                     match: Span = match
+                    if match.start != pt.i:
+                        continue
                     # may be an interrogative or exclamatory ending of a speech
                     # e.g. После всего этого, — что ты еще сказал?
                     if match[0] != pt and match[0].is_punct:
                         tokens.append(t)
                         break
-                    if any(dep_matcher(match)):
+                    if depends_on(match, phrase) and not (
+                        (pt and pt.text in SENTENCE_END_PUNCT)
+                        or has_explicit_subject(match)
+                    ):
+                        continue
+                    if is_author_annotation(match):
                         flush_replica(is_before_author_ending)
                         states.append("author")
                         # skip to the end of author ending
                         ti = match.end - 1
                         break
-                    if depends_on(match, phrase):
-                        continue
                     # - 1 is a line break offset
-                    if match.end >= doc_length - 1 or has_newline(doc[match.end - 1]):
+                    if is_author_annotation(match) and (
+                        match.end >= doc_length - 1
+                        or has_newline(doc[match.end - 1])
+                    ):
                         flush_replica(is_before_author_ending)
                         states.append("author")
                         # skip to the end of author ending
@@ -225,5 +285,48 @@ def extract_replicas(
 
     if "replica" in states[-1]:
         flush_replica()  # may have a trailing replica
+
+    def copy_replica_tags(source: Span, target: Span) -> None:
+        for tag in (
+            is_before_author_insertion,
+            is_before_author_ending,
+            is_after_author_starting,
+            is_unannotated_alternation,
+        ):
+            if getattr(source._, tag.__name__, False):
+                target._.set(tag.__name__, True)
+
+    def extend_interrogative_tail(replica: Span) -> Span:
+        if not replica or replica.end >= len(doc):
+            return replica
+        if replica[-1].text != "," or not is_hyphen(doc[replica.end]):
+            return replica
+        idx = replica.end + 1
+        steps = 0
+        has_second_person = False
+        has_question = False
+        tail_end = None
+        while idx < len(doc):
+            token = doc[idx]
+            steps += 1
+            if steps > 15:
+                break
+            if has_newline(token):
+                break
+            if "Second" in token.morph.get("Person"):
+                has_second_person = True
+            if token.text in {"?", "!"}:
+                has_question = True
+            if is_hyphen(token) and has_question:
+                tail_end = token.i
+                break
+            idx += 1
+        if tail_end and has_second_person:
+            extended = doc[replica.start : tail_end]
+            copy_replica_tags(replica, extended)
+            return extended
+        return replica
+
+    replicas = [extend_interrogative_tail(replica) for replica in replicas]
 
     return replicas
