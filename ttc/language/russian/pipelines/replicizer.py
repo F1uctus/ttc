@@ -89,7 +89,7 @@ def extract_replicas(
         if any(
             p in ("First", "Second")
             for t in alpha_tokens
-            for p in t.morph.get("Person")
+            for p in t.morph.get("Person", [])
         ):
             return False
 
@@ -313,7 +313,7 @@ def extract_replicas(
                 break
             if has_newline(token):
                 break
-            if "Second" in token.morph.get("Person"):
+            if "Second" in token.morph.get("Person", []):
                 has_second_person = True
             if token.text in {"?", "!"}:
                 has_question = True
