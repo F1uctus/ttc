@@ -97,9 +97,9 @@ def has_noun_or_propn(span: Span) -> bool:
 def is_pronoun_vague(token: Token) -> bool:
     if token.pos != PRON:
         return False
-    if token.morph.get("Person"):
+    if token.morph.get("Person", []):
         return False
-    pron_types = set(token.morph.get("PronType"))
+    pron_types = set(token.morph.get("PronType", []))
     if "Prs" in pron_types:
         return False
     return True if pron_types or token.pos == PRON else False
@@ -153,16 +153,16 @@ def is_nominative(token: Token) -> bool:
 
 
 def is_oblique(token: Token) -> bool:
-    cases = token.morph.get("Case")
+    cases = token.morph.get("Case", [])
     return bool(cases) and "Nom" not in cases
 
 
 def has_first_person(span: Span) -> bool:
-    return any("First" in t.morph.get("Person") for t in span if t.is_alpha)
+    return any("First" in t.morph.get("Person", []) for t in span if t.is_alpha)
 
 
 def has_second_person(span: Span) -> bool:
-    return any("Second" in t.morph.get("Person") for t in span if t.is_alpha)
+    return any("Second" in t.morph.get("Person", []) for t in span if t.is_alpha)
 
 
 def has_specific_role(span: Span) -> bool:
@@ -235,7 +235,7 @@ def is_vague_actor(span: Optional[Span]) -> bool:
     if not span:
         return False
     if span.root.pos == ADJ and not has_noun_or_propn(span):
-        return bool(span.root.morph.get("PronType") or span.root.morph.get("NumType"))
+        return bool(span.root.morph.get("PronType", []) or span.root.morph.get("NumType", []))
     return is_vague_head(span)
 
 
@@ -275,7 +275,7 @@ def is_human_like(span: Optional[Span]) -> bool:
         return True
     if any(t.pos == PROPN and ANIMACY_ANIM in t.morph for t in span):
         return True
-    return any(t.pos == PRON and t.morph.get("Person") for t in span)
+    return any(t.pos == PRON and t.morph.get("Person", []) for t in span)
 
 
 def has_voice_intro(replica: Span) -> bool:
@@ -420,7 +420,7 @@ def morph_aligns_with(target: Token) -> Callable[[Token], bool]:
     def aligned_gender(tk) -> Optional[str]:
         t = noun_chunk(tk)
         if len(t) == 1:
-            return [*t.root.morph.get(Gender), None][0]  # type: ignore
+            return [*t.root.morph.get(Gender, []), None][0]  # type: ignore
         morphs: Dict[str, str] = next(
             (
                 v
@@ -430,7 +430,7 @@ def morph_aligns_with(target: Token) -> Callable[[Token], bool]:
             ),
             {},
         )
-        stats = Counter([*tk.morph.get(Gender), None][0] for tk in t)  # type: ignore
+        stats = Counter([*tk.morph.get(Gender, []), None][0] for tk in t)  # type: ignore
         return morphs.get(Gender, max(stats, key=stats.get))  # type: ignore
 
     target_gender = aligned_gender(target)
@@ -852,7 +852,7 @@ def actor_search(
     if resolve_refs:
         m_refs = [] if (has_strong_non_ref and not ref) else list(filter(is_ref, matching))
         m_verbs = list(filter(ref_matcher, root_verbs))
-        person = m_refs[0].morph.get("Person") if m_refs else []
+        person = m_refs[0].morph.get("Person", []) if m_refs else []
         if (
             not ref
             and len(m_refs) == 1
@@ -1144,6 +1144,7 @@ def classify_actors(
             if (
                 actor
                 and prev_actor
+                and p_replica
                 and has_first_person(replica)
                 and has_second_person(p_replica)
                 and prev_penult
@@ -1200,6 +1201,7 @@ def classify_actors(
             if (
                 actor
                 and prev_actor
+                and p_replica
                 and has_first_person(replica)
                 and has_second_person(p_replica)
                 and prev_penult
