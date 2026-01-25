@@ -171,7 +171,7 @@ def test_allow_sparse_repetition(cc):
     ]
 
 
-@pytest.mark.xfail(reason="some test files are still failing", raises=AssertionError)
+#@pytest.mark.xfail(reason="some test files are still failing", raises=AssertionError)
 @pytest.mark.parametrize("file_name", find_test_texts(TEXTS_PATH))
 def test_text_to_play(cc, file_name):
     text, expected_result = load_test(TEXTS_PATH, file_name)

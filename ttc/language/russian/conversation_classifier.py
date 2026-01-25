@@ -28,7 +28,7 @@ class RussianConversationClassifier(ConversationClassifier):
 
     def __init__(self):
         super().__init__()
-        self.language = spacy.load("ru_core_news_sm", exclude=["senter"])
+        self.language = spacy.load("ru_core_news_lg", exclude=["senter"])
 
         russian_pipelines.register_for(self.language)
 

@@ -40,19 +40,27 @@ class Play:
 
     def unique_actor_lemmas(self) -> List[str]:
         return deduplicate(
-            [s.lemma_ if s else "" for s in self._rels.values()][::-1],
+            [self._actor_key(s) for s in self._rels.values()][::-1],
         )[::-1]
 
+    def _actor_key(self, span: Optional[Span]) -> str:
+        if not span:
+            return ""
+        if any(t.pos_ == "PROPN" or t.ent_type_ == "PER" for t in span):
+            propn = " ".join(t.lemma_.lower() for t in span if t.pos_ == "PROPN")
+            return propn or span.lemma_.lower()
+        if span.root.pos_ == "PRON":
+            return span.lemma_.lower()
+        return span.text.lower()
+
     def penult(self) -> Optional[Span]:
-        uniq = self.unique_actor_lemmas()
-        return (
-            next(
-                (s for s in self._rels.values() if s and s.lemma_ == uniq[-2]),
-                None,
-            )
-            if len(uniq) >= 2
-            else None
-        )
+        if not (last := self.last_actor):
+            return None
+        last_key = self._actor_key(last)
+        for actor in reversed(list(self._rels.values())):
+            if actor and self._actor_key(actor) != last_key:
+                return actor
+        return None
 
     def reference(self, word) -> Optional[Span]:
         return self._refs.get(word, None)
