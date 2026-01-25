@@ -51,7 +51,7 @@ def extract_replicas(
     Replicas are speech elements in a text that are often attributed to specific characters.
     The function uses a state machine to process the text and identify the replicas.
     """
-    replicas: Final[List[Span]] = []
+    replicas: List[Span] = []
     tokens: Final[List[Token]] = []
 
     dep_matcher = DependencyMatcher(language.vocab)
