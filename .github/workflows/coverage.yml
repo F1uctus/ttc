@@ -34,7 +34,7 @@ jobs:
         run: uv run pytest --cov=ttc --cov-report=xml
 
       - name: Generate Coverage Badge
-        run: uv run coverage-badge -o assets/coverage.svg
+        run: uv run coverage-badge -f -o assets/coverage.svg
 
       - name: Generate Coverage Map
         run: |
