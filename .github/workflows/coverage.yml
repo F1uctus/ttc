@@ -60,7 +60,7 @@ jobs:
           github_token: ${{ secrets.PAGES_TOKEN }}
           publish_dir: .
           keep_files: true
-          publish_branch: gh-pages # Configure the Pages branch here
+          publish_branch: gh-pages
 
       - name: Comment Coverage Map Link
         if: github.event_name == 'pull_request'
