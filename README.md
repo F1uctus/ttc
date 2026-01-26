@@ -1,5 +1,7 @@
 ## Text-To-Conversation toolkit (TTC)
 
+![Coverage](assets/coverage.svg)
+
 This NLP library can help you with:
 
 - Extraction of characters' replicas from literary texts;
@@ -67,3 +69,5 @@ Contributions are very welcome!
 
 [russian/\*/actor_classifier.py](ttc/language/russian/pipelines/actor_classifier.py):
 ![](http://www.plantuml.com/plantuml/svg/ZLLHYzf047xVNp5SNxIWnTAZ89vSMoeSs4FmqHD9udWknjsmMTlQMkWFw6DV--VkbtGdkycOfENqGMTsltpVV3DClCrjPEnXdugjN2FWFhD7M6EU69bPgPN8Tr9baOdsa4g5zfWXQ6EtMfpTE0wBy5q0JBIoS_aDOV0sPFVH7aUZJrhfyHW-w8EHQCGF8QoqAKAIHdakDyTLb5XjSY4MBvVGwurXgdKcFE_LdKL3GNm4wyfACR-2AFSG-e8XzFjzM6G6FozzQ31BPHA5JE5NMuIYf2He7zLwHQRW1WA-NtIZE2mavgxuAI5UO1nVNx_nSgw-wgPYdB7cy0PclfY2PEQYUROJvIFqV7KOVjbpoVSWHl4O03eh687i3RfmOfVGWq5XQFGg7Z-e0jifGFGvqUbvInRJoJAWe2C9nB2ddx-vNHufVDce3gc5SdPL2ne-F6e8Jtz-_QSNJdN6LPDemV_E3VvH-UT5e27A-iLvqcwIyqZqYw6hl1YTL8-50bloMXkBPXu0bHDcRG2USPDZP99jfnJiDYoLDA9EojOOK4lRzbYOJBf9EPkerWxh9rK9lyUDDlYHhjXUMvvX5viakRR5G24gGZR8ruAJIyr9bQEXruwBwOHam_gU-RmhKPNLPXqju6LcA_ccNoOI3MPspI3HoDlUouLztMqjAuMrZJx18aRx1L7nq0C0Q9kVt-H9bAPnbEpQk_mFCuo-h6U-jbR7IXPH1jmelgkdhJOrDE-rmk17fdLUEWdrKiXC_C9sVopY5jNwi4__0W00)
+
+[![Coverage Map](assets/coverage-map.svg)](https://f1uctus.github.io/ttc/coverage-map.html)
