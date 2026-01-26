@@ -33,7 +33,10 @@ dev = [
   "jupyter>=1.0.0",
   "ty",
   "black>=23.1",
-  "ruff>=0.0.275"
+  "ruff>=0.0.275",
+  "coverage-badge",
+  "coverage-plot @ git+https://github.com/F1uctus/coverage-plot.git",
+  "pytest-cov>=7.0.0",
 ]
 
 [project.scripts]

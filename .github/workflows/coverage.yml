@@ -1,0 +1,71 @@
+name: Coverage
+
+on:
+  push:
+    branches:
+      - main
+      - new-heuristics
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      - name: Run tests
+        run: uv run pytest --cov=ttc --cov-report=xml
+
+      - name: Generate Coverage Badge
+        run: uv run coverage-badge -o assets/coverage.svg
+
+      - name: Generate Coverage Map
+        run: |
+          uv run coverage-plot coverage.xml --no-show --save assets/coverage-map.svg
+          uv run coverage-plot coverage.xml --no-show --save coverage-map.html
+
+      - name: Upload Coverage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-map-${{ github.sha }}
+          path: coverage-map.html
+
+      - name: Deploy to GitHub Pages
+        if: github.event_name == 'push'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.PAGES_TOKEN }}
+          publish_dir: .
+          keep_files: true
+          publish_branch: gh-pages # Configure the Pages branch here
+
+      - name: Commit Coverage Assets
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update coverage assets"
+          file_pattern: assets/coverage.svg assets/coverage-map.svg
+
+      - name: Comment Coverage Map Link
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          message: |
+            ## Coverage Report
+
+            [![Coverage Map](https://raw.githubusercontent.com/${{ github.repository }}/${{ github.head_ref }}/assets/coverage-map.svg)](https://f1uctus.github.io/ttc/coverage-map.html)

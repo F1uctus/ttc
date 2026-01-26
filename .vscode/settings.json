@@ -50,6 +50,12 @@
         "спрена",
         "Таленель",
         "Таленелю",
-        "Уистиоу"
-    ]
+        "Уистиоу",
+        "Шаллан"
+    ],
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
 }
