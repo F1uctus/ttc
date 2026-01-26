@@ -130,6 +130,22 @@ def test_preceding_context_without_author_punct(cc):
         "каладин",
     ]
 
+    text = (
+        "– Ваши атрибуты, моя госпожа. – Ялб сделал ударение на «и».\n"
+        "Шаллан вскинула бровь.\n"
+        "– Мои… атрибуты?"
+    )
+    dialogue = cc.extract_dialogue(text)
+    assert list(map(str, dialogue.replicas)) == [
+        "Ваши атрибуты, моя госпожа.",
+        "Мои… атрибуты?",
+    ]
+    play = cc.connect_play(dialogue)
+    assert normalize(play.actors) == [
+        "ялб",
+        "шаллан",
+    ]
+
 
 def test_unannotated_alternation(cc):
     text = (
@@ -171,7 +187,50 @@ def test_allow_sparse_repetition(cc):
     ]
 
 
-#@pytest.mark.xfail(reason="some test files are still failing", raises=AssertionError)
+def test_allow_actor_in_acl_relcl(cc):
+    text = (
+        "Вдвоем они направились по коридору к той двери, откуда вышла Ясна.\n"
+        "– Отец? – окликнула она. – Ты что-то от меня скрываешь?"
+    )
+    dialogue = cc.extract_dialogue(text)
+    assert list(map(str, dialogue.replicas)) == [
+        "Отец?",
+        "Ты что-то от меня скрываешь?",
+    ]
+    play = cc.connect_play(dialogue)
+    assert normalize(play.actors) == [
+        "ясна",
+        "ясна",
+    ]
+
+    text = (
+        "– Это что? – Разбойник вытащил камень из ладони того, который считал добычу."
+    )
+    dialogue = cc.extract_dialogue(text)
+    assert list(map(str, dialogue.replicas)) == [
+        "Это что?",
+    ]
+    play = cc.connect_play(dialogue)
+    assert normalize(play.actors) == [
+        "разбойник",
+    ]
+
+
+def test_verb_only_reference(cc):
+    text = (
+        "Йезриен поднял меч и вонзил его в камень. Ненадолго застыл, а потом склонил голову и отвернулся, словно его одолел стыд:\n"
+        "– Мы по собственной воле взвалили это бремя на свои плечи."
+    )
+    dialogue = cc.extract_dialogue(text)
+    assert list(map(str, dialogue.replicas)) == [
+        "Мы по собственной воле взвалили это бремя на свои плечи.",
+    ]
+    play = cc.connect_play(dialogue)
+    assert normalize(play.actors) == [
+        "йезриен",
+    ]
+
+
 @pytest.mark.parametrize("file_name", find_test_texts(TEXTS_PATH))
 def test_text_to_play(cc, file_name):
     text, expected_result = load_test(TEXTS_PATH, file_name)

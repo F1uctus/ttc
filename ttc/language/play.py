@@ -1,10 +1,8 @@
 from dataclasses import dataclass, field
-from typing import Optional, Callable, List, Tuple, Dict
+from typing import Optional, List, Tuple, Dict
 
 from spacy import Language
 from spacy.tokens import Span
-
-from ttc.iterables import deduplicate
 
 
 @dataclass
@@ -38,11 +36,6 @@ class Play:
     def last_actor(self):
         return self[lr] if (lr := self.last_replica) else None
 
-    def unique_actor_lemmas(self) -> List[str]:
-        return deduplicate(
-            [self._actor_key(s) for s in self._rels.values()][::-1],
-        )[::-1]
-
     def _actor_key(self, span: Optional[Span]) -> str:
         if not span:
             return ""
@@ -64,12 +57,6 @@ class Play:
 
     def reference(self, word) -> Optional[Span]:
         return self._refs.get(word, None)
-
-    def slice(self, predicate: Callable[[Span, Optional[Span]], bool]):
-        return Play(
-            self.language,
-            {r: s for r, s in self._rels.items() if predicate(r, s)},
-        )
 
     def __len__(self):
         return len(self._rels)
