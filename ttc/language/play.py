@@ -1,10 +1,8 @@
 from dataclasses import dataclass, field
-from typing import Optional, Callable, List, Tuple, Dict
+from typing import Optional, List, Tuple, Dict
 
 from spacy import Language
 from spacy.tokens import Span
-
-from ttc.iterables import deduplicate
 
 
 @dataclass
