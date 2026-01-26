@@ -1,0 +1,58 @@
+[project]
+name = "ttc"
+version = "0.1.0"
+description = "A Text-To-Conversation Natural Language Processing toolkit."
+readme = "README.md"
+license = "GPL-3.0-or-later"
+authors = [
+  { name = "Ilya Nikitin", email = "ilya.i.nikitin@proton.me" }
+]
+requires-python = ">=3.12"
+dependencies = [
+  "click>=8.0,<9.0",
+  "numpy>=1.24.0,<2.0.0",
+  "spacy>=3.8,<4.0",
+  "ru_core_news_sm @ https://github.com/explosion/spacy-models/releases/download/ru_core_news_sm-3.8.0/ru_core_news_sm-3.8.0.tar.gz"
+]
+
+[tool.uv.build-backend]
+module-name = "ttc"
+module-root = "."
+
+[build-system]
+requires = ["uv_build"]
+build-backend = "uv_build"
+
+[dependency-groups]
+large_models_ru = [
+  "ru_core_news_md @ https://github.com/explosion/spacy-models/releases/download/ru_core_news_md-3.8.0/ru_core_news_md-3.8.0.tar.gz",
+  "ru_core_news_lg @ https://github.com/explosion/spacy-models/releases/download/ru_core_news_lg-3.8.0/ru_core_news_lg-3.8.0.tar.gz"
+]
+dev = [
+  "pytest>=7.2.1",
+  "jupyter>=1.0.0",
+  "ty",
+  "black>=23.1",
+  "ruff>=0.0.275",
+  "coverage-badge",
+  "coverage-plot @ git+https://github.com/F1uctus/coverage-plot.git",
+  "pytest-cov>=7.0.0",
+]
+
+[project.scripts]
+ttc = "ttc.cli:cli"
+
+[tool.black]
+line-length = 88
+include = '''
+(
+  /(
+      tests
+    | ttc
+  )
+)
+'''
+
+[tool.ruff]
+extend-exclude = ["*.ipynb"]
+lint.ignore = ["E741"]
