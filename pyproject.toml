@@ -30,7 +30,7 @@ large_models_ru = [
 ]
 dev = [
   "pytest>=7.2.1",
-  "jupyter>=1.0.0",
+  "jupyter>=1.1.1",
   "ty",
   "black>=26.3.1",
   "ruff>=0.15.10"
