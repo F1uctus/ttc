@@ -29,7 +29,7 @@ large_models_ru = [
   "ru_core_news_lg @ https://github.com/explosion/spacy-models/releases/download/ru_core_news_lg-3.8.0/ru_core_news_lg-3.8.0.tar.gz"
 ]
 dev = [
-  "pytest>=7.2.1",
+  "pytest>=9.0.3",
   "jupyter>=1.1.1",
   "ty",
   "black>=26.3.1",
