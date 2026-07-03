@@ -1,5 +1,7 @@
+import os
+import warnings
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, Optional
 
 import spacy
 from spacy import Language
@@ -26,9 +28,19 @@ class RussianConversationClassifier(ConversationClassifier):
     language: Language
     token_matchers: Dict[TokenMatcherClass, Matcher]
 
-    def __init__(self):
+    def __init__(self, model_size: Optional[str] = None):
         super().__init__()
-        self.language = spacy.load("ru_core_news_lg", exclude=["senter"])
+        size = model_size or os.environ.get("TTC_RU_MODEL", "lg")
+        try:
+            self.language = spacy.load(f"ru_core_news_{size}", exclude=["senter"])
+        except OSError:
+            if size == "sm":
+                raise
+            warnings.warn(
+                f"ru_core_news_{size} is not installed;"
+                " falling back to ru_core_news_sm"
+            )
+            self.language = spacy.load("ru_core_news_sm", exclude=["senter"])
 
         russian_pipelines.register_for(self.language)
 

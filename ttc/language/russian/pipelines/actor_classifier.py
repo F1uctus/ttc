@@ -1,3 +1,4 @@
+import sys
 from typing import Optional, List, Callable, Union, Dict, Generator, Final
 from collections import Counter
 
@@ -1451,6 +1452,6 @@ def classify_actors(
 
         else:
             p[replica] = None
-            print("MISS", replica)  # TODO: handle
+            print("MISS", replica, file=sys.stderr)  # TODO: handle
 
     return p
