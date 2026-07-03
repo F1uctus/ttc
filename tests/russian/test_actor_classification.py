@@ -1,33 +1,17 @@
 from pathlib import Path
-from typing import List, Tuple, Final
+from typing import Final
 
 import pytest
 
 import ttc
+from ttc.corpus import canonical_actor, find_corpus_files, load_corpus_file
 
 TEXTS_PATH: Final = Path(__file__).parent / "texts"
+TUNE_PATH: Final = TEXTS_PATH / "tune"
 
 
 def find_test_texts(path: Path):
-    return [e.name for e in path.iterdir() if e.suffix == ".txt"]
-
-
-def parse_conversation(text: str) -> Tuple[List[str], List[str]]:
-    lines = [l for line in text.split("\n") if (l := line.strip())]
-    dialogue = [(r, s.lower()) for s, r in [line.split("::") for line in lines]]
-    return tuple(list(x) for x in zip(*dialogue))
-
-
-def load_test(
-    path: Path, file_name: str, delimiter="-" * 20
-) -> Tuple[str, Tuple[List[str], List[str]]]:
-    """
-    Returns
-    -------
-    (Input text, Expected conversation to be extracted by ttc.)
-    """
-    content = (path / file_name).read_text(encoding="utf-8").split(delimiter)
-    return content[0].strip(), parse_conversation(content[1].strip())
+    return [e.name for e in find_corpus_files(path, recursive=False)]
 
 
 @pytest.fixture(scope="module")
@@ -231,13 +215,17 @@ def test_verb_only_reference(cc):
     ]
 
 
-@pytest.mark.parametrize("file_name", find_test_texts(TEXTS_PATH))
+@pytest.mark.parametrize("file_name", find_test_texts(TUNE_PATH))
 def test_text_to_play(cc, file_name):
-    text, expected_result = load_test(TEXTS_PATH, file_name)
-    expected_replicas, expected_actors = expected_result
-    dialogue = cc.extract_dialogue(text)
+    cf = load_corpus_file(TUNE_PATH / file_name)
+    dialogue = cc.extract_dialogue(cf.text)
     play = cc.connect_play(dialogue)
     print("\n", play, sep="")
-    expected_play_rels = {a: b for a, b in zip(expected_replicas, expected_actors)}
-    actual_play_rels = {str(r): str(s).lower() for r, s in play.lines}
-    assert expected_play_rels == actual_play_rels
+    expected = [
+        (replica, canonical_actor(actor, cf.aliases)) for actor, replica in cf.pairs
+    ]
+    actual = [
+        (str(r), canonical_actor(str(a) if a else None, cf.aliases))
+        for r, a in play.lines
+    ]
+    assert expected == actual
