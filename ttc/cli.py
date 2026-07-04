@@ -34,15 +34,25 @@ def cli():
     help="Allow --errors on held-out texts (breaks tuning blindness!).",
 )
 @click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
-def eval_corpus(paths, model, by_file, show_errors, unblind_heldout, as_json):
+@click.option(
+    "--jsonl",
+    "jsonl_paths",
+    type=click.Path(exists=True, path_type=Path),
+    multiple=True,
+    help="Interchange JSONL corpora (multi-corpus/multi-language).",
+)
+def eval_corpus(
+    paths, model, by_file, show_errors, unblind_heldout, as_json, jsonl_paths
+):
     """Measure extraction/attribution accuracy on annotated corpus PATHS.
 
     PATHS are corpus .txt files or directories of them; defaults to
     tests/russian/texts/{tune,heldout} relative to the current directory.
+    Pass --jsonl to evaluate interchange corpora (with a qtype breakdown).
     """
     from ttc.eval import aggregate, evaluate_paths, format_report
 
-    if not paths:
+    if not paths and not jsonl_paths:
         texts = Path("tests/russian/texts")
         paths = tuple(d for d in (texts / "tune", texts / "heldout") if d.is_dir())
         if not paths:
@@ -90,6 +100,22 @@ def eval_corpus(paths, model, by_file, show_errors, unblind_heldout, as_json):
         else:
             echo(f"== {path}")
             echo(format_report(reports, by_file=by_file, show_errors=show_errors))
+
+    for jp in jsonl_paths:
+        from ttc.corpora.schema import read_jsonl
+        from ttc.eval import evaluate_interchange_doc
+
+        reports = []
+        for doc in read_jsonl(jp):
+            doc_cc = cc if doc.lang == "ru" else ttc.load(doc.lang)
+            if doc_cc is None:
+                echo(f"{doc.doc_id}: no classifier for lang {doc.lang!r}, skipped")
+                continue
+            reports.append(evaluate_interchange_doc(doc_cc, doc))
+        if reports:
+            echo(f"== {jp}")
+            echo(format_report(reports, by_file=by_file, show_errors=show_errors))
+
     exit(exit_code)
 
 

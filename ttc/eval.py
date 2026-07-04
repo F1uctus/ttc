@@ -69,6 +69,8 @@ class FileReport(Counters):
     path: Optional[Path] = None
     errors: List[AttrError] = field(default_factory=list)
     seconds: float = 0.0
+    lang: str = "ru"
+    qtype_counters: Dict[str, Counters] = field(default_factory=dict)
 
 
 def pred_actor_key(actor: Optional[Span], aliases: Dict[str, str]) -> str:
@@ -121,6 +123,56 @@ def evaluate_file(cc, cf: CorpusFile) -> FileReport:
     return report
 
 
+def evaluate_interchange_doc(cc, doc) -> FileReport:
+    """Evaluate attribution on one interchange doc (gold = doc.replicas).
+
+    ``doc`` is a :class:`ttc.corpora.schema.CorpusDoc`. Gold speakers are
+    canonicalized through the doc's own character/alias table; results are
+    additionally broken down per PDNC-style quotation type (qtype).
+    """
+    started = time.perf_counter()
+    dialogue = cc.extract_dialogue(doc.text)
+    play = cc.connect_play(dialogue)
+    seconds = time.perf_counter() - started
+
+    names = {c.id: normalize_name(c.name) for c in doc.characters}
+    aliases: Dict[str, str] = {}
+    for c in doc.characters:
+        aliases[normalize_name(c.name)] = names[c.id]
+        for alias in c.aliases:
+            aliases[normalize_name(alias)] = names[c.id]
+
+    gold = [
+        (
+            doc.text[r.start : r.end],
+            names.get(r.speaker, UNATTRIBUTED) if r.speaker else UNATTRIBUTED,
+            r.qtype,
+        )
+        for r in doc.replicas
+    ]
+    pred = [(str(r), pred_actor_key(a, aliases)) for r, a in play.lines]
+
+    report = FileReport(path=Path(doc.doc_id), lang=doc.lang, seconds=seconds)
+    report.n_gold = len(gold)
+    report.n_pred = len(pred)
+    for qtype in {g[2] for g in gold if g[2]}:
+        report.qtype_counters[qtype] = Counters(
+            n_gold=sum(1 for g in gold if g[2] == qtype)
+        )
+    for gi, pi in align_replicas([g[0] for g in gold], [p[0] for p in pred]):
+        report.n_matched += 1
+        qt = gold[gi][2]
+        if qt:
+            report.qtype_counters[qt].n_matched += 1
+        if gold[gi][1] == pred[pi][1]:
+            report.n_attr_correct += 1
+            if qt:
+                report.qtype_counters[qt].n_attr_correct += 1
+        else:
+            report.errors.append(AttrError(gold[gi][0], gold[gi][1], pred[pi][1]))
+    return report
+
+
 def evaluate_paths(cc, paths: List[Path]) -> List[FileReport]:
     files: List[Path] = []
     for path in paths:
@@ -167,4 +219,15 @@ def format_report(
         f" R {_percent(total.extraction_recall)}"
         f"  ({total.n_attr_correct}/{total.n_gold})"
     )
+    by_qtype: Dict[str, Counters] = {}
+    for r in reports:
+        for qt, c in r.qtype_counters.items():
+            by_qtype.setdefault(qt, Counters()).add(c)
+    for qt in sorted(by_qtype):
+        c = by_qtype[qt]
+        lines.append(
+            f"  qtype {qt:<10} e2e {_percent(c.end_to_end_accuracy)}"
+            f"  attr {_percent(c.attribution_accuracy)}"
+            f"  ({c.n_attr_correct}/{c.n_gold})"
+        )
     return "\n".join(lines)
