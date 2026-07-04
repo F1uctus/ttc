@@ -74,3 +74,47 @@ def make_ttc_cue_detector(nlp: Language, name: str, package_dir: str, mode: str)
         return doc
 
     return component
+
+
+@Language.factory(
+    "ttc_candidate_gen",
+    default_config={
+        "package_dir": "",
+        "mode": "union",
+        "window_chars": 1200,
+        "top_k": 8,
+    },
+)
+def make_ttc_candidate_gen(
+    nlp: Language,
+    name: str,
+    package_dir: str,
+    mode: str,
+    window_chars: int,
+    top_k: int,
+):
+    from ttc.ml import candidates as cand_mod
+    from ttc.ml.session import OnnxSession
+
+    extensions.register()
+    encoder = scorer = None
+    if mode in ("learned", "union") and package_dir:
+        package = ModelPackage.from_dir(Path(package_dir))
+        encoder = Encoder(package)
+        scorer = OnnxSession(package.graph_path("candidate"))
+
+    def component(doc: Doc) -> Doc:
+        for replica in doc._.replicas:
+            cand_mod.generate(
+                doc,
+                replica,
+                doc._.characters,
+                mode,
+                encoder,
+                scorer,
+                window_chars,
+                top_k,
+            )
+        return doc
+
+    return component
