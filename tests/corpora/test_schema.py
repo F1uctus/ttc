@@ -23,8 +23,14 @@ def make_doc() -> CorpusDoc:
         license="CC-BY-NC-4.0",
         text="“Come here,” said Emma to Harriet.",
         replicas=[
-            Replica(0, 12, speaker="char_0", addressee="char_1",
-                    qtype="explicit", cue=Cue(13, 22))
+            Replica(
+                0,
+                12,
+                speaker="char_0",
+                addressee="char_1",
+                qtype="explicit",
+                cue=Cue(13, 22),
+            )
         ],
         characters=[
             Character("char_0", "Emma", aliases=["Miss Woodhouse"], gender="f"),
@@ -59,12 +65,18 @@ def test_validate_clean():
 
 def test_validate_catches_issues():
     doc = make_doc()
-    doc.replicas[0].speaker = "char_9"          # unknown id
+    doc.replicas[0].speaker = "char_9"  # unknown id
     doc.replicas.append(Replica(5, 900, "char_0"))  # out of bounds + overlap
     doc.mentions[0] = Mention(18, 22, "nobody")  # unknown id
     doc.characters.append(Character("char_0", "Dup"))  # duplicate id
     doc.replicas[0].qtype = "weird"
     issues = "\n".join(validate(doc))
-    for needle in ("char_9", "out of bounds", "overlap", "nobody",
-                   "duplicate", "qtype"):
+    for needle in (
+        "char_9",
+        "out of bounds",
+        "overlap",
+        "nobody",
+        "duplicate",
+        "qtype",
+    ):
         assert needle in issues, issues

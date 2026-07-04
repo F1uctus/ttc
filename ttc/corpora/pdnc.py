@@ -45,9 +45,7 @@ def _find_near(text: str, needle: str, around: int, radius: int = 300) -> Option
 
 def parse_novel(novel_dir: Path) -> CorpusDoc:
     text_path = next(
-        p
-        for name in ("novel_text.txt", "text.txt")
-        if (p := novel_dir / name).exists()
+        p for name in ("novel_text.txt", "text.txt") if (p := novel_dir / name).exists()
     )
     text = text_path.read_text(encoding="utf-8")
 

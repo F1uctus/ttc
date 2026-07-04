@@ -209,7 +209,9 @@ def format_report(
             )
             if show_errors:
                 for e in r.errors:
-                    lines.append(f"    gold {e.gold!r} != pred {e.pred!r} | {e.replica[:80]}")
+                    lines.append(
+                        f"    gold {e.gold!r} != pred {e.pred!r} | {e.replica[:80]}"
+                    )
     total = aggregate(reports)
     lines.append(
         f"{'TOTAL (' + str(len(reports)) + ' files)':<44}"

@@ -14,7 +14,7 @@ def test_convert_sample():
     assert doc.lang == "ru" and doc.domain == "prose" and doc.source == "native"
     assert validate(doc) == []
     # both replicas located in raw text and attributed
-    assert [doc.text[r.start:r.end] for r in doc.replicas] == [
+    assert [doc.text[r.start : r.end] for r in doc.replicas] == [
         "Привет,",
         "Здравствуй, светлость,",
     ]

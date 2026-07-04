@@ -58,9 +58,7 @@ def build_payload(cc, text: str, prefill: Optional[Dict[str, str]] = None) -> di
         if pred != UNATTRIBUTED:
             frequency[pred] += 1
 
-    in_replica = {
-        i for r in play.replicas for i in range(r.start, r.end)
-    }
+    in_replica = {i for r in play.replicas for i in range(r.start, r.end)}
     for token in doc:
         # candidate names come from author speech: inside a replica a
         # name is usually the addressee, not the speaker

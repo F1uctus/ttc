@@ -72,7 +72,9 @@ def parse_corpus_content(content: str, path: Optional[Path] = None) -> CorpusFil
             if not (line := line.strip()) or line.startswith("#"):
                 continue
             if "=" not in line:
-                raise ValueError(f"{path or 'corpus content'}: malformed alias {line!r}")
+                raise ValueError(
+                    f"{path or 'corpus content'}: malformed alias {line!r}"
+                )
             canonical, alts = line.split("=", 1)
             canonical = normalize_name(canonical)
             for alt in alts.split("|"):
@@ -100,7 +102,9 @@ def serialize_corpus_file(
     parts += [f"{actor}::{replica}" for actor, replica in pairs]
     if aliases:
         parts.append(DELIMITER)
-        parts += [f"{canonical} = {' | '.join(alts)}" for canonical, alts in aliases.items()]
+        parts += [
+            f"{canonical} = {' | '.join(alts)}" for canonical, alts in aliases.items()
+        ]
     return "\n".join(parts) + "\n"
 
 
