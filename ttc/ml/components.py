@@ -20,3 +20,27 @@ def make_ttc_encoder(nlp: Language, name: str, package_dir: str):
         return doc
 
     return component
+
+
+@Language.factory(
+    "ttc_char_resolver",
+    default_config={"package_dir": "", "mode": "learned", "threshold": 0.5},
+)
+def make_ttc_char_resolver(
+    nlp: Language, name: str, package_dir: str, mode: str, threshold: float
+):
+    from ttc.ml import entities
+    from ttc.ml.session import OnnxSession
+
+    extensions.register()
+    if mode == "rule":
+        return lambda doc: (entities.resolve_rule(doc), doc)[1]
+    package = ModelPackage.from_dir(Path(package_dir))
+    encoder = Encoder(package)
+    pair = OnnxSession(package.graph_path("pair"))
+
+    def component(doc: Doc) -> Doc:
+        entities.resolve_learned(doc, encoder, pair, threshold)
+        return doc
+
+    return component

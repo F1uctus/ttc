@@ -213,3 +213,16 @@ def format_report(
             f"  ({c.n_attr_correct}/{c.n_gold})"
         )
     return "\n".join(lines)
+
+
+def b_cubed(gold: list[set], pred: list[set]) -> tuple[float, float, float]:
+    """B-cubed P/R/F1 for clusterings of a shared item set."""
+    gold_of = {item: g for g in gold for item in g}
+    pred_of = {item: p for p in pred for item in p}
+    items = [i for i in gold_of if i in pred_of]
+    if not items:
+        return 0.0, 0.0, 0.0
+    p = sum(len(gold_of[i] & pred_of[i]) / len(pred_of[i]) for i in items) / len(items)
+    r = sum(len(gold_of[i] & pred_of[i]) / len(gold_of[i]) for i in items) / len(items)
+    f1 = 2 * p * r / (p + r) if p + r else 0.0
+    return p, r, f1
