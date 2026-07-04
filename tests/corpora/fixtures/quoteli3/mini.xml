@@ -1,0 +1,9 @@
+<doc>
+<characters>
+<character name="Yegorushka" aliases="Yegorushka;Egorushka" gender="male"/>
+<character name="Kuzmitchov" aliases="Kuzmitchov" gender="male"/>
+</characters>
+<text>
+<mention speaker="Kuzmitchov">Kuzmitchov</mention> looked back. <quote speaker="Yegorushka" id="q0">"Uncle, where are we going?"</quote> asked <mention speaker="Yegorushka">Yegorushka</mention>.
+</text>
+</doc>
