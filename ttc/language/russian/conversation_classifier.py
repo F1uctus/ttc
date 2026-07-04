@@ -89,4 +89,8 @@ class RussianConversationClassifier(ConversationClassifier):
         )
 
     def connect_play(self, dialogue: Dialogue) -> Play:
-        return classify_actors(self.language, dialogue)
+        if self.pipeline_mode == "rules" or self.package is None:
+            return classify_actors(self.language, dialogue)
+        from ttc.ml.ranker import connect_play_learned
+
+        return connect_play_learned(self, dialogue, mode=self.pipeline_mode)

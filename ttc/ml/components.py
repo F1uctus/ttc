@@ -118,3 +118,24 @@ def make_ttc_candidate_gen(
         return doc
 
     return component
+
+
+@Language.factory(
+    "ttc_actor_ranker",
+    default_config={"package_dir": "", "threshold": 0.5},
+)
+def make_ttc_actor_ranker(nlp: Language, name: str, package_dir: str, threshold: float):
+    from ttc.ml import ranker as ranker_mod
+    from ttc.ml.session import OnnxSession
+
+    extensions.register()
+    package = ModelPackage.from_dir(Path(package_dir))
+    encoder = Encoder(package)
+    scorer = OnnxSession(package.graph_path("ranker"))
+
+    def component(doc: Doc) -> Doc:
+        for replica in doc._.replicas:
+            ranker_mod.rank(doc, replica, encoder, scorer, threshold)
+        return doc
+
+    return component
