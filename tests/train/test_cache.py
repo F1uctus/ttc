@@ -36,3 +36,22 @@ def test_build_cache_shapes(tmp_path: Path):
     cue = load_task(tmp_path / "cache", "cue")
     assert cue["emb"].shape[1] == dim
     assert int(cue["lengths"].sum()) == cue["emb"].shape[0] == len(cue["bio"])
+
+
+def test_build_cache_empty_examples_dir(tmp_path: Path):
+    # a head may legitimately get no examples
+    from train.cache import build_cache, load_task
+
+    ex = tmp_path / "ex"
+    ex.mkdir()
+    for task in ("cue", "pair", "candidate", "ranker"):
+        (ex / f"{task}.jsonl").write_text("", encoding="utf-8")
+    counts = build_cache(ex, tmp_path / "cache", TINY)
+    assert counts == {"cue": 0, "pair": 0, "candidate": 0, "ranker": 0}
+
+    cand = load_task(tmp_path / "cache", "candidate")
+    assert cand["X"].shape[0] == 0 and cand["X"].ndim == 2
+    pair = load_task(tmp_path / "cache", "pair")
+    assert pair["X"].shape[0] == 0 and pair["X"].ndim == 2
+    rank = load_task(tmp_path / "cache", "ranker")
+    assert rank["X"].shape[0] == 0 and int(rank["groups"].sum()) == 0

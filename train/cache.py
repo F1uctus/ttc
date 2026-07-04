@@ -17,6 +17,13 @@ def _pool(hidden: np.ndarray, rng: tuple[int, int]) -> np.ndarray:
     return hidden[s:e].mean(0) if e > s else np.zeros(hidden.shape[1], np.float32)
 
 
+def _stack(rows: list, width: int) -> np.ndarray:
+    """Stack rows into [N, width]; empty input gives a [0, width] matrix."""
+    if not rows:
+        return np.zeros((0, width), np.float32)
+    return np.array(rows, np.float32).reshape(len(rows), -1)
+
+
 def _extra(dist: float, same_line: int) -> np.ndarray:
     return np.array([np.log1p(dist) / 10.0, float(same_line)], np.float32)
 
@@ -81,7 +88,7 @@ def build_cache(
         src.append(ex["source"])
     np.savez(
         out_dir / "pair.npz",
-        X=np.array(X, np.float32).reshape(len(X), -1),
+        X=_stack(X, 3 * enc.dim),
         y=np.array(y, np.int64),
         source=np.array(src),
     )
@@ -97,7 +104,7 @@ def build_cache(
         src.append(ex["source"])
     np.savez(
         out_dir / "candidate.npz",
-        X=np.array(X, np.float32).reshape(len(X), -1),
+        X=_stack(X, 2 * enc.dim + 2),
         y=np.array(y, np.int64),
         source=np.array(src),
     )
@@ -118,7 +125,7 @@ def build_cache(
         src.append(ex["source"])
     np.savez(
         out_dir / "ranker.npz",
-        X=np.array(rows, np.float32).reshape(len(rows), -1),
+        X=_stack(rows, 2 * enc.dim + 2),
         groups=np.array(groups, np.int64),
         gold=np.array(gold, np.int64),
         source=np.array(src),
