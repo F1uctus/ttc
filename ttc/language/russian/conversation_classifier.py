@@ -27,7 +27,7 @@ class RussianConversationClassifier(ConversationClassifier):
     language: Language
     token_matchers: dict[TokenMatcherClass, Matcher]
 
-    def __init__(self, model_size: str | None = None):
+    def __init__(self, model_size: str | None = None, pipeline: str = "auto"):
         super().__init__()
         size = model_size or os.environ.get("TTC_RU_MODEL", "lg")
         try:
@@ -63,6 +63,17 @@ class RussianConversationClassifier(ConversationClassifier):
         for name, ext in SPAN_EXTENSIONS.items():
             if not Span.has_extension(name):
                 Span.set_extension(name, **ext)
+
+        from ttc.ml.packages import find_model_package
+
+        self.package = None if pipeline == "rules" else find_model_package("ru")
+        if pipeline == "auto":
+            self.pipeline_mode = "hybrid" if self.package else "rules"
+        elif pipeline in ("learned", "hybrid") and self.package is None:
+            warnings.warn(f"pipeline={pipeline!r} requested but no model package found")
+            self.pipeline_mode = "rules"
+        else:
+            self.pipeline_mode = pipeline
 
     def extract_dialogue(self, text: str) -> Dialogue:
         # 1. store newline indices in the separate text metadata

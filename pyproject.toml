@@ -39,6 +39,7 @@ dev = [
   "pytest-cov>=7.1.0",
   "onnx>=1.16",
   "onnxruntime>=1.18",
+  "tokenizers>=0.22.2",
 ]
 
 [project.scripts]
