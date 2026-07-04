@@ -13,8 +13,16 @@ def test_corpus_convert_and_stats(tmp_path: Path):
     runner = CliRunner()
     res = runner.invoke(
         cli,
-        ["corpus", "convert", "native", str(FIXTURES / "native" / "sample.txt"),
-         "--out", str(out), "--split", "all"],
+        [
+            "corpus",
+            "convert",
+            "native",
+            str(FIXTURES / "native" / "sample.txt"),
+            "--out",
+            str(out),
+            "--split",
+            "all",
+        ],
     )
     assert res.exit_code == 0, res.output
     assert "1 doc" in res.output

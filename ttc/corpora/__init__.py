@@ -22,7 +22,5 @@ def get_adapter(name: str) -> "Callable[[Path], Iterator[CorpusDoc]]":
     import importlib
 
     if name not in ADAPTERS:
-        raise KeyError(
-            f"Unknown corpus source {name!r}; known: {sorted(ADAPTERS)}"
-        )
+        raise KeyError(f"Unknown corpus source {name!r}; known: {sorted(ADAPTERS)}")
     return importlib.import_module(ADAPTERS[name]).convert
