@@ -13,6 +13,7 @@ ADAPTERS: Dict[str, str] = {
     "pdnc": "ttc.corpora.pdnc",
     "riqua": "ttc.corpora.riqua",
     "quoteli3": "ttc.corpora.quoteli3",
+    "jy_quoteplus": "ttc.corpora.jy_quoteplus",
 }
 
 
