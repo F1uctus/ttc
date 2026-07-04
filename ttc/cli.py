@@ -42,8 +42,30 @@ def cli():
     multiple=True,
     help="Interchange JSONL corpora (multi-corpus/multi-language).",
 )
+@click.option(
+    "--pipeline",
+    type=click.Choice(["rules", "learned", "hybrid"]),
+    default="rules",
+    show_default=True,
+    help="A/B mode: rule twins vs learned components vs hybrid.",
+)
+@click.option(
+    "--candidates",
+    "candidates_mode",
+    type=click.Choice(["rule", "learned", "union"]),
+    default=None,
+    help="Report candidate-generation recall for this provider instead.",
+)
 def eval_corpus(
-    paths, model, by_file, show_errors, unblind_heldout, as_json, jsonl_paths
+    paths,
+    model,
+    by_file,
+    show_errors,
+    unblind_heldout,
+    as_json,
+    jsonl_paths,
+    pipeline,
+    candidates_mode,
 ):
     """Measure extraction and attribution accuracy on annotated corpus PATHS.
 
@@ -69,8 +91,22 @@ def eval_corpus(
             )
             sys.exit(2)
 
-    cc = ttc.load("ru", model_size=model)
+    cc = ttc.load("ru", model_size=model, pipeline=pipeline)
     assert cc is not None
+
+    if candidates_mode:
+        from ttc.corpus import find_corpus_files, load_corpus_file
+        from ttc.eval import candidate_recall
+
+        hits = total = 0
+        for path in paths:
+            files = find_corpus_files(path) if path.is_dir() else [path]
+            for f in files:
+                h, t = candidate_recall(cc, load_corpus_file(f), candidates_mode)
+                hits, total = hits + h, total + t
+        pct = f"{hits / total:.1%}" if total else "-"
+        echo(f"candidate recall ({candidates_mode}): {pct} ({hits}/{total})")
+        sys.exit(0)
 
     exit_code = 0
     for path in paths:

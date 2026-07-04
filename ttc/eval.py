@@ -238,3 +238,43 @@ def span_f1(
     hits = len(gold_set & pred_set)
     p, r = hits / len(pred_set), hits / len(gold_set)
     return p, r, (2 * p * r / (p + r) if p + r else 0.0)
+
+
+def candidate_recall(cc, cf: CorpusFile, mode: str = "rule") -> tuple[int, int]:
+    """(hits, total): gold speaker present among generated candidates."""
+    from ttc.ml import extensions
+    from ttc.ml.candidates import generate
+    from ttc.ml.entities import resolve_rule
+
+    extensions.register()
+    dialogue = cc.extract_dialogue(cf.text)
+    doc = dialogue.doc
+    entities = resolve_rule(doc)
+    encoder = scorer = None
+    if mode in ("learned", "union") and cc.package is not None:
+        from ttc.ml.encoder import Encoder
+        from ttc.ml.session import OnnxSession
+
+        encoder = Encoder(cc.package)
+        scorer = OnnxSession(cc.package.graph_path("candidate"))
+
+    gold = [
+        (replica, canonical_actor(actor, cf.aliases)) for actor, replica in cf.pairs
+    ]
+    pred_texts = [str(r) for r in dialogue.replicas]
+    hits = total = 0
+    aligned = align_replicas([g[0] for g in gold], pred_texts)
+    for gi, pi in aligned:
+        gold_key = gold[gi][1]
+        if gold_key == UNATTRIBUTED:
+            continue
+        total += 1
+        replica = dialogue.replicas[pi]
+        cands = generate(doc, replica, entities, mode, encoder, scorer)
+        keys = set()
+        for e in cands:
+            for m in e.mentions:
+                keys.add(pred_actor_key(m, cf.aliases))
+        if gold_key in keys:
+            hits += 1
+    return hits, total
