@@ -93,6 +93,77 @@ def eval_corpus(paths, model, by_file, show_errors, unblind_heldout, as_json):
     exit(exit_code)
 
 
+@cli.group("corpus")
+def corpus_group():
+    """Corpus conversion, statistics and auditing."""
+
+
+@corpus_group.command("convert")
+@click.argument("source", type=str)
+@click.argument("in_path", type=click.Path(exists=True, path_type=Path))
+@click.option("--out", type=click.Path(path_type=Path), required=True)
+@click.option(
+    "--split",
+    type=click.Choice(["tune", "heldout", "all"]),
+    default="all",
+    show_default=True,
+    help="Keep only docs of this split (native docs are never filtered).",
+)
+def corpus_convert(source: str, in_path: Path, out: Path, split: str):
+    """Convert corpus SOURCE at IN_PATH into interchange JSONL."""
+    from ttc.corpora import get_adapter
+    from ttc.corpora.schema import validate, write_jsonl
+    from ttc.corpora.splits import split_of
+
+    try:
+        adapter = get_adapter(source)
+    except KeyError as e:
+        raise click.ClickException(str(e.args[0]))
+
+    docs = []
+    n_issues = 0
+    for doc in adapter(in_path):
+        if source != "native" and split != "all" and split_of(doc.doc_id) != split:
+            continue
+        n_issues += len(issues := validate(doc))
+        for issue in issues:
+            echo(style(issue, fg="yellow"))
+        docs.append(doc)
+    n = write_jsonl(docs, out)
+    echo(
+        f"{n} doc(s) -> {out}"
+        + (f" ({n_issues} validation issues)" if n_issues else "")
+    )
+
+
+@corpus_group.command("stats")
+@click.argument(
+    "jsonl", type=click.Path(exists=True, path_type=Path), nargs=-1, required=True
+)
+def corpus_stats(jsonl):
+    """Per-source/language document, replica and character counts."""
+    from collections import Counter
+
+    from ttc.corpora.schema import read_jsonl
+
+    docs = Counter()
+    replicas = Counter()
+    chars = Counter()
+    for path in jsonl:
+        for doc in read_jsonl(path):
+            key = (doc.source, doc.lang, doc.domain)
+            docs[key] += 1
+            replicas[key] += len(doc.replicas)
+            chars[key] += len(doc.characters)
+    echo(
+        f"{'source':<14}{'lang':<6}{'domain':<8}"
+        f"{'docs':>7}{'replicas':>10}{'chars':>8}"
+    )
+    for key in sorted(docs):
+        s, l, d = key
+        echo(f"{s:<14}{l:<6}{d:<8}{docs[key]:>7}{replicas[key]:>10}{chars[key]:>8}")
+
+
 @cli.command("annotate")
 @click.argument("text_file", type=click.Path(exists=True, path_type=Path), nargs=1)
 @click.option(
