@@ -1,0 +1,10 @@
+T1	Quote 0 7	"Stop,"
+T2	Cue 8 12	said
+T3	Entity 13 23	Mr. Bennet
+T4	Quote 37 64	"You delight in vexing me,"
+T5	Cue 65 69	said
+T6	Entity 70 73	she
+R1	Speaker Arg1:T1 Arg2:T3
+R2	CueOf Arg1:T1 Arg2:T2
+R3	Speaker Arg1:T4 Arg2:T6
+R4	CueOf Arg1:T4 Arg2:T5
