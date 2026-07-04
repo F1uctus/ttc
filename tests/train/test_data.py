@@ -113,3 +113,24 @@ def test_audit_gate_blocks_unaudited_native(tmp_path: Path):
         )["ranker"]
         >= 1
     )
+
+
+def test_same_line_uses_consistent_coordinates(tmp_path: Path):
+    import json
+
+    from train.data import build_examples
+
+    src = FIXTURES / "tiny_corpus.jsonl"
+    if not src.exists():
+        _make_fixture(src)
+    build_examples([src], tmp_path)
+    cands = [
+        json.loads(l) for l in (tmp_path / "candidate.jsonl").read_text().splitlines()
+    ]
+    en = [c for c in cands if c["lang"] == "en"]
+    ru = [c for c in cands if c["lang"] == "ru"]
+    # the en fixture doc is one line
+    assert en and all(c["same_line"] == 1 for c in en)
+    # ru mentions sit on other lines than the replicas
+    assert ru and all(c["same_line"] == 0 for c in ru)
+    assert all(isinstance(c["dist"], float) for c in cands)

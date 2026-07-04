@@ -7,7 +7,7 @@ from pathlib import Path
 from ttc.corpora.schema import CorpusDoc, read_jsonl
 
 PREFIX = "[LANG={lang}] [DOMAIN={domain}] "
-NEG_PER_POS = 3  # sampled negatives per positive (pair & candidate heads)
+NEG_PER_POS = 3  # pair head only
 
 
 def _require_audit(doc: CorpusDoc, report: Path | None, allow: bool) -> None:
@@ -110,21 +110,22 @@ def build_examples(
                 if r.speaker is None:
                     continue
                 # candidate and ranker heads
-                in_win: list[tuple[tuple[int, int], str, int]] = []
+                in_win: list[tuple[tuple[int, int], str, float, int]] = []
                 for m in mentions:
                     if rm := rel(m.start, m.end):
-                        dist = min(abs(m.start - r.end), abs(r.start - m.end))
-                        in_win.append((rm, m.char, dist))
-                gold_ids = [i for i, (_, c, _) in enumerate(in_win) if c == r.speaker]
+                        dist = float(min(abs(m.start - r.end), abs(r.start - m.end)))
+                        # same line iff both starts follow the same newline
+                        same_line = int(
+                            doc.text.rfind("\n", 0, r.start)
+                            == doc.text.rfind("\n", 0, m.start)
+                        )
+                        in_win.append((rm, m.char, dist, same_line))
+                gold_ids = [
+                    i for i, (_, c, _, _) in enumerate(in_win) if c == r.speaker
+                ]
                 if not gold_ids:
                     continue
-                same_line = [
-                    int(doc.text.rfind("\n", 0, r.start) < m_start_abs)
-                    for (rm, _, _), m_start_abs in zip(
-                        in_win, [x[0][0] for x in in_win]
-                    )
-                ]  # crude: same line if mention starts after the replica's line start
-                for i, ((rm, char, dist), sl) in enumerate(zip(in_win, same_line)):
+                for rm, char, dist, sl in in_win:
                     emit(
                         "candidate",
                         {
@@ -144,7 +145,7 @@ def build_examples(
                         "replica": rr,
                         "candidates": [x[0] for x in in_win],
                         "dists": [x[2] for x in in_win],
-                        "same_lines": same_line,
+                        "same_lines": [x[3] for x in in_win],
                         "gold": gold_ids[0],
                     },
                     doc,
