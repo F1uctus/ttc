@@ -30,3 +30,13 @@ accordingly. `DirectSpeech.Speaker` → `NamedEntity.xmi:id` → coref cluster.
 Validation flags ~227 replica-overlap issues: genuine nested/enclosing
 utterances in the source (e.g. a thought inside a long epistolary speech),
 not parser bugs — left for downstream filtering, source not mutated.
+
+### Rule-pipeline drama baseline (`ttc eval --jsonl`)
+
+`ttc eval` extended to interchange JSONL with a per-qtype breakdown
+(`evaluate_interchange_doc`). RusDraCor through the **rule** pipeline scores
+~0% e2e / ~3% extraction P (n=2337 over a 3-play slice, sm fallback): the
+dashed-dialogue replicizer does not recognize TEI drama turns at all. This
+is the expected drama-domain floor and the quantified motivation for the
+learned components (Phase 2/3) — not a regression. Phase 1 data layer
+complete: schema + 7 adapters + splits + audit gate + multi-corpus eval.
