@@ -1,0 +1,29 @@
+{
+  "name": "ttc_attrib_mini_test",
+  "version": "0.0.1",
+  "langs": [
+    "ru",
+    "en"
+  ],
+  "encoder": {
+    "graph": "encoder.onnx",
+    "dim": 8,
+    "window": 32,
+    "stride": 24,
+    "tokenizer": {
+      "type": "hash",
+      "vocab_size": 64
+    }
+  },
+  "heads": {
+    "cue": "cue.onnx",
+    "pair": "pair.onnx",
+    "candidate": "scorer.onnx",
+    "ranker": "scorer.onnx"
+  },
+  "inference": {
+    "unknown_threshold": 0.05,
+    "top_k": 8,
+    "window_chars": 1200
+  }
+}
