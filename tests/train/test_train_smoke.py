@@ -26,6 +26,7 @@ def test_two_step_training_run(tmp_path: Path):
             "encoder.dim": "null",
             "training.steps": "2",
             "training.batch_size": "2",
+            "training.mode": "live",
             "data.examples_dir": str(tmp_path / "examples"),
         },
     )

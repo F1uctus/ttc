@@ -8,6 +8,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from torch import nn
 from transformers import AutoTokenizer
 
 from train.config import load_config, set_seeds
@@ -96,6 +97,10 @@ def run(
 ) -> Path:
     overrides = overrides or {}
     cfg = load_config(config_path, overrides)
+    if cfg["training"].get("mode", "cached") == "cached":
+        return train_heads_cached(
+            Path(cfg["data"]["examples_dir"]).parent / "cache", cfg, out_dir, stage
+        )
     set_seeds(cfg["training"]["seed"])
     device = cfg["training"]["device"]
     if device == "auto":
@@ -122,6 +127,17 @@ def run(
         prev = out_dir / order[prev_i - 1] / "model.pt"
         if prev.exists():
             model.load_state_dict(torch.load(prev, map_location=device))
+
+    if (prev_heads := out_dir / order[order.index(stage) - 1] / "heads.pt").exists():
+        model.load_state_dict(torch.load(prev_heads, map_location=device), strict=False)
+    n_unfreeze = int(cfg["encoder"].get("unfreeze_layers", 0))
+    if n_unfreeze >= 0:
+        for p in model.encoder.parameters():
+            p.requires_grad = False
+        layers = model.encoder.encoder.layer  # BERT-family layer stack
+        for layer in layers[len(layers) - n_unfreeze :] if n_unfreeze else []:
+            for p in layer.parameters():
+                p.requires_grad = True
 
     opt = torch.optim.AdamW(model.parameters(), lr=cfg["training"]["lr"])
     steps = int(overrides.get("training.steps", stage_cfg["steps"]))
@@ -180,6 +196,120 @@ def run(
             f"losses {json.dumps(dict(losses))}, mix {json.dumps(mix)}\n"
         )
     return stage_dir / "model.pt"
+
+
+def _infer_dim(cache_dir: Path) -> int:
+    from train.cache import load_task
+
+    return (load_task(cache_dir, "candidate")["X"].shape[1] - 2) // 2
+
+
+def train_heads_cached(cache_dir: Path, cfg, out_dir: Path, stage: str) -> Path:
+    from train.cache import load_task
+    from train.mix import temperature_weights
+    from train.model import CachedHeads
+
+    set_seeds(cfg["training"]["seed"])
+    dim = cfg["encoder"]["dim"] or _infer_dim(cache_dir)
+    heads = CachedHeads(dim, cfg["heads"]["hidden"])
+    opt = torch.optim.AdamW(heads.parameters(), lr=cfg["training"]["lr"])
+    t = cfg["mixing"]["temperature"]
+    rng = np.random.default_rng(cfg["training"]["seed"])
+
+    data = {task: load_task(cache_dir, task) for task in TASKS}
+    idx = {}
+    for task in TASKS:
+        by_src = defaultdict(list)
+        for i, s in enumerate(data[task]["source"]):
+            by_src[str(s)].append(i)
+        idx[task] = by_src
+    weights = {
+        task: temperature_weights({s: len(v) for s, v in idx[task].items()}, t)
+        for task in TASKS
+        if idx[task]
+    }
+
+    def sample(task: str) -> int:
+        srcs = list(weights[task])
+        s = srcs[int(rng.choice(len(srcs), p=[weights[task][k] for k in srcs]))]
+        return int(rng.choice(idx[task][s]))
+
+    task_cycle = [t_ for t_ in TASKS if weights.get(t_)]
+    bs = cfg["training"]["batch_size"]
+    losses: dict[str, float] = defaultdict(float)
+    heads.train()
+    for step in range(int(cfg["training"]["steps"])):
+        task = task_cycle[step % len(task_cycle)]
+        opt.zero_grad()
+        loss = _cached_loss(heads, task, data[task], [sample(task) for _ in range(bs)])
+        loss.backward()
+        opt.step()
+        losses[task] = loss.detach().item()
+
+    stage_dir = out_dir / stage
+    stage_dir.mkdir(parents=True, exist_ok=True)
+    torch.save(heads.state_dict(), stage_dir / "heads.pt")
+    commit = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout.strip()
+    mix = {task: weights.get(task, {}) for task in TASKS}
+    (stage_dir / "run.json").write_text(
+        json.dumps(
+            {
+                "stage": stage,
+                "mode": "cached",
+                "commit": commit,
+                "mix": mix,
+                "final_losses": losses,
+                "dim": dim,
+            },
+            ensure_ascii=False,
+            indent=2,
+            default=str,
+        ),
+        encoding="utf-8",
+    )
+    with open("docs/eval-log.md", "a", encoding="utf-8") as f:
+        f.write(f"\n- train {stage} (cached) @ {commit}: losses {dict(losses)}\n")
+    return stage_dir / "heads.pt"
+
+
+def _cached_loss(heads, task: str, arrs: dict, rows: list[int]) -> torch.Tensor:
+    if task == "cue":
+        # rows index windows; rebuild each window's [S,dim] slice from lengths
+        starts = np.concatenate([[0], np.cumsum(arrs["lengths"])])
+        total = torch.zeros((), dtype=torch.float32)
+        for r in rows:
+            s, e = int(starts[r]), int(starts[r + 1])
+            emb = torch.from_numpy(arrs["emb"][s:e])
+            bio = torch.from_numpy(arrs["bio"][s:e])
+            total = total + nn.functional.cross_entropy(heads.cue_head(emb), bio)
+        return total / len(rows)
+    if task == "pair":
+        x = torch.from_numpy(arrs["X"][rows])
+        y = torch.from_numpy(arrs["y"][rows]).float()
+        return nn.functional.binary_cross_entropy_with_logits(
+            heads.pair_head(x)[:, 0], y
+        )
+    if task == "candidate":
+        x = torch.from_numpy(arrs["X"][rows])
+        y = torch.from_numpy(arrs["y"][rows]).float()
+        return nn.functional.binary_cross_entropy_with_logits(
+            heads.scorer_head(x)[:, 0], y
+        )
+    # ranker: rows index groups; slice each group's rows and softmax-CE vs gold
+    starts = np.concatenate([[0], np.cumsum(arrs["groups"])])
+    total = torch.zeros((), dtype=torch.float32)
+    for r in rows:
+        s, e = int(starts[r]), int(starts[r + 1])
+        scores = heads.scorer_head(torch.from_numpy(arrs["X"][s:e]))[:, 0]
+        total = total + nn.functional.cross_entropy(
+            scores[None], torch.tensor([int(arrs["gold"][r])])
+        )
+    return total / len(rows)
 
 
 def main() -> None:

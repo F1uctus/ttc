@@ -58,3 +58,14 @@ class AttributionModel(nn.Module):
         return nn.functional.cross_entropy(
             scores[None], torch.tensor([gold], device=scores.device)
         )
+
+
+class CachedHeads(nn.Module):
+    """Encoder-free heads whose state_dict loads into AttributionModel."""
+
+    def __init__(self, dim: int, hidden: int) -> None:
+        super().__init__()
+        self.dim = dim
+        self.cue_head = nn.Linear(dim, 5)
+        self.pair_head = mlp(3 * dim, hidden, 1)
+        self.scorer_head = mlp(2 * dim + 2, hidden, 1)
