@@ -69,3 +69,31 @@ def test_low_confidence_dropped_and_flagged():
     projected, flags = project_doc(doc, lambda s: s, "ru", LowAligner(), min_conf=0.5)
     assert projected.replicas == []
     assert flags and flags[0]["kind"] == "replica"
+
+
+def test_project_span_preserves_contiguous_multiword():
+    from train.projection import _project_span
+
+    alignment = [((0, 5), (0, 5), 0.9), ((6, 11), (6, 11), 0.9)]
+    (ts, te), conf = _project_span((0, 11), alignment)
+    assert (ts, te) == (0, 11)
+    assert conf > 0.8
+
+
+def test_project_span_flags_reordering_balloon():
+    from train.projection import _project_span
+
+    # reordering: the two words land at opposite ends of the target
+    alignment = [((0, 5), (20, 25), 1.0), ((8, 14), (0, 6), 1.0)]
+    _, conf = _project_span((0, 14), alignment)
+    assert conf < 0.5
+
+
+def test_project_span_boundary_pair_does_not_dominate():
+    from train.projection import _project_span
+
+    # a 1-char overlap with a far token must not balloon the span
+    good = [((i * 6, i * 6 + 5), (i * 6, i * 6 + 5), 0.9) for i in range(4)]
+    bad = [((23, 25), (100, 120), 0.05)]
+    _, conf = _project_span((0, 24), good + bad)
+    assert conf < 0.5

@@ -21,6 +21,23 @@ class Aligner(Protocol):
     def align(self, src: str, tgt: str) -> list[tuple[Span, Span, float]]: ...
 
 
+def _merged_length(spans: list[Span]) -> int:
+    """Total length covered by (possibly overlapping) spans after merging."""
+    if not spans:
+        return 0
+    ordered = sorted(spans)
+    total = 0
+    cur_s, cur_e = ordered[0]
+    for s, e in ordered[1:]:
+        if s > cur_e:
+            total += cur_e - cur_s
+            cur_s, cur_e = s, e
+        else:
+            cur_e = max(cur_e, e)
+    total += cur_e - cur_s
+    return total
+
+
 def _project_span(
     span: Span, alignment: list[tuple[Span, Span, float]]
 ) -> tuple[Span, float] | None:
@@ -29,9 +46,7 @@ def _project_span(
     Confidence is overlap-weighted and scaled by target coverage density.
     """
     s, e = span
-    t_start: int | None = None
-    t_end: int | None = None
-    confs: list[float] = []
+    subspans: list[tuple[int, int, float, int]] = []
     for (ss, se), (ts, te), conf in alignment:
         if se <= s or ss >= e:
             continue
@@ -42,12 +57,17 @@ def _project_span(
             ov_s, ov_e = max(s, ss), min(e, se)
             ov_ts = ts + round((ov_s - ss) * (te - ts) / width)
             ov_te = ts + round((ov_e - ss) * (te - ts) / width)
-        t_start = ov_ts if t_start is None else min(t_start, ov_ts)
-        t_end = ov_te if t_end is None else max(t_end, ov_te)
-        confs.append(conf)
-    if t_start is None or t_end is None or not confs:
+        overlap = max(1, min(e, se) - max(s, ss))
+        subspans.append((min(ov_ts, ov_te), max(ov_ts, ov_te), conf, overlap))
+    if not subspans:
         return None
-    return (t_start, t_end), min(confs)
+    t_start = min(x[0] for x in subspans)
+    t_end = max(x[1] for x in subspans)
+    wsum = sum(x[3] for x in subspans)
+    conf = sum(x[2] * x[3] for x in subspans) / wsum
+    covered = _merged_length([(x[0], x[1]) for x in subspans])
+    extent = max(1, t_end - t_start)
+    return (t_start, t_end), conf * covered / extent
 
 
 def project_doc(
