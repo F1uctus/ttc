@@ -41,6 +41,13 @@ dev = [
   "onnxruntime>=1.18",
   "tokenizers>=0.22.2",
 ]
+train = [
+  "torch>=2.3",
+  "transformers>=4.44",
+  "datasets>=2.20",
+  "optimum[onnxruntime]>=1.21",
+  "simalign>=0.4",
+]
 
 [project.scripts]
 ttc = "ttc.cli:cli"
@@ -59,3 +66,11 @@ ignore = ["E741"]
 [tool.ruff.lint.per-file-ignores]
 # Enum members are singletons, not shared mutable state
 "ttc/language/russian/token_patterns.py" = ["RUF012"]
+
+[tool.ruff.lint.isort]
+# a local datasets/ dir must not make the package first-party
+known-third-party = ["datasets"]
+
+[tool.pytest.ini_options]
+markers = ["train: training-stack tests (need the train dependency group)"]
+addopts = "-m 'not train'"
