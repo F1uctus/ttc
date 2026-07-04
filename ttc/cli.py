@@ -164,6 +164,30 @@ def corpus_stats(jsonl):
         echo(f"{s:<14}{l:<6}{d:<8}{docs[key]:>7}{replicas[key]:>10}{chars[key]:>8}")
 
 
+@corpus_group.command("audit")
+@click.argument(
+    "paths", type=click.Path(exists=True, path_type=Path), nargs=-1, required=True
+)
+@click.option("--report", "report_path", type=click.Path(path_type=Path), default=None)
+@click.option("--skip-disagreements", is_flag=True, help="Mechanical checks only.")
+@click.option("--model", type=MODEL_SIZES, default=None, help="spaCy model size.")
+def corpus_audit(paths, report_path, skip_disagreements, model):
+    """Audit native RU gold before it is used as training seed."""
+    from ttc.corpora.audit import audit_native, format_report
+
+    cc = None
+    if not skip_disagreements:
+        cc = ttc.load("ru", model_size=model)
+    report = audit_native(list(paths), cc=cc)
+    text = format_report(report)
+    if report_path:
+        report_path.write_text(text, encoding="utf-8")
+        echo(f"report -> {report_path}")
+    else:
+        echo(text)
+    exit(0 if report.clean else 1)
+
+
 @cli.command("annotate")
 @click.argument("text_file", type=click.Path(exists=True, path_type=Path), nargs=1)
 @click.option(
