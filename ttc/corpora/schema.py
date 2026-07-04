@@ -28,6 +28,14 @@ class Replica:
     addressee: Optional[str] = None
     qtype: Optional[str] = None
     cue: Optional[Cue] = None
+    mode: Optional[str] = None
+    """Utterance category — how it is voiced, not who says it.
+
+    ``"speech"`` (spoken dialogue) or ``"thought"`` (internal monologue) so
+    far; ``None`` when the source does not distinguish. A thought is a
+    speaker-owned utterance a TTS engine still voices (possibly with a
+    different engine/voice than speech), so it is kept, never dropped.
+    """
 
 
 @dataclass
@@ -78,6 +86,7 @@ def doc_from_dict(d: dict) -> CorpusDoc:
                 addressee=r.get("addressee"),
                 qtype=r.get("qtype"),
                 cue=Cue(**r["cue"]) if r.get("cue") else None,
+                mode=r.get("mode"),
             )
             for r in d.get("replicas", [])
         ],
