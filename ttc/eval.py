@@ -226,3 +226,15 @@ def b_cubed(gold: list[set], pred: list[set]) -> tuple[float, float, float]:
     r = sum(len(gold_of[i] & pred_of[i]) / len(gold_of[i]) for i in items) / len(items)
     f1 = 2 * p * r / (p + r) if p + r else 0.0
     return p, r, f1
+
+
+def span_f1(
+    gold: list[tuple[int, int]], pred: list[tuple[int, int]]
+) -> tuple[float, float, float]:
+    """Exact-span-match precision/recall/F1."""
+    gold_set, pred_set = set(gold), set(pred)
+    if not gold_set or not pred_set:
+        return 0.0, 0.0, 0.0
+    hits = len(gold_set & pred_set)
+    p, r = hits / len(pred_set), hits / len(gold_set)
+    return p, r, (2 * p * r / (p + r) if p + r else 0.0)

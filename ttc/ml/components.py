@@ -44,3 +44,33 @@ def make_ttc_char_resolver(
         return doc
 
     return component
+
+
+@Language.factory(
+    "ttc_cue_detector", default_config={"package_dir": "", "mode": "learned"}
+)
+def make_ttc_cue_detector(nlp: Language, name: str, package_dir: str, mode: str):
+    from ttc.ml import cues as cues_mod
+    from ttc.ml.session import OnnxSession
+
+    extensions.register()
+    if mode == "rule":
+        from ttc.language.russian.dependency_patterns import (
+            ACTION_VERB_CONJUNCT_ACTOR,
+            ACTION_VERB_TO_ACTOR,
+        )
+
+        patterns = {
+            "verb_to_actor": ACTION_VERB_TO_ACTOR,
+            "verb_conjunct_actor": ACTION_VERB_CONJUNCT_ACTOR,
+        }
+        return lambda doc: (cues_mod.detect_rule(doc, patterns), doc)[1]
+    package = ModelPackage.from_dir(Path(package_dir))
+    encoder = Encoder(package)
+    session = OnnxSession(package.graph_path("cue"))
+
+    def component(doc: Doc) -> Doc:
+        cues_mod.detect_learned(doc, encoder, session)
+        return doc
+
+    return component
