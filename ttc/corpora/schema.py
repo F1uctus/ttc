@@ -23,6 +23,8 @@ class Replica:
     addressee: Optional[str] = None
     qtype: Optional[str] = None
     cue: Optional[Cue] = None
+    mode: Optional[str] = None
+    """"speech", "thought" or "indirect"; None when the source does not say."""
 
 
 @dataclass
@@ -73,6 +75,7 @@ def doc_from_dict(d: dict) -> CorpusDoc:
                 addressee=r.get("addressee"),
                 qtype=r.get("qtype"),
                 cue=Cue(**r["cue"]) if r.get("cue") else None,
+                mode=r.get("mode"),
             )
             for r in d.get("replicas", [])
         ],
