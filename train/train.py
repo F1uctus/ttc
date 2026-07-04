@@ -141,7 +141,7 @@ def run(
         )
         loss.backward()
         opt.step()
-        losses[task] = float(loss)
+        losses[task] = loss.item()
 
     stage_dir = out_dir / stage
     stage_dir.mkdir(parents=True, exist_ok=True)
@@ -176,8 +176,8 @@ def run(
     )
     with open("docs/eval-log.md", "a", encoding="utf-8") as f:
         f.write(
-            f"\n- train {stage} @ {commit}: losses {dict(losses)},"
-            f" mix {json.dumps(mix)[:200]}\n"
+            f"\n- train {stage} @ {commit}: "
+            f"losses {json.dumps(dict(losses))}, mix {json.dumps(mix)}\n"
         )
     return stage_dir / "model.pt"
 
