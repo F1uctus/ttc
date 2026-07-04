@@ -55,7 +55,7 @@ ttc = "ttc.cli:cli"
 [tool.black]
 line-length = 88
 # the .py suffix keeps black off data fixtures
-include = '/(tests|ttc)/.*\.pyi?$'
+include = '/(tests|ttc|train)/.*\.pyi?$'
 
 [tool.ruff]
 extend-exclude = ["*.ipynb"]
