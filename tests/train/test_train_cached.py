@@ -46,3 +46,29 @@ def test_train_heads_cached_runs(tmp_path: Path):
 
     m = AttributionModel(TINY, dim=None, hidden=cfg["heads"]["hidden"])
     m.load_state_dict(torch.load(out), strict=False)
+
+
+def test_run_routes_to_cached_by_default(tmp_path: Path):
+    from tests.train.test_data import _make_fixture
+    from train.cache import build_cache
+    from train.data import build_examples
+    from train.train import run
+
+    src = FIXTURES / "tiny_corpus.jsonl"
+    if not src.exists():
+        _make_fixture(src)
+    build = tmp_path / "build"
+    build_examples([src], build / "examples")
+    build_cache(build / "examples", build / "cache", TINY)
+    out = run(
+        Path("train/configs/base.cfg"),
+        stage="pretrain_nonru",
+        out_dir=tmp_path / "runs",
+        overrides={
+            "training.steps": "2",
+            "training.batch_size": "2",
+            "encoder.dim": "null",
+            "data.examples_dir": str(build / "examples"),
+        },
+    )
+    assert out.name == "heads.pt" and out.exists()  # default mode is "cached"

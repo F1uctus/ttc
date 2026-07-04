@@ -123,13 +123,15 @@ def run(
         cfg["encoder"]["checkpoint"], cfg["encoder"]["dim"], cfg["heads"]["hidden"]
     ).to(device)
     order = cfg["stages"]["order"]
+    # previous stage only: order[-1] would wrap to the last stage
     if (prev_i := order.index(stage)) > 0:
-        prev = out_dir / order[prev_i - 1] / "model.pt"
-        if prev.exists():
-            model.load_state_dict(torch.load(prev, map_location=device))
-
-    if (prev_heads := out_dir / order[order.index(stage) - 1] / "heads.pt").exists():
-        model.load_state_dict(torch.load(prev_heads, map_location=device), strict=False)
+        prev_dir = out_dir / order[prev_i - 1]
+        if (prev_model := prev_dir / "model.pt").exists():
+            model.load_state_dict(torch.load(prev_model, map_location=device))
+        if (prev_heads := prev_dir / "heads.pt").exists():
+            model.load_state_dict(
+                torch.load(prev_heads, map_location=device), strict=False
+            )
     n_unfreeze = int(cfg["encoder"].get("unfreeze_layers", 0))
     if n_unfreeze >= 0:
         for p in model.encoder.parameters():
