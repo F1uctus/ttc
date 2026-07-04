@@ -9,6 +9,9 @@ if TYPE_CHECKING:
 ADAPTERS: Dict[str, str] = {
     # source name -> module path; modules expose convert(path) -> Iterator[CorpusDoc]
     "native": "ttc.corpora.native",
+    "rusdracor": "ttc.corpora.rusdracor",
+    "pdnc": "ttc.corpora.pdnc",
+    "riqua": "ttc.corpora.riqua",
 }
 
 
