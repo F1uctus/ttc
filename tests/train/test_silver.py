@@ -60,3 +60,106 @@ def test_openrouter_llm_requires_key(monkeypatch):
     cc = ttc.load("ru", pipeline="rules")
     with pytest.raises(RuntimeError, match="OpenRouter API key"):
         openrouter_llm(cc)
+
+
+def test_rotating_respond_rotates_past_nonretryable():
+    from train.silver import _ProviderError, _rotating_respond
+
+    seen = []
+
+    def bad(_p):
+        seen.append("bad")
+        raise _ProviderError("down", retryable=False)
+
+    def good(_p):
+        seen.append("good")
+        return "[ok]"
+
+    respond = _rotating_respond([("bad", bad), ("good", good)], max_retries=3)
+    assert respond("x") == "[ok]"
+    assert seen == ["bad", "good"]
+
+
+def test_rotating_respond_retries_then_rotates():
+    from train.silver import _ProviderError, _rotating_respond
+
+    calls = {"n": 0}
+
+    def flaky(_p):
+        calls["n"] += 1
+        raise _ProviderError("limited", retryable=True, wait=0.0)
+
+    def good(_p):
+        return "[]"
+
+    respond = _rotating_respond([("flaky", flaky), ("good", good)], max_retries=3)
+    assert respond("x") == "[]"
+    assert calls["n"] == 3
+
+
+def test_rotating_respond_raises_when_all_exhausted():
+    from train.silver import _ProviderError, _rotating_respond
+
+    def bad(_p):
+        raise _ProviderError("nope", retryable=False)
+
+    respond = _rotating_respond([("a", bad), ("b", bad)], max_retries=1)
+    with pytest.raises(_ProviderError):
+        respond("x")
+
+
+def test_agent_provider_sniffs_quota_marker(monkeypatch):
+    import subprocess
+
+    from train.silver import _agent_provider, _ProviderError
+
+    class R:  # quota error on stdout with exit code 0
+        returncode = 0
+        stdout = "ActionRequiredError: You've hit your usage limit"
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: R())
+    with pytest.raises(_ProviderError, match="agent"):
+        _agent_provider("auto", 10)("prompt")
+
+
+def test_agent_provider_returns_json_output(monkeypatch):
+    import subprocess
+
+    from train.silver import _agent_provider
+
+    class R:
+        returncode = 0
+        stdout = '[{"replica_index":0,"speaker":"Ясна"}]'
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: R())
+    assert "Ясна" in _agent_provider("auto", 10)("prompt")
+
+
+def test_mixed_llm_agent_only_labels(monkeypatch):
+    import subprocess
+
+    import ttc
+    from train.silver import mixed_llm
+
+    class R:
+        returncode = 0
+        stdout = (
+            '[{"replica_index":0,"speaker":"Ясна"},'
+            '{"replica_index":1,"speaker":"Тозбек"}]'
+        )
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: R())
+    cc = ttc.load("ru", pipeline="rules")
+    llm = mixed_llm(cc, use_openrouter=False, agent_model="auto")
+    labels = llm("— Привет, — сказала Ясна.\n— И тебе, — ответил Тозбек.\n")
+    assert {d["speaker"] for d in labels} == {"Ясна", "Тозбек"}
+
+
+def test_mixed_llm_requires_a_provider(monkeypatch):
+    import ttc
+    from train.silver import mixed_llm
+
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    cc = ttc.load("ru", pipeline="rules")
+    with pytest.raises(RuntimeError, match="no providers"):
+        mixed_llm(cc, use_agent=False)  # no key and agent disabled

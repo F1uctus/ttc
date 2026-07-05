@@ -1,8 +1,12 @@
 """LLM silver labeling: rule-segmented replicas, LLM-assigned speakers."""
 
 import json
+import os
 import re
 import subprocess
+import time
+import urllib.error
+import urllib.request
 from collections.abc import Callable, Iterable, Iterator
 
 from ttc.corpora.schema import Character, CorpusDoc, Replica
@@ -125,6 +129,97 @@ FREE_MODELS = (
     "meta-llama/llama-3.2-3b-instruct:free",
 )
 
+# the agent CLI reports these on stdout with exit code 0
+_AGENT_FAIL_MARKERS = (
+    "usage limit",
+    "actionrequirederror",
+    "no payment method",
+    "is not supported",
+    "rate-limited",
+    "unexpected server error",
+)
+
+Provider = tuple[str, Callable[[str], str]]
+
+
+class _ProviderError(Exception):
+    """Provider failure; retryable ones are retried after wait, others rotate."""
+
+    def __init__(self, message: str, retryable: bool = False, wait: float = 0.0):
+        super().__init__(message)
+        self.retryable = retryable
+        self.wait = wait
+
+
+def _rotating_respond(providers: list[Provider], max_retries: int = 3) -> Respond:
+    """Try providers in order, retrying retryable errors; raise when all fail."""
+    if not providers:
+        raise RuntimeError("no LLM providers configured")
+
+    def respond(prompt: str) -> str:
+        last_err: Exception | None = None
+        for _name, call in providers:
+            for attempt in range(max_retries):
+                try:
+                    return call(prompt)
+                except _ProviderError as e:
+                    last_err = e
+                    if e.retryable and attempt < max_retries - 1:
+                        time.sleep(min(e.wait or 2**attempt, 20.0))
+                        continue
+                    break
+        raise last_err if last_err else RuntimeError("all providers failed")
+
+    return respond
+
+
+def _openrouter_provider(model: str, key: str, timeout: int) -> Callable[[str], str]:
+    def call(prompt: str) -> str:
+        body = json.dumps(
+            {"model": model, "messages": [{"role": "user", "content": prompt}]}
+        ).encode("utf-8")
+        req = urllib.request.Request(
+            "https://openrouter.ai/api/v1/chat/completions",
+            data=body,
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return json.loads(resp.read())["choices"][0]["message"]["content"]
+        except urllib.error.HTTPError as e:
+            retryable = e.code in (429, 500, 502, 503)
+            wait = float(e.headers.get("Retry-After") or 0) if retryable else 0.0
+            raise _ProviderError(f"openrouter {model}: HTTP {e.code}", retryable, wait)
+        except urllib.error.URLError as e:
+            raise _ProviderError(f"openrouter {model}: {e.reason}", retryable=True)
+
+    return call
+
+
+def _agent_provider(model: str, timeout: int) -> Callable[[str], str]:
+    def call(prompt: str) -> str:
+        argv = ["agent", "--print", "--output-format", "text", "--model", model, prompt]
+        try:
+            result = subprocess.run(
+                argv, capture_output=True, text=True, timeout=timeout, check=False
+            )
+        except subprocess.TimeoutExpired:
+            raise _ProviderError(f"agent {model}: timeout", retryable=True)
+        except FileNotFoundError:
+            raise _ProviderError(f"agent {model}: CLI not found", retryable=False)
+        out = result.stdout or ""
+        low = out.lower()
+        if result.returncode != 0 or any(mk in low for mk in _AGENT_FAIL_MARKERS):
+            raise _ProviderError(f"agent {model}: {out.strip()[:120]}", retryable=False)
+        if "[" not in out:
+            raise _ProviderError(f"agent {model}: no JSON in output", retryable=False)
+        return out
+
+    return call
+
 
 def openrouter_llm(
     cc,
@@ -135,50 +230,50 @@ def openrouter_llm(
     **kwargs,
 ):
     """OpenRouter backend; model may be a list of free model ids to rotate."""
-    import os
-    import time
-    import urllib.error
-    import urllib.request
-
     key = api_key or os.environ.get("OPENROUTER_API_KEY")
     if not key:
         raise RuntimeError(
             "OpenRouter API key required: set OPENROUTER_API_KEY or pass api_key="
         )
     models = [model] if isinstance(model, str) else list(model)
+    providers = [
+        (f"openrouter:{m}", _openrouter_provider(m, key, timeout)) for m in models
+    ]
+    return make_llm(cc, _rotating_respond(providers, max_retries), **kwargs)
 
-    def _call(m: str, body_prompt: str) -> str:
-        body = json.dumps(
-            {"model": m, "messages": [{"role": "user", "content": body_prompt}]}
-        ).encode("utf-8")
-        req = urllib.request.Request(
-            "https://openrouter.ai/api/v1/chat/completions",
-            data=body,
-            headers={
-                "Authorization": f"Bearer {key}",
-                "Content-Type": "application/json",
-            },
+
+def mixed_llm(
+    cc,
+    openrouter_models=FREE_MODELS,
+    agent_model: str = "auto",
+    api_key: str | None = None,
+    timeout: int = 300,
+    max_retries: int = 2,
+    use_agent: bool = True,
+    use_openrouter: bool = True,
+    **kwargs,
+):
+    """Rotate over OpenRouter free models, then the Cursor agent CLI."""
+    providers: list[Provider] = []
+    if use_openrouter:
+        key = api_key or os.environ.get("OPENROUTER_API_KEY")
+        if key:
+            models = (
+                [openrouter_models]
+                if isinstance(openrouter_models, str)
+                else list(openrouter_models)
+            )
+            providers += [
+                (f"openrouter:{m}", _openrouter_provider(m, key, timeout))
+                for m in models
+            ]
+    if use_agent:
+        providers.append(
+            (f"agent:{agent_model}", _agent_provider(agent_model, timeout))
         )
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read())["choices"][0]["message"]["content"]
-
-    def respond(prompt: str) -> str:
-        last_err: Exception | None = None
-        for m in models:
-            for attempt in range(max_retries):
-                try:
-                    return _call(m, prompt)
-                except urllib.error.HTTPError as e:
-                    last_err = e
-                    if e.code in (429, 500, 502, 503):  # transient: retry, then rotate
-                        if attempt < max_retries - 1:
-                            wait = float(e.headers.get("Retry-After") or 2**attempt)
-                            time.sleep(min(wait, 20.0))
-                            continue
-                        break
-                    if e.code in (400, 404, 413):  # model-specific reject: rotate now
-                        break
-                    raise  # auth errors are genuine
-        raise last_err if last_err else RuntimeError("openrouter: no models tried")
-
-    return make_llm(cc, respond, **kwargs)
+    if not providers:
+        raise RuntimeError(
+            "mixed_llm: no providers: set OPENROUTER_API_KEY and/or install the"
+            " `agent` CLI (or pass use_agent/use_openrouter)."
+        )
+    return make_llm(cc, _rotating_respond(providers, max_retries), **kwargs)

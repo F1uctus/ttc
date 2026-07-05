@@ -13,12 +13,16 @@ DASH = ("\N{EM DASH}", "\N{EN DASH}")
 
 def load_ru_prose(
     authors: Iterable[str] | None = None,
+    round_robin: bool = True,
 ) -> Iterator[tuple[str, str]]:
     """Yield (doc_id, text) for prose works, one author per pass if round_robin."""
+    from collections import OrderedDict
+
     from datasets import load_dataset
 
     keep = {a.lower() for a in authors} if authors else None
     ds = load_dataset(DATASET, split="train")
+    by_author: OrderedDict[str, list[tuple[str, str]]] = OrderedDict()
     for i, row in enumerate(ds):
         if row.get("type") != "prose":
             continue
@@ -27,32 +31,74 @@ def load_ru_prose(
             continue
         text = row.get("text") or ""
         if text.strip():
-            yield f"{author}/{i}", text
+            by_author.setdefault(author, []).append((f"{author}/{i}", text))
+
+    if not round_robin:
+        for works in by_author.values():
+            yield from works
+        return
+    iterators = {a: iter(works) for a, works in by_author.items()}
+    while iterators:
+        for author in list(iterators):
+            try:
+                yield next(iterators[author])
+            except StopIteration:
+                del iterators[author]
 
 
 def _dialogue_lines(chunk: str) -> int:
     return sum(1 for ln in chunk.splitlines() if ln.lstrip()[:1] in DASH)
 
 
+def _blocks(text: str, max_block: int) -> Iterator[str]:
+    """Paragraphs, with oversized ones split on single newlines."""
+    for para in re.split(r"\n\s*\n", text):
+        para = para.strip()
+        if not para:
+            continue
+        if len(para) <= max_block:
+            yield para
+            continue
+        buf: list[str] = []
+        size = 0
+        for line in para.split("\n"):
+            if buf and size + len(line) > max_block:
+                yield "\n".join(buf)
+                buf, size = [], 0
+            buf.append(line)
+            size += len(line) + 1
+        if buf:
+            yield "\n".join(buf)
+
+
 def dialogue_chunks(
-    text: str, target_chars: int = 2000, min_dialogue_lines: int = 2
+    text: str,
+    target_chars: int = 2000,
+    min_dialogue_lines: int = 2,
+    max_chars: int | None = None,
 ) -> Iterator[str]:
     """Dialogue chunks of about target_chars, at most max_chars, never mid-line."""
-    paras = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
+    cap = max_chars or target_chars * 2
     buf: list[str] = []
     size = 0
-    for para in paras:
-        buf.append(para)
-        size += len(para)
-        if size >= target_chars:
-            chunk = "\n\n".join(buf)
-            if _dialogue_lines(chunk) >= min_dialogue_lines:
+
+    def ready() -> str | None:
+        chunk = "\n\n".join(buf)
+        return chunk if _dialogue_lines(chunk) >= min_dialogue_lines else None
+
+    for block in _blocks(text, cap):
+        if buf and size + len(block) > cap:
+            if (chunk := ready()) is not None:
                 yield chunk
             buf, size = [], 0
-    if buf:
-        chunk = "\n\n".join(buf)
-        if _dialogue_lines(chunk) >= min_dialogue_lines:
-            yield chunk
+        buf.append(block)
+        size += len(block)
+        if size >= target_chars:
+            if (chunk := ready()) is not None:
+                yield chunk
+            buf, size = [], 0
+    if buf and (chunk := ready()) is not None:
+        yield chunk
 
 
 def build_silver_corpus(
@@ -120,11 +166,13 @@ def main() -> None:
     import argparse
 
     import ttc
-    from train.silver import agent_cli_llm, openrouter_llm
+    from train.silver import agent_cli_llm, mixed_llm, openrouter_llm
 
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--out", type=Path, required=True)
-    ap.add_argument("--backend", choices=["openrouter", "agent"], default="openrouter")
+    ap.add_argument(
+        "--backend", choices=["mixed", "openrouter", "agent"], default="mixed"
+    )
     ap.add_argument("--model", default=None)
     ap.add_argument("--authors", nargs="*", default=None)
     ap.add_argument("--max-docs", type=int, default=50)
@@ -133,7 +181,9 @@ def main() -> None:
     args = ap.parse_args()
 
     cc = ttc.load("ru", pipeline="rules")
-    if args.backend == "openrouter":
+    if args.backend == "mixed":
+        llm = mixed_llm(cc, agent_model=args.model or "auto")
+    elif args.backend == "openrouter":
         llm = openrouter_llm(cc, model=args.model) if args.model else openrouter_llm(cc)
     else:
         llm = agent_cli_llm(cc, model=args.model or "composer-2.5")
