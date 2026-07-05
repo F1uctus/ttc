@@ -170,12 +170,15 @@ def openrouter_llm(
                     return _call(m, prompt)
                 except urllib.error.HTTPError as e:
                     last_err = e
-                    if e.code not in (429, 500, 502, 503):
-                        raise
-                    if attempt < max_retries - 1:  # backoff, then retry same model
-                        wait = float(e.headers.get("Retry-After") or 2**attempt)
-                        time.sleep(min(wait, 20.0))
-            # this model stayed rate-limited: rotate to the next
+                    if e.code in (429, 500, 502, 503):  # transient: retry, then rotate
+                        if attempt < max_retries - 1:
+                            wait = float(e.headers.get("Retry-After") or 2**attempt)
+                            time.sleep(min(wait, 20.0))
+                            continue
+                        break
+                    if e.code in (400, 404, 413):  # model-specific reject: rotate now
+                        break
+                    raise  # auth errors are genuine
         raise last_err if last_err else RuntimeError("openrouter: no models tried")
 
     return make_llm(cc, respond, **kwargs)
