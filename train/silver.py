@@ -115,15 +115,29 @@ def agent_cli_llm(cc, model: str = "composer-2.5", **kwargs):
     )
 
 
+# distinct upstream providers, so one rate limit rarely blocks all
+FREE_MODELS = (
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "qwen/qwen3-next-80b-a3b-instruct:free",
+    "openai/gpt-oss-120b:free",
+    "google/gemma-4-31b-it:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
+    "meta-llama/llama-3.2-3b-instruct:free",
+)
+
+
 def openrouter_llm(
     cc,
-    model: str = "meta-llama/llama-3.3-70b-instruct:free",
+    model=FREE_MODELS,
     api_key: str | None = None,
     timeout: int = 300,
+    max_retries: int = 3,
     **kwargs,
 ):
     """OpenRouter backend; model may be a list of free model ids to rotate."""
     import os
+    import time
+    import urllib.error
     import urllib.request
 
     key = api_key or os.environ.get("OPENROUTER_API_KEY")
@@ -131,10 +145,11 @@ def openrouter_llm(
         raise RuntimeError(
             "OpenRouter API key required: set OPENROUTER_API_KEY or pass api_key="
         )
+    models = [model] if isinstance(model, str) else list(model)
 
-    def respond(prompt: str) -> str:
+    def _call(m: str, body_prompt: str) -> str:
         body = json.dumps(
-            {"model": model, "messages": [{"role": "user", "content": prompt}]}
+            {"model": m, "messages": [{"role": "user", "content": body_prompt}]}
         ).encode("utf-8")
         req = urllib.request.Request(
             "https://openrouter.ai/api/v1/chat/completions",
@@ -145,7 +160,22 @@ def openrouter_llm(
             },
         )
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            data = json.loads(resp.read())
-        return data["choices"][0]["message"]["content"]
+            return json.loads(resp.read())["choices"][0]["message"]["content"]
+
+    def respond(prompt: str) -> str:
+        last_err: Exception | None = None
+        for m in models:
+            for attempt in range(max_retries):
+                try:
+                    return _call(m, prompt)
+                except urllib.error.HTTPError as e:
+                    last_err = e
+                    if e.code not in (429, 500, 502, 503):
+                        raise
+                    if attempt < max_retries - 1:  # backoff, then retry same model
+                        wait = float(e.headers.get("Retry-After") or 2**attempt)
+                        time.sleep(min(wait, 20.0))
+            # this model stayed rate-limited: rotate to the next
+        raise last_err if last_err else RuntimeError("openrouter: no models tried")
 
     return make_llm(cc, respond, **kwargs)
