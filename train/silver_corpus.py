@@ -1,11 +1,12 @@
 """RU silver corpus from public-domain prose in RafaelUI/russian_literature."""
 
+import json
 import re
 from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 
 from train.silver import silver_label
-from ttc.corpora.schema import CorpusDoc, validate, write_jsonl
+from ttc.corpora.schema import CorpusDoc, to_dict, validate
 
 DATASET = "RafaelUI/russian_literature"
 DASH = ("\N{EM DASH}", "\N{EN DASH}")
@@ -114,45 +115,48 @@ def build_silver_corpus(
     on_doc: Callable[[CorpusDoc], None] | None = None,
 ) -> dict[str, int]:
     """Silver-label dialogue chunks into interchange JSONL and return run stats."""
-    docs: list[CorpusDoc] = []
-    issues = 0
-    failures = 0
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    kept = replicas = attributed = issues = failures = 0
     consecutive = 0
-    for doc_id, text in sources:
-        taken = 0
-        for ci, chunk in enumerate(
-            dialogue_chunks(_normalize_newlines(text), target_chars)
-        ):
-            if taken >= chunks_per_work or len(docs) >= max_docs:
-                break
-            try:
-                doc = next(
-                    silver_label(
-                        [chunk], llm, cc, doc_id_prefix=f"silver/{doc_id}/{ci}"
-                    )
-                )
-            except Exception:  # noqa: BLE001  # provider or network failure
-                failures += 1
-                consecutive += 1
-                if consecutive >= max_consecutive_failures:
+    with out_path.open("w", encoding="utf-8") as out:
+        for doc_id, text in sources:
+            taken = 0
+            for ci, chunk in enumerate(
+                dialogue_chunks(_normalize_newlines(text), target_chars)
+            ):
+                if taken >= chunks_per_work or kept >= max_docs:
                     break
-                continue
-            consecutive = 0
-            attributed = sum(1 for r in doc.replicas if r.speaker)
-            if attributed < min_attributed:
-                continue
-            issues += len(validate(doc))
-            docs.append(doc)
-            taken += 1
-            if on_doc:
-                on_doc(doc)
-        if len(docs) >= max_docs or consecutive >= max_consecutive_failures:
-            break
-    n = write_jsonl(docs, out_path)
+                try:
+                    doc = next(
+                        silver_label(
+                            [chunk], llm, cc, doc_id_prefix=f"silver/{doc_id}/{ci}"
+                        )
+                    )
+                except Exception:  # noqa: BLE001  # provider or network failure
+                    failures += 1
+                    consecutive += 1
+                    if consecutive >= max_consecutive_failures:
+                        break
+                    continue
+                consecutive = 0
+                n_attr = sum(1 for r in doc.replicas if r.speaker)
+                if n_attr < min_attributed:
+                    continue
+                issues += len(validate(doc))
+                out.write(json.dumps(to_dict(doc), ensure_ascii=False) + "\n")
+                out.flush()
+                kept += 1
+                taken += 1
+                replicas += len(doc.replicas)
+                attributed += n_attr
+                if on_doc:
+                    on_doc(doc)
+            if kept >= max_docs or consecutive >= max_consecutive_failures:
+                break
     return {
-        "docs": n,
-        "replicas": sum(len(d.replicas) for d in docs),
-        "attributed": sum(sum(1 for r in d.replicas if r.speaker) for d in docs),
+        "docs": kept,
+        "replicas": replicas,
+        "attributed": attributed,
         "issues": issues,
         "failures": failures,
     }
