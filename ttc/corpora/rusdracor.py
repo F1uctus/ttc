@@ -60,9 +60,7 @@ def parse_tei(xml_text: str, doc_id: str) -> CorpusDoc:
             if who in known:
                 mentions.append(Mention(m_start, m_end, who))
         utterance = " ".join(
-            t
-            for child in sp
-            if child.tag != f"{TEI}speaker" and (t := _text_of(child))
+            t for child in sp if child.tag != f"{TEI}speaker" and (t := _text_of(child))
         )
         if utterance:
             r_start, r_end = append(utterance)

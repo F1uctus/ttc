@@ -16,6 +16,8 @@ from pathlib import Path
 from typing import Dict, Iterator, List, Optional
 from xml.etree import ElementTree
 
+from ttc.corpora.schema import Character, CorpusDoc, Mention, Replica
+
 CAS = "{http:///uima/cas.ecore}"
 TYPE = "{http:///de/uniwue/kalimachos/coref/type.ecore}"
 XMI_ID = "{http://www.omg.org/XMI}id"
@@ -30,8 +32,6 @@ CATEGORY_MODE = {
     "thought": "thought",
     "other": "speech",
 }
-
-from ttc.corpora.schema import Character, CorpusDoc, Mention, Replica
 
 
 def parse_xmi(xml_text: str, doc_id: str) -> CorpusDoc:
@@ -48,9 +48,10 @@ def parse_xmi(xml_text: str, doc_id: str) -> CorpusDoc:
     for ne in root.iter(f"{TYPE}NamedEntity"):
         xmi_id = ne.get(XMI_ID)
         cluster = ne.get("ID")
-        if xmi_id is None or cluster is None:
+        begin_s, end_s = ne.get("begin"), ne.get("end")
+        if xmi_id is None or cluster is None or begin_s is None or end_s is None:
             continue
-        begin, end = int(ne.get("begin")), int(ne.get("end"))
+        begin, end = int(begin_s), int(end_s)
         name = ne.get("Name") or ""
         cid = f"char_{cluster}"
         ne_by_xmi[xmi_id] = (begin, end, name, cid)
@@ -60,11 +61,11 @@ def parse_xmi(xml_text: str, doc_id: str) -> CorpusDoc:
     def representative(names: List[str]) -> str:
         # longest non-pronominal surface form is the readable canonical name
         real = [n for n in names if n and n.lower() not in ("er", "sie", "es")]
-        return max(real or names or [""], key=len)
+        candidates: List[str] = real or names or [""]
+        return max(candidates, key=lambda s: len(s))
 
     characters = [
-        Character(cid, representative(names))
-        for cid, names in cluster_names.items()
+        Character(cid, representative(names)) for cid, names in cluster_names.items()
     ]
 
     def speaker_char(ref: Optional[str]) -> Optional[str]:
@@ -76,7 +77,10 @@ def parse_xmi(xml_text: str, doc_id: str) -> CorpusDoc:
         mode = CATEGORY_MODE.get(category)
         if mode is None:  # e.g. "name" — not a spoken/thought utterance
             continue
-        begin, end = int(ds.get("begin")), int(ds.get("end"))
+        begin_s, end_s = ds.get("begin"), ds.get("end")
+        if begin_s is None or end_s is None:
+            continue
+        begin, end = int(begin_s), int(end_s)
         replicas.append(
             Replica(
                 begin,

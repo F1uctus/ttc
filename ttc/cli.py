@@ -64,7 +64,7 @@ def eval_corpus(
         if blocked:
             echo(
                 "Refusing to list per-replica errors for held-out texts:"
-                f" {', '.join(map(str, blocked))}\n"
+                f" {', '.join(str(p) for p in blocked)}\n"
                 "Held-out data is for aggregate numbers only while tuning;"
                 " pass --unblind-heldout if you really need this."
             )
@@ -86,9 +86,7 @@ def eval_corpus(
                 jsonlib.dumps(
                     {
                         "path": str(path),
-                        "files": [
-                            {**asdict(r), "path": str(r.path)} for r in reports
-                        ],
+                        "files": [{**asdict(r), "path": str(r.path)} for r in reports],
                         "end_to_end_accuracy": total.end_to_end_accuracy,
                         "attribution_accuracy": total.attribution_accuracy,
                         "extraction_precision": total.extraction_precision,
@@ -267,11 +265,7 @@ def print_play(file: TextIO, language, with_text: bool, model):
     }
 
     echo("Actors found:")
-    echo(
-        ", ".join(
-            style(s.text, fg=c) for _, (s, c) in actor_colors.items()
-        )
-    )
+    echo(", ".join(style(s.text, fg=c) for _, (s, c) in actor_colors.items()))
 
     first_col_w = max(len(str(s)) for s in play.actors)
     for r, s in play.lines:
@@ -306,9 +300,7 @@ def print_play(file: TextIO, language, with_text: bool, model):
                 if i == replica.start_char:
                     if actor:
                         echo(
-                            style(
-                                "", fg=actor_colors[actor.lemma_][1], reset=False
-                            ),
+                            style("", fg=actor_colors[actor.lemma_][1], reset=False),
                             nl=False,
                         )
 

@@ -66,9 +66,7 @@ def extract_replicas(
         if len(match) > 2 and is_hyphen(match[-2]) and match[-1].is_title:
             sample = match[:-2]
         sample = trim_non_word(sample)
-        return any(
-            "nsubj" in t.dep_ and t.pos in (NOUN, PROPN, PRON) for t in sample
-        )
+        return any("nsubj" in t.dep_ and t.pos in (NOUN, PROPN, PRON) for t in sample)
 
     def is_author_annotation(match: Span) -> bool:
         sample = match
@@ -250,8 +248,7 @@ def extract_replicas(
                         break
                     # - 1 is a line break offset
                     if is_author_annotation(match) and (
-                        match.end >= doc_length - 1
-                        or has_newline(doc[match.end - 1])
+                        match.end >= doc_length - 1 or has_newline(doc[match.end - 1])
                     ):
                         flush_replica(is_before_author_ending)
                         states.append("author")
