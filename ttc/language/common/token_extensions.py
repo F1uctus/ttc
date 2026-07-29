@@ -1,8 +1,8 @@
-from typing import Union, Callable
+from collections.abc import Callable
 
-from spacy.tokens import Token, Span
+from spacy.tokens import Span, Token
 
-from ttc.language.common.constants import OPEN_QUOTES, CLOSE_QUOTES
+from ttc.language.common.constants import CLOSE_QUOTES, OPEN_QUOTES
 
 
 def is_open_quote(self: Token):
@@ -31,7 +31,7 @@ def morph_equals(self: Token, other: Token, *morphs: str) -> bool:
     return morph_distance(self, other, *morphs) == 0
 
 
-def as_span(self: Union[Token, Span]) -> Span:
+def as_span(self: Token | Span) -> Span:
     if isinstance(self, Span):
         return self
     return self.doc[self.i : self.i + 1]
@@ -41,7 +41,7 @@ def non_word(self: Token) -> bool:
     return self.is_punct or has_newline(self)
 
 
-def noun_chunk(self: Union[Token, Span]) -> Span:
+def noun_chunk(self: Token | Span) -> Span:
     from ttc.language.common.span_extensions import is_inside
 
     span = self if isinstance(self, Span) else as_span(self)

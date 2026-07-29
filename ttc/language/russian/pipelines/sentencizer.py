@@ -1,4 +1,4 @@
-from typing import Optional, List, Callable
+from collections.abc import Callable
 
 import spacy
 from spacy import Language
@@ -23,9 +23,9 @@ NAME = "patched_sentencizer"
 def make_sentencizer(
     nlp: Language,
     name: str,
-    punct_chars: Optional[List[str]],
+    punct_chars: list[str] | None,
     overwrite: bool,
-    scorer: Optional[Callable],
+    scorer: Callable | None,
 ):
     return Sentencizer(
         name, punct_chars=punct_chars, overwrite=overwrite, scorer=scorer

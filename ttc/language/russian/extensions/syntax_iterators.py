@@ -1,13 +1,13 @@
-from typing import Iterator, Union, Tuple, Optional
+from collections.abc import Iterator
 
 from spacy import Errors
 from spacy.symbols import (  # type: ignore
-    NOUN,
-    PROPN,
-    PRON,
-    NUM,
     ADP,
     CCONJ,
+    NOUN,
+    NUM,
+    PRON,
+    PROPN,
 )
 from spacy.tokens import Doc, Span, Token
 
@@ -46,7 +46,7 @@ RIGHT_DEP_LABELS = [
 ]
 
 
-def get_right_adp(t: Token) -> Optional[Token]:
+def get_right_adp(t: Token) -> Token | None:
     """e.g: t=человек + [с ножом]"""
     if t.i + 2 >= len(t.doc):
         return None
@@ -57,7 +57,7 @@ def get_right_adp(t: Token) -> Optional[Token]:
 
 
 # TODO: caching
-def noun_chunks(doclike: Union[Doc, Span]) -> Iterator[Tuple[int, int, int]]:
+def noun_chunks(doclike: Doc | Span) -> Iterator[tuple[int, int, int]]:
     def are_uniform(t1: Token, t2: Token) -> bool:
         return morph_equals(t1, t2, "Number", "Case", "Voice")
 

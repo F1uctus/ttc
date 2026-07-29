@@ -1,5 +1,5 @@
 from spacy import Language
-from spacy.tokens import Doc, Token, Span
+from spacy.tokens import Doc, Span, Token
 
 from ttc.language.common.token_extensions import has_newline
 

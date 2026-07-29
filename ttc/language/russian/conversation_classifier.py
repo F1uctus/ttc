@@ -1,12 +1,11 @@
 import os
 import warnings
 from dataclasses import dataclass
-from typing import Dict, Optional
 
 import spacy
 from spacy import Language
 from spacy.matcher import Matcher
-from spacy.tokens import Doc, Token, Span
+from spacy.tokens import Doc, Span, Token
 
 import ttc.language.russian.pipelines as russian_pipelines
 from ttc.language import ConversationClassifier, Dialogue, Play
@@ -17,8 +16,8 @@ from ttc.language.russian.pipelines.actor_classifier import classify_actors
 from ttc.language.russian.pipelines.replicizer import extract_replicas
 from ttc.language.russian.token_extensions import TOKEN_EXTENSIONS as RU_TOKEN_EXTS
 from ttc.language.russian.token_patterns import (
-    TokenMatcherClass,
     TOKEN_MATCHER_CLASSES,
+    TokenMatcherClass,
     TokenPattern,
 )
 
@@ -26,9 +25,9 @@ from ttc.language.russian.token_patterns import (
 @dataclass
 class RussianConversationClassifier(ConversationClassifier):
     language: Language
-    token_matchers: Dict[TokenMatcherClass, Matcher]
+    token_matchers: dict[TokenMatcherClass, Matcher]
 
-    def __init__(self, model_size: Optional[str] = None):
+    def __init__(self, model_size: str | None = None):
         super().__init__()
         size = model_size or os.environ.get("TTC_RU_MODEL", "lg")
         try:

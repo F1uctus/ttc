@@ -1,7 +1,7 @@
 """QuoteLi3 adapter: inline quote/mention XML (Muzny et al. 2017)."""
 
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Dict, Iterator, List, Tuple
 from xml.etree import ElementTree
 
 from ttc.corpora.schema import Character, CorpusDoc, Mention, Replica
@@ -12,8 +12,8 @@ GENDERS = {"male": "m", "female": "f"}
 def parse_xml(xml_text: str, doc_id: str) -> CorpusDoc:
     root = ElementTree.fromstring(xml_text)
 
-    characters: List[Character] = []
-    by_name: Dict[str, str] = {}
+    characters: list[Character] = []
+    by_name: dict[str, str] = {}
     for ch in root.iter("character"):
         name = ch.get("name") or ""
         cid = f"char_{len(characters)}"
@@ -24,12 +24,12 @@ def parse_xml(xml_text: str, doc_id: str) -> CorpusDoc:
         for key in [name, *aliases]:
             by_name.setdefault(key, cid)
 
-    parts: List[str] = []
+    parts: list[str] = []
     pos = 0
-    replicas: List[Replica] = []
-    mentions: List[Mention] = []
+    replicas: list[Replica] = []
+    mentions: list[Mention] = []
 
-    def emit(chunk: str) -> Tuple[int, int]:
+    def emit(chunk: str) -> tuple[int, int]:
         nonlocal pos
         start = pos
         parts.append(chunk)

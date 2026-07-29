@@ -6,7 +6,6 @@ import webbrowser
 from collections import Counter
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from ttc.corpus import (
     DELIMITER,
@@ -19,7 +18,7 @@ from ttc.corpus import (
 PALETTE_LIMIT = 15
 
 
-def build_payload(cc, text: str, prefill: Optional[Dict[str, str]] = None) -> dict:
+def build_payload(cc, text: str, prefill: dict[str, str] | None = None) -> dict:
     """Replicas with predicted or prefilled speakers, plus a character palette."""
     dialogue = cc.extract_dialogue(text)
     play = cc.connect_play(dialogue)
@@ -222,8 +221,8 @@ render();
 """
 
 
-def parse_alias_block(alias_text: str) -> Dict[str, List[str]]:
-    aliases: Dict[str, List[str]] = {}
+def parse_alias_block(alias_text: str) -> dict[str, list[str]]:
+    aliases: dict[str, list[str]] = {}
     for line in alias_text.strip().split("\n"):
         if not (line := line.strip()) or line.startswith("#"):
             continue
@@ -296,7 +295,7 @@ def run_server(text: str, payload: dict, out_path: Path, port: int) -> None:
 
 def run(cc, text_file: Path, out_path: Path, port: int = 8765) -> None:
     content = text_file.read_text(encoding="utf-8")
-    prefill: Optional[Dict[str, str]] = None
+    prefill: dict[str, str] | None = None
     if DELIMITER in content:
         existing = parse_corpus_content(content, text_file)
         text = existing.text

@@ -1,26 +1,27 @@
 from collections import deque
-from typing import Literal, Callable, Optional, List, Dict, Set, Deque, Final, Any
+from collections.abc import Callable
+from typing import Any, Final, Literal
 
 from spacy import Language
-from spacy.matcher import Matcher, DependencyMatcher
-from spacy.symbols import NOUN, PRON, PROPN, VERB, AUX, parataxis  # type: ignore
-from spacy.tokens import Token, Span, Doc
+from spacy.matcher import DependencyMatcher, Matcher
+from spacy.symbols import AUX, NOUN, PRON, PROPN, VERB, parataxis  # type: ignore
+from spacy.tokens import Doc, Span, Token
 
 from ttc.language.common.span_extensions import (
-    is_before_author_insertion,
-    is_before_author_ending,
     is_after_author_starting,
+    is_before_author_ending,
+    is_before_author_insertion,
     is_unannotated_alternation,
     trim_non_word,
 )
 from ttc.language.common.token_extensions import (
-    is_open_quote,
-    is_close_quote,
     has_newline,
+    is_close_quote,
+    is_open_quote,
 )
 from ttc.language.russian.dependency_patterns import (
-    ACTION_VERB_TO_ACTOR,
     ACTION_VERB_CONJUNCT_ACTOR,
+    ACTION_VERB_TO_ACTOR,
 )
 from ttc.language.russian.token_extensions import (
     is_hyphen,
@@ -28,7 +29,7 @@ from ttc.language.russian.token_extensions import (
 from ttc.language.russian.token_patterns import TokenMatcherClass
 
 
-def depends_on(match: Span, phrase: Set[Token]):
+def depends_on(match: Span, phrase: set[Token]):
     """
     Checks if some word in a match is a semantic children of a phrase.
     That is a sign of a complex sentence construct containing a hyphen,
@@ -44,15 +45,15 @@ def depends_on(match: Span, phrase: Set[Token]):
 def extract_replicas(
     doc: Doc,
     language: Language,
-    matchers: Dict[TokenMatcherClass, Matcher],
-) -> List[Span]:
+    matchers: dict[TokenMatcherClass, Matcher],
+) -> list[Span]:
     """
     Extract replicas from a Doc object.
     Replicas are speech elements in a text that are often attributed to specific characters.
     The function uses a state machine to process the text and identify the replicas.
     """
-    replicas: List[Span] = []
-    tokens: Final[List[Token]] = []
+    replicas: list[Span] = []
+    tokens: Final[list[Token]] = []
 
     dep_matcher = DependencyMatcher(language.vocab)
     dep_matcher.add("*", [ACTION_VERB_TO_ACTOR])
@@ -97,10 +98,7 @@ def extract_replicas(
         if not any(t.pos in (VERB, AUX) for t in sample):
             return False
 
-        if not any(t.pos in (NOUN, PROPN, PRON) for t in sample):
-            return False
-
-        return True
+        return any(t.pos in (NOUN, PROPN, PRON) for t in sample)
 
     def flush_replica(*tags: Callable[[Span], Any]):
         if tokens:
@@ -110,7 +108,7 @@ def extract_replicas(
             replicas.append(replica_span)
             tokens.clear()
 
-    states: Deque[
+    states: deque[
         Literal[
             "author",
             "author_insertion",
@@ -126,9 +124,9 @@ def extract_replicas(
     while ti + 1 < doc_length:
         ti += 1
 
-        pt: Optional[Token] = doc[ti - 1] if ti > 0 else None
-        nt: Optional[Token] = doc[ti + 1] if ti + 1 < doc_length else None
-        nnt: Optional[Token] = doc[ti + 2] if ti + 2 < doc_length else None
+        pt: Token | None = doc[ti - 1] if ti > 0 else None
+        nt: Token | None = doc[ti + 1] if ti + 1 < doc_length else None
+        nnt: Token | None = doc[ti + 2] if ti + 2 < doc_length else None
         t: Token = doc[ti]
 
         state = states[-1]
@@ -203,7 +201,7 @@ def extract_replicas(
                 results = matchers["AUTHOR_INSERTION"](
                     doc[pt.i : line_end_i + 1], as_spans=True
                 )
-                match: Optional[Span] = None
+                match: Span | None = None
                 for m in results:
                     if m.start != pt.i:
                         continue
@@ -226,34 +224,33 @@ def extract_replicas(
                 results = matchers["AUTHOR_ENDING"](
                     doc[pt.i : line_end_i + 1], as_spans=True
                 )
-                for match in results:
-                    match: Span = match
-                    if match.start != pt.i:
+                for m in results:
+                    if m.start != pt.i:
                         continue
                     # may be an interrogative or exclamatory ending of a speech
                     # e.g. После всего этого, — что ты еще сказал?
-                    if match[0] != pt and match[0].is_punct:
+                    if m[0] != pt and m[0].is_punct:
                         tokens.append(t)
                         break
-                    if depends_on(match, phrase) and not (
+                    if depends_on(m, phrase) and not (
                         (pt and pt.text in SENTENCE_END_PUNCT)
-                        or has_explicit_subject(match)
+                        or has_explicit_subject(m)
                     ):
                         continue
-                    if is_author_annotation(match):
+                    if is_author_annotation(m):
                         flush_replica(is_before_author_ending)
                         states.append("author")
                         # skip to the end of author ending
-                        ti = match.end - 1
+                        ti = m.end - 1
                         break
                     # - 1 is a line break offset
-                    if is_author_annotation(match) and (
-                        match.end >= doc_length - 1 or has_newline(doc[match.end - 1])
+                    if is_author_annotation(m) and (
+                        m.end >= doc_length - 1 or has_newline(doc[m.end - 1])
                     ):
                         flush_replica(is_before_author_ending)
                         states.append("author")
                         # skip to the end of author ending
-                        ti = match.end - 1
+                        ti = m.end - 1
                         break
                 else:
                     tokens.append(t)

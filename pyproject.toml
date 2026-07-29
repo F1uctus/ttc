@@ -44,15 +44,15 @@ ttc = "ttc.cli:cli"
 
 [tool.black]
 line-length = 88
-include = '''
-(
-  /(
-      tests
-    | ttc
-  )
-)
-'''
+# the .py suffix keeps black off data fixtures
+include = '/(tests|ttc)/.*\.pyi?$'
 
 [tool.ruff]
 extend-exclude = ["*.ipynb"]
-lint.ignore = ["E741"]
+
+[tool.ruff.lint]
+ignore = ["E741"]
+
+[tool.ruff.lint.per-file-ignores]
+# Enum members are singletons, not shared mutable state
+"ttc/language/russian/token_patterns.py" = ["RUF012"]
