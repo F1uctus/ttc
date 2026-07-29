@@ -15,7 +15,6 @@ as one identity.
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 DELIMITER = "-" * 20
 
@@ -29,34 +28,34 @@ class CorpusFile:
     text: str
     """Raw input text (the part fed to the pipeline)."""
 
-    pairs: List[Tuple[str, str]] = field(default_factory=list)
+    pairs: list[tuple[str, str]] = field(default_factory=list)
     """Ordered (actor, replica text) gold annotations."""
 
-    aliases: Dict[str, str] = field(default_factory=dict)
+    aliases: dict[str, str] = field(default_factory=dict)
     """Normalized alias -> normalized canonical actor name."""
 
-    path: Optional[Path] = None
+    path: Path | None = None
 
 
 def normalize_name(name: str) -> str:
     return " ".join(name.split()).lower().replace("ё", "е")
 
 
-def canonical_actor(name: Optional[str], aliases: Dict[str, str]) -> str:
+def canonical_actor(name: str | None, aliases: dict[str, str]) -> str:
     if name is None:
         return UNATTRIBUTED
     n = normalize_name(name)
     return aliases.get(n, n)
 
 
-def parse_corpus_content(content: str, path: Optional[Path] = None) -> CorpusFile:
+def parse_corpus_content(content: str, path: Path | None = None) -> CorpusFile:
     sections = content.split(DELIMITER)
     if len(sections) > 3:
         raise ValueError(f"{path or 'corpus content'}: too many section delimiters")
 
     text = sections[0].strip()
-    pairs: List[Tuple[str, str]] = []
-    aliases: Dict[str, str] = {}
+    pairs: list[tuple[str, str]] = []
+    aliases: dict[str, str] = {}
 
     if len(sections) > 1:
         for line in sections[1].strip().split("\n"):
@@ -90,8 +89,8 @@ def load_corpus_file(path: Path) -> CorpusFile:
 
 def serialize_corpus_file(
     text: str,
-    pairs: List[Tuple[str, str]],
-    aliases: Optional[Dict[str, List[str]]] = None,
+    pairs: list[tuple[str, str]],
+    aliases: dict[str, list[str]] | None = None,
 ) -> str:
     """Inverse of :func:`parse_corpus_content`.
 
@@ -108,6 +107,6 @@ def serialize_corpus_file(
     return "\n".join(parts) + "\n"
 
 
-def find_corpus_files(root: Path, recursive: bool = True) -> List[Path]:
+def find_corpus_files(root: Path, recursive: bool = True) -> list[Path]:
     pattern = "**/*.txt" if recursive else "*.txt"
     return sorted(p for p in root.glob(pattern) if "raw" not in p.parts)

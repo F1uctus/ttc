@@ -12,8 +12,8 @@ dropped. Bare ``name`` mentions are the only skipped category. 90
 canonical fragments live under ``droc/DROC-xmi/``.
 """
 
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Dict, Iterator, List, Optional
 from xml.etree import ElementTree
 
 from ttc.corpora.schema import Character, CorpusDoc, Mention, Replica
@@ -42,9 +42,9 @@ def parse_xmi(xml_text: str, doc_id: str) -> CorpusDoc:
     text = text or ""
 
     # NamedEntity: xmi:id -> (begin, end, name, cluster_id)
-    ne_by_xmi: Dict[str, tuple] = {}
-    cluster_names: Dict[str, List[str]] = {}
-    mentions: List[Mention] = []
+    ne_by_xmi: dict[str, tuple] = {}
+    cluster_names: dict[str, list[str]] = {}
+    mentions: list[Mention] = []
     for ne in root.iter(f"{TYPE}NamedEntity"):
         xmi_id = ne.get(XMI_ID)
         cluster = ne.get("ID")
@@ -58,20 +58,20 @@ def parse_xmi(xml_text: str, doc_id: str) -> CorpusDoc:
         cluster_names.setdefault(cid, []).append(name)
         mentions.append(Mention(begin, end, cid))
 
-    def representative(names: List[str]) -> str:
+    def representative(names: list[str]) -> str:
         # longest non-pronominal surface form is the readable canonical name
         real = [n for n in names if n and n.lower() not in ("er", "sie", "es")]
-        candidates: List[str] = real or names or [""]
+        candidates: list[str] = real or names or [""]
         return max(candidates, key=lambda s: len(s))
 
     characters = [
         Character(cid, representative(names)) for cid, names in cluster_names.items()
     ]
 
-    def speaker_char(ref: Optional[str]) -> Optional[str]:
+    def speaker_char(ref: str | None) -> str | None:
         return ne_by_xmi[ref][3] if ref and ref in ne_by_xmi else None
 
-    replicas: List[Replica] = []
+    replicas: list[Replica] = []
     for ds in root.iter(f"{TYPE}DirectSpeech"):
         category = (ds.get("Category") or "directspeech").lower()
         mode = CATEGORY_MODE.get(category)

@@ -1,8 +1,8 @@
 from pathlib import Path
 
+from tests.corpora.util import assert_matches_golden
 from ttc.corpora.quoteli3 import convert
 from ttc.corpora.schema import validate
-from tests.corpora.util import assert_matches_golden
 
 FIXTURES = Path(__file__).parent / "fixtures" / "quoteli3"
 

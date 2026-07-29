@@ -9,26 +9,26 @@ item becomes its own CorpusDoc with ``text = context``.
 
 import json
 import warnings
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Dict, Iterator, List, Optional
 
 from ttc.corpora.schema import Character, CorpusDoc, Cue, Mention, Replica
 
 
-def _item_doc(item: dict, doc_id: str) -> Optional[CorpusDoc]:
+def _item_doc(item: dict, doc_id: str) -> CorpusDoc | None:
     text: str = item.get("context") or ""
     quote: str = item.get("quote") or ""
-    labels: Dict = item.get("labels") or {}
+    labels: dict = item.get("labels") or {}
     start = text.find(quote)
     if not text or not quote or start < 0:
         warnings.warn(f"{doc_id}: quote not found in context: {quote[:30]!r}")
         return None
     end = start + len(quote)
 
-    by_name: Dict[str, str] = {}
-    characters: List[Character] = []
+    by_name: dict[str, str] = {}
+    characters: list[Character] = []
 
-    def char_id(name: Optional[str]) -> Optional[str]:
+    def char_id(name: str | None) -> str | None:
         if not name:
             return None
         if name not in by_name:
@@ -48,7 +48,7 @@ def _item_doc(item: dict, doc_id: str) -> Optional[CorpusDoc]:
         if cue_start >= 0:
             cue = Cue(cue_start, cue_start + len(cue_text))
 
-    mentions: List[Mention] = []
+    mentions: list[Mention] = []
     if (m_text := labels.get("说话人-mention")) and speaker:
         m_start = text.rfind(m_text, 0, start)
         if m_start < 0:

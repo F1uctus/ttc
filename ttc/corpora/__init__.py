@@ -1,12 +1,14 @@
 """Corpus adapters converting public corpora into the interchange schema."""
 
-from typing import Callable, Dict, Iterator, TYPE_CHECKING
+from collections.abc import Callable, Iterator
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pathlib import Path
+
     from ttc.corpora.schema import CorpusDoc
 
-ADAPTERS: Dict[str, str] = {
+ADAPTERS: dict[str, str] = {
     # source name -> module path; modules expose convert(path) -> Iterator[CorpusDoc]
     "native": "ttc.corpora.native",
     "rusdracor": "ttc.corpora.rusdracor",

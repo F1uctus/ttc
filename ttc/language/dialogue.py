@@ -1,12 +1,11 @@
 from dataclasses import dataclass
-from typing import List
 
 from spacy import Language
-from spacy.tokens import Span, Doc
+from spacy.tokens import Doc, Span
 
 
 @dataclass
 class Dialogue:
     language: Language
     doc: Doc
-    replicas: List[Span]
+    replicas: list[Span]

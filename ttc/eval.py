@@ -13,13 +13,12 @@ import time
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 from spacy.tokens import Span
 
 from ttc.corpus import (
-    CorpusFile,
     UNATTRIBUTED,
+    CorpusFile,
     canonical_actor,
     find_corpus_files,
     load_corpus_file,
@@ -42,19 +41,19 @@ class Counters:
     n_attr_correct: int = 0
 
     @property
-    def extraction_precision(self) -> Optional[float]:
+    def extraction_precision(self) -> float | None:
         return self.n_matched / self.n_pred if self.n_pred else None
 
     @property
-    def extraction_recall(self) -> Optional[float]:
+    def extraction_recall(self) -> float | None:
         return self.n_matched / self.n_gold if self.n_gold else None
 
     @property
-    def attribution_accuracy(self) -> Optional[float]:
+    def attribution_accuracy(self) -> float | None:
         return self.n_attr_correct / self.n_matched if self.n_matched else None
 
     @property
-    def end_to_end_accuracy(self) -> Optional[float]:
+    def end_to_end_accuracy(self) -> float | None:
         return self.n_attr_correct / self.n_gold if self.n_gold else None
 
     def add(self, other: "Counters") -> None:
@@ -66,14 +65,14 @@ class Counters:
 
 @dataclass
 class FileReport(Counters):
-    path: Optional[Path] = None
-    errors: List[AttrError] = field(default_factory=list)
+    path: Path | None = None
+    errors: list[AttrError] = field(default_factory=list)
     seconds: float = 0.0
     lang: str = "ru"
-    qtype_counters: Dict[str, Counters] = field(default_factory=dict)
+    qtype_counters: dict[str, Counters] = field(default_factory=dict)
 
 
-def pred_actor_key(actor: Optional[Span], aliases: Dict[str, str]) -> str:
+def pred_actor_key(actor: Span | None, aliases: dict[str, str]) -> str:
     """Canonicalize a predicted actor span.
 
     Predictions are often inflected surface forms («Ясну»), so when the
@@ -91,7 +90,7 @@ def pred_actor_key(actor: Optional[Span], aliases: Dict[str, str]) -> str:
     return surface
 
 
-def align_replicas(gold: List[str], pred: List[str]) -> List[Tuple[int, int]]:
+def align_replicas(gold: list[str], pred: list[str]) -> list[tuple[int, int]]:
     matcher = SequenceMatcher(a=gold, b=pred, autojunk=False)
     return [
         (block.a + k, block.b + k)
@@ -136,7 +135,7 @@ def evaluate_interchange_doc(cc, doc) -> FileReport:
     seconds = time.perf_counter() - started
 
     names = {c.id: normalize_name(c.name) for c in doc.characters}
-    aliases: Dict[str, str] = {}
+    aliases: dict[str, str] = {}
     for c in doc.characters:
         aliases[normalize_name(c.name)] = names[c.id]
         for alias in c.aliases:
@@ -173,26 +172,26 @@ def evaluate_interchange_doc(cc, doc) -> FileReport:
     return report
 
 
-def evaluate_paths(cc, paths: List[Path]) -> List[FileReport]:
-    files: List[Path] = []
+def evaluate_paths(cc, paths: list[Path]) -> list[FileReport]:
+    files: list[Path] = []
     for path in paths:
         files += find_corpus_files(path) if path.is_dir() else [path]
     return [evaluate_file(cc, load_corpus_file(f)) for f in files]
 
 
-def aggregate(reports: List[FileReport]) -> Counters:
+def aggregate(reports: list[FileReport]) -> Counters:
     total = Counters()
     for report in reports:
         total.add(report)
     return total
 
 
-def _percent(value: Optional[float]) -> str:
+def _percent(value: float | None) -> str:
     return f"{value:7.1%}" if value is not None else "      -"
 
 
 def format_report(
-    reports: List[FileReport],
+    reports: list[FileReport],
     by_file: bool = False,
     show_errors: bool = False,
 ) -> str:
@@ -221,7 +220,7 @@ def format_report(
         f" R {_percent(total.extraction_recall)}"
         f"  ({total.n_attr_correct}/{total.n_gold})"
     )
-    by_qtype: Dict[str, Counters] = {}
+    by_qtype: dict[str, Counters] = {}
     for r in reports:
         for qt, c in r.qtype_counters.items():
             by_qtype.setdefault(qt, Counters()).add(c)

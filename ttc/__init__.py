@@ -1,11 +1,9 @@
 __version__ = "0.1.0"
 
-from typing import Optional
-
 from ttc.language import ConversationClassifier, LanguageCode
 
 
-def load(lang_code: "LanguageCode | str", **kwargs) -> Optional[ConversationClassifier]:
+def load(lang_code: "LanguageCode | str", **kwargs) -> ConversationClassifier | None:
     normalized_lang_code = lang_code.strip().lower()
     if normalized_lang_code == "ru":
         from ttc.language.russian import RussianConversationClassifier

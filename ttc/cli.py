@@ -1,9 +1,10 @@
 import itertools
 import json as jsonlib
 import random
+import sys
 from dataclasses import asdict
 from pathlib import Path
-from typing import TextIO, Tuple, Dict, Optional
+from typing import TextIO
 
 import click
 from click import echo, style
@@ -57,7 +58,7 @@ def eval_corpus(
         paths = tuple(d for d in (texts / "tune", texts / "heldout") if d.is_dir())
         if not paths:
             echo("No corpus paths given and no default corpus found.")
-            exit(1)
+            sys.exit(1)
 
     if show_errors and not unblind_heldout:
         blocked = [p for p in paths if "heldout" in (part.lower() for part in p.parts)]
@@ -68,7 +69,7 @@ def eval_corpus(
                 "Held-out data is for aggregate numbers only while tuning;"
                 " pass --unblind-heldout if you really need this."
             )
-            exit(2)
+            sys.exit(2)
 
     cc = ttc.load("ru", model_size=model)
     assert cc is not None
@@ -114,7 +115,7 @@ def eval_corpus(
             echo(f"== {jp}")
             echo(format_report(reports, by_file=by_file, show_errors=show_errors))
 
-    exit(exit_code)
+    sys.exit(exit_code)
 
 
 @cli.group("corpus")
@@ -209,7 +210,7 @@ def corpus_audit(paths, report_path, skip_disagreements, model):
         echo(f"report -> {report_path}")
     else:
         echo(text)
-    exit(0 if report.clean else 1)
+    sys.exit(0 if report.clean else 1)
 
 
 @cli.command("annotate")
@@ -245,7 +246,7 @@ def print_play(file: TextIO, language, with_text: bool, model):
 
     if cc is None:
         echo("Specified language is not supported")
-        exit(1)
+        sys.exit(1)
 
     assert cc is not None
 
@@ -260,7 +261,7 @@ def print_play(file: TextIO, language, with_text: bool, model):
 
     colors = list(COLORS)
     random.shuffle(colors)
-    actor_colors: Dict[str, Tuple[Span, str]] = {
+    actor_colors: dict[str, tuple[Span, str]] = {
         s.lemma_: (s, c) for s, c in zip(play.actors, itertools.cycle(colors)) if s
     }
 
@@ -271,19 +272,19 @@ def print_play(file: TextIO, language, with_text: bool, model):
     for r, s in play.lines:
         if s:
             echo(style(" ", fg=actor_colors[s.lemma_][1]), nl=False)
-        echo(f"{str(s):<{first_col_w}}  ", nl=False)
+        echo(f"{s!s:<{first_col_w}}  ", nl=False)
         echo(str(r))
 
     if with_text:
         echo("\nMarked play:")
-        rs_indexed: Dict[int, Tuple[Span, Optional[Span]]] = {
+        rs_indexed: dict[int, tuple[Span, Span | None]] = {
             r.start_char: (r, s) for r, s in play.lines
         }
         r_starts = list(rs_indexed.keys())
         r_start_i = 0
         for i, c in enumerate(text):
-            replica: Optional[Span]
-            actor: Optional[Span]
+            replica: Span | None
+            actor: Span | None
             replica, actor = (
                 rs_indexed[r_starts[r_start_i]]
                 if r_start_i < len(r_starts)
@@ -297,12 +298,11 @@ def print_play(file: TextIO, language, with_text: bool, model):
                     echo(style("", reset=True), nl=False)
 
             if replica and i >= replica.start_char:
-                if i == replica.start_char:
-                    if actor:
-                        echo(
-                            style("", fg=actor_colors[actor.lemma_][1], reset=False),
-                            nl=False,
-                        )
+                if i == replica.start_char and actor:
+                    echo(
+                        style("", fg=actor_colors[actor.lemma_][1], reset=False),
+                        nl=False,
+                    )
 
                 if i == replica.end_char:
                     r_start_i += 1

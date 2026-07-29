@@ -44,15 +44,20 @@ ttc = "ttc.cli:cli"
 
 [tool.black]
 line-length = 88
-include = '''
-(
-  /(
-      tests
-    | ttc
-  )
-)
-'''
+# Must keep the `.py` suffix: `include` replaces Black's default file filter,
+# so a bare directory pattern also matches the JSON/CSV/text corpus fixtures
+# under tests/ and rewrites them as if they were Python.
+include = '/(tests|ttc)/.*\.pyi?$'
 
 [tool.ruff]
 extend-exclude = ["*.ipynb"]
-lint.ignore = ["E741"]
+
+[tool.ruff.lint]
+ignore = ["E741"]
+
+[tool.ruff.lint.per-file-ignores]
+# The flagged attributes are Enum members holding spaCy token patterns, not
+# shared mutable state: Enum members are singletons, so RUF012's rationale
+# does not apply, and its suggested `ClassVar` annotation would tell type
+# checkers these are not members at all.
+"ttc/language/russian/token_patterns.py" = ["RUF012"]
