@@ -48,7 +48,7 @@ jobs:
           path: coverage-map.html
 
       - name: Commit Coverage Assets
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "chore: update coverage assets"
           file_pattern: assets/coverage.svg assets/coverage-map.svg
