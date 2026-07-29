@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import Optional, List, Tuple, Dict
 
 from spacy import Language
 from spacy.tokens import Span
@@ -9,10 +8,10 @@ from spacy.tokens import Span
 class Play:
     language: Language
 
-    _rels: Dict[Span, Optional[Span]] = field(default_factory=dict)
+    _rels: dict[Span, Span | None] = field(default_factory=dict)
     """Replica -> Actor"""
 
-    _refs: Dict[Span, Optional[Span]] = field(default_factory=dict)
+    _refs: dict[Span, Span | None] = field(default_factory=dict)
     """Reference -> Actor"""
 
     @property
@@ -36,7 +35,7 @@ class Play:
     def last_actor(self):
         return self[lr] if (lr := self.last_replica) else None
 
-    def _actor_key(self, span: Optional[Span]) -> str:
+    def _actor_key(self, span: Span | None) -> str:
         if not span:
             return ""
         if any(t.pos_ == "PROPN" or t.ent_type_ == "PER" for t in span):
@@ -46,7 +45,7 @@ class Play:
             return span.lemma_.lower()
         return span.text.lower()
 
-    def penult(self) -> Optional[Span]:
+    def penult(self) -> Span | None:
         if not (last := self.last_actor):
             return None
         last_key = self._actor_key(last)
@@ -55,7 +54,7 @@ class Play:
                 return actor
         return None
 
-    def reference(self, word) -> Optional[Span]:
+    def reference(self, word) -> Span | None:
         return self._refs.get(word, None)
 
     def __len__(self):
@@ -68,9 +67,9 @@ class Play:
         return self._rels[item]
 
     def __setitem__(self, replica, val):
-        if isinstance(val, Tuple):
+        if isinstance(val, tuple):
             if (isinstance(actor := val[0], Span) or actor is None) and isinstance(
-                ref_chain := val[1], List
+                ref_chain := val[1], list
             ):
                 for ref in ref_chain:
                     self._refs[ref] = actor

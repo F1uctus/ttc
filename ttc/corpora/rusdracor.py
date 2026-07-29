@@ -8,8 +8,8 @@ Cast metadata (annotations) is CC0; play texts are mostly public domain.
 
 import json
 import urllib.request
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator, List, Optional, Tuple
 from xml.etree import ElementTree
 
 from ttc.corpora.schema import Character, CorpusDoc, Mention, Replica
@@ -26,7 +26,7 @@ def _text_of(el: ElementTree.Element) -> str:
 
 def parse_tei(xml_text: str, doc_id: str) -> CorpusDoc:
     root = ElementTree.fromstring(xml_text)
-    characters: List[Character] = []
+    characters: list[Character] = []
     for person in root.iter(f"{TEI}person"):
         pid = person.get(XML_ID)
         name_el = person.find(f"{TEI}persName")
@@ -40,12 +40,12 @@ def parse_tei(xml_text: str, doc_id: str) -> CorpusDoc:
             )
     known = {c.id for c in characters}
 
-    parts: List[str] = []
-    replicas: List[Replica] = []
-    mentions: List[Mention] = []
+    parts: list[str] = []
+    replicas: list[Replica] = []
+    mentions: list[Mention] = []
     pos = 0
 
-    def append(chunk: str) -> Tuple[int, int]:
+    def append(chunk: str) -> tuple[int, int]:
         nonlocal pos
         start = pos
         parts.append(chunk + "\n")
@@ -53,7 +53,7 @@ def parse_tei(xml_text: str, doc_id: str) -> CorpusDoc:
         return start, start + len(chunk)
 
     for sp in root.iter(f"{TEI}sp"):
-        who: Optional[str] = (sp.get("who") or "").lstrip("#") or None
+        who: str | None = (sp.get("who") or "").lstrip("#") or None
         speaker_el = sp.find(f"{TEI}speaker")
         if speaker_el is not None and (label := _text_of(speaker_el)):
             m_start, m_end = append(label)

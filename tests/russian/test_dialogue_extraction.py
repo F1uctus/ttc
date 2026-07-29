@@ -62,8 +62,10 @@ def test_replica_with_complex_sentence_inside(cc):
     )
     d = cc.extract_dialogue(text)
     assert list(map(str, d.replicas)) == [
-        "Делал ли что-нибудь для этого Штольц, что делал "
-        "и как делал, — мы этого не знаем.",
+        (
+            "Делал ли что-нибудь для этого Штольц, что делал "
+            "и как делал, — мы этого не знаем."
+        ),
     ]
 
 

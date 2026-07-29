@@ -13,8 +13,8 @@ All shipped novel texts are pure ASCII, so byte offsets == char offsets.
 import ast
 import csv
 import warnings
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Dict, Iterator, List, Optional
 
 from ttc.corpora.schema import Character, CorpusDoc, Cue, Mention, Replica
 
@@ -22,7 +22,7 @@ QTYPE_MAP = {"explicit": "explicit", "anaphoric": "anaphoric", "implicit": "impl
 GENDERS = {"F": "f", "M": "m"}
 
 
-def _lit(cell: Optional[str], default):
+def _lit(cell: str | None, default):
     """ast.literal_eval with 'nan'/empty/garbage tolerance."""
     if cell is None or cell == "" or cell == "nan":
         return default
@@ -32,12 +32,12 @@ def _lit(cell: Optional[str], default):
         return default
 
 
-def _read_csv(path: Path) -> List[Dict[str, str]]:
+def _read_csv(path: Path) -> list[dict[str, str]]:
     with path.open("r", encoding="utf-8", newline="") as f:
         return list(csv.DictReader(f))
 
 
-def _find_near(text: str, needle: str, around: int, radius: int = 300) -> Optional[Cue]:
+def _find_near(text: str, needle: str, around: int, radius: int = 300) -> Cue | None:
     lo = max(0, around - radius)
     pos = text.find(needle, lo, around + radius)
     return Cue(pos, pos + len(needle)) if pos >= 0 else None
@@ -49,8 +49,8 @@ def parse_novel(novel_dir: Path) -> CorpusDoc:
     )
     text = text_path.read_text(encoding="utf-8")
 
-    characters: List[Character] = []
-    by_name: Dict[str, str] = {}  # any alias/name -> char id
+    characters: list[Character] = []
+    by_name: dict[str, str] = {}  # any alias/name -> char id
     for row in _read_csv(novel_dir / "character_info.csv"):
         cid = f"char_{row['Character ID']}"
         name = row["Main Name"] or cid
@@ -68,8 +68,8 @@ def parse_novel(novel_dir: Path) -> CorpusDoc:
         for key in [name, *aliases]:
             by_name.setdefault(key, cid)
 
-    replicas: List[Replica] = []
-    mentions: List[Mention] = []
+    replicas: list[Replica] = []
+    mentions: list[Mention] = []
     for row in _read_csv(novel_dir / "quotation_info.csv"):
         speaker = by_name.get(row.get("speaker") or "")
         qtype = QTYPE_MAP.get((row.get("quoteType") or "").strip().lower())
@@ -79,9 +79,8 @@ def parse_novel(novel_dir: Path) -> CorpusDoc:
         if not spans:
             continue
         cue = None
-        if ref_exp := (row.get("referringExpression") or ""):
-            if ref_exp != "nan":
-                cue = _find_near(text, ref_exp, spans[0][0])
+        if (ref_exp := (row.get("referringExpression") or "")) and ref_exp != "nan":
+            cue = _find_near(text, ref_exp, spans[0][0])
         for start, end in spans:
             replicas.append(Replica(start, end, speaker, addressee, qtype, cue))
             cue = None  # attach the cue to the first span only

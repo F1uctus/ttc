@@ -6,9 +6,9 @@ replica has no identifiable speaker (narrator noise, crowd, etc.).
 """
 
 import json
+from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Iterable, Iterator, List, Optional
 
 QTYPES = ("explicit", "anaphoric", "implicit")
 DOMAINS = ("prose", "drama")
@@ -24,11 +24,11 @@ class Cue:
 class Replica:
     start: int
     end: int
-    speaker: Optional[str]
-    addressee: Optional[str] = None
-    qtype: Optional[str] = None
-    cue: Optional[Cue] = None
-    mode: Optional[str] = None
+    speaker: str | None
+    addressee: str | None = None
+    qtype: str | None = None
+    cue: Cue | None = None
+    mode: str | None = None
     """Utterance category — how it is voiced, not who says it.
 
     ``"speech"`` (spoken dialogue) or ``"thought"`` (internal monologue) so
@@ -42,8 +42,8 @@ class Replica:
 class Character:
     id: str
     name: str
-    aliases: List[str] = field(default_factory=list)
-    gender: Optional[str] = None
+    aliases: list[str] = field(default_factory=list)
+    gender: str | None = None
 
 
 @dataclass
@@ -61,9 +61,9 @@ class CorpusDoc:
     source: str
     license: str
     text: str
-    replicas: List[Replica] = field(default_factory=list)
-    characters: List[Character] = field(default_factory=list)
-    mentions: List[Mention] = field(default_factory=list)
+    replicas: list[Replica] = field(default_factory=list)
+    characters: list[Character] = field(default_factory=list)
+    mentions: list[Mention] = field(default_factory=list)
 
 
 def to_dict(doc: CorpusDoc) -> dict:
@@ -122,9 +122,9 @@ def read_jsonl(path: Path) -> Iterator[CorpusDoc]:
                 yield doc_from_dict(json.loads(line))
 
 
-def validate(doc: CorpusDoc) -> List[str]:
+def validate(doc: CorpusDoc) -> list[str]:
     """Mechanical consistency checks. Returns [] when the doc is clean."""
-    issues: List[str] = []
+    issues: list[str] = []
     n = len(doc.text)
     char_ids = [c.id for c in doc.characters]
     known = set(char_ids)

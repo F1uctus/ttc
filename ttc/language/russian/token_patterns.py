@@ -1,24 +1,26 @@
 from enum import Enum
-from typing import Any, Literal, Set, List, Dict, Tuple
+from typing import Any, Literal
 
 from ttc.iterables import merge
 from ttc.language.common.constants import (
-    HYPHENS as HYPHENS_STR,
     ELLIPSES as ELLIPSES_STR,
+)
+from ttc.language.common.constants import (
+    HYPHENS as HYPHENS_STR,
 )
 
 HYPHENS, ELLIPSES = list(HYPHENS_STR), list(ELLIPSES_STR)
 
 
-def text(*texts: str) -> Dict:
+def text(*texts: str) -> dict:
     return {"TEXT": {"IN": texts}}
 
 
-def some(pattern: Dict) -> Dict:
+def some(pattern: dict) -> dict:
     return merge(pattern, {"OP": "*"})
 
 
-def one_or_more(pattern: Dict) -> Dict:
+def one_or_more(pattern: dict) -> dict:
     return merge(pattern, {"OP": "+"})
 
 
@@ -37,7 +39,7 @@ TokenMatcherClass = Literal[
     "AUTHOR_ENDING",
 ]
 
-TOKEN_MATCHER_CLASSES: Set[TokenMatcherClass] = {
+TOKEN_MATCHER_CLASSES: set[TokenMatcherClass] = {
     "AUTHOR_INSERTION",
     "AUTHOR_ENDING",
 }
@@ -129,5 +131,5 @@ class TokenPattern(Enum):
     ]
 
     @classmethod
-    def entries(cls) -> List[Tuple[str, List[Dict[str, Any]]]]:
+    def entries(cls) -> list[tuple[str, list[dict[str, Any]]]]:
         return [(item.name, item.value) for item in cls]

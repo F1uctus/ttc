@@ -11,7 +11,6 @@ Two layers:
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List
 
 from ttc.corpora.native import doc_from_corpus_file
 from ttc.corpora.schema import validate
@@ -29,8 +28,8 @@ class Disagreement:
 
 @dataclass
 class AuditReport:
-    mechanical: List[str] = field(default_factory=list)
-    disagreements: List[Disagreement] = field(default_factory=list)
+    mechanical: list[str] = field(default_factory=list)
+    disagreements: list[Disagreement] = field(default_factory=list)
 
     @property
     def clean(self) -> bool:
@@ -39,9 +38,9 @@ class AuditReport:
         )
 
 
-def audit_native(paths: List[Path], cc=None) -> AuditReport:
+def audit_native(paths: list[Path], cc=None) -> AuditReport:
     report = AuditReport()
-    files: List[Path] = []
+    files: list[Path] = []
     for path in paths:
         files += find_corpus_files(path) if path.is_dir() else [path]
 

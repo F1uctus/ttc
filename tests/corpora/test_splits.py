@@ -10,4 +10,4 @@ def test_split_deterministic_and_roughly_proportional():
 
 
 def test_split_values():
-    assert set(split_of(f"x/{i}") for i in range(50)) <= {"tune", "heldout"}
+    assert {split_of(f"x/{i}") for i in range(50)} <= {"tune", "heldout"}

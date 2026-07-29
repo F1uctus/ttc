@@ -1,21 +1,11 @@
 import itertools
 from collections import OrderedDict
-from typing import (
-    Iterable,
-    Iterator,
-    TypeVar,
-    Optional,
-    List,
-    Tuple,
-    Dict,
-)
-
-T = TypeVar("T")
+from collections.abc import Iterable, Iterator
 
 
-def iter_by_triples(
+def iter_by_triples[T](
     iterable: Iterable[T],
-) -> Iterable[Tuple[Optional[T], T, Optional[T]]]:
+) -> Iterable[tuple[T | None, T, T | None]]:
     """
     Yields elements of given iterable with a sliding window of triplets, where the
     first element of the triple is "previous", second is "current", and third is "next".
@@ -33,15 +23,15 @@ def iter_by_triples(
         yield prv, cur, None
 
 
-def flatten(iterable: Iterator[Iterable[T]]) -> Iterable[T]:
+def flatten[T](iterable: Iterator[Iterable[T]]) -> Iterable[T]:
     return itertools.chain.from_iterable(iterable)
 
 
-def deduplicate(iterable: Iterable[T]) -> List[T]:
+def deduplicate[T](iterable: Iterable[T]) -> list[T]:
     return list(OrderedDict.fromkeys(iterable))
 
 
-def merge(destination: Dict, source: Dict) -> Dict:
+def merge(destination: dict, source: dict) -> dict:
     """
     >>> a = { 'first' : { 'all_rows' : { 'pass' : 'dog', 'number' : '1' } } }
     >>> b = { 'first' : { 'all_rows' : { 'fail' : 'cat', 'number' : '5' } } }

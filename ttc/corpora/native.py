@@ -6,21 +6,21 @@ so it doubles as the INCEpTION-replacement ingestion path.
 
 import re
 import warnings
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Dict, Iterator, List, Optional, Tuple
 
+from ttc.corpora.schema import Character, CorpusDoc, Replica
 from ttc.corpus import (
     CorpusFile,
     canonical_actor,
     find_corpus_files,
     load_corpus_file,
 )
-from ttc.corpora.schema import Character, CorpusDoc, Replica
 
 LICENSE = "annotator-owned"
 
 
-def _find_span(text: str, needle: str, from_pos: int) -> Optional[Tuple[int, int]]:
+def _find_span(text: str, needle: str, from_pos: int) -> tuple[int, int] | None:
     """Whitespace-insensitive ordered search of ``needle`` in ``text``."""
     pattern = r"\s+".join(re.escape(w) for w in needle.split())
     m = re.compile(pattern).search(text, from_pos)
@@ -28,10 +28,10 @@ def _find_span(text: str, needle: str, from_pos: int) -> Optional[Tuple[int, int
 
 
 def doc_from_corpus_file(cf: CorpusFile, doc_id: str) -> CorpusDoc:
-    char_ids: Dict[str, str] = {}  # canonical name -> char id
-    characters: List[Character] = []
+    char_ids: dict[str, str] = {}  # canonical name -> char id
+    characters: list[Character] = []
 
-    def char_id(canonical: str) -> Optional[str]:
+    def char_id(canonical: str) -> str | None:
         if canonical == "none":
             return None
         if canonical not in char_ids:
@@ -40,7 +40,7 @@ def doc_from_corpus_file(cf: CorpusFile, doc_id: str) -> CorpusDoc:
         return char_ids[canonical]
 
     # alias table first, so aliases attach to their canonical character
-    per_canonical: Dict[str, List[str]] = {}
+    per_canonical: dict[str, list[str]] = {}
     for alias, canonical in cf.aliases.items():
         per_canonical.setdefault(canonical, []).append(alias)
     for canonical, aliases in per_canonical.items():
@@ -48,7 +48,7 @@ def doc_from_corpus_file(cf: CorpusFile, doc_id: str) -> CorpusDoc:
         if cid:
             characters[-1].aliases = sorted(aliases)
 
-    replicas: List[Replica] = []
+    replicas: list[Replica] = []
     pos = 0
     for actor, replica_text in cf.pairs:
         span = _find_span(cf.text, replica_text, pos)

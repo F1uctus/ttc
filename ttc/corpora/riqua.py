@@ -5,15 +5,15 @@ Characters are synthesized per distinct entity surface string; mention
 spans are emitted for every entity occurrence linked to a quote.
 """
 
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Dict, Iterator, List, Tuple
 
 from ttc.corpora.schema import Character, CorpusDoc, Cue, Mention, Replica
 
 
 def _parse_ann(ann_text: str):
-    spans: Dict[str, Tuple[str, int, int]] = {}
-    relations: List[Tuple[str, str, str]] = []
+    spans: dict[str, tuple[str, int, int]] = {}
+    relations: list[tuple[str, str, str]] = []
     for line in ann_text.splitlines():
         if not (line := line.strip()):
             continue
@@ -31,12 +31,12 @@ def parse_work(txt: Path, ann: Path) -> CorpusDoc:
     text = txt.read_text(encoding="utf-8")
     spans, relations = _parse_ann(ann.read_text(encoding="utf-8"))
 
-    char_by_name: Dict[str, str] = {}
-    characters: List[Character] = []
-    mentions: List[Mention] = []
+    char_by_name: dict[str, str] = {}
+    characters: list[Character] = []
+    mentions: list[Mention] = []
 
     def char_for(entity_id: str) -> str:
-        kind, start, end = spans[entity_id]
+        _kind, start, end = spans[entity_id]
         name = text[start:end]
         if name not in char_by_name:
             char_by_name[name] = f"char_{len(char_by_name)}"
@@ -44,9 +44,9 @@ def parse_work(txt: Path, ann: Path) -> CorpusDoc:
         mentions.append(Mention(start, end, char_by_name[name]))
         return char_by_name[name]
 
-    speaker_of: Dict[str, str] = {}
-    addressee_of: Dict[str, str] = {}
-    cue_of: Dict[str, Cue] = {}
+    speaker_of: dict[str, str] = {}
+    addressee_of: dict[str, str] = {}
+    cue_of: dict[str, Cue] = {}
     for kind, quote_id, arg_id in relations:
         if kind.lower() in ("speaker", "speakerof"):
             speaker_of[quote_id] = char_for(arg_id)
