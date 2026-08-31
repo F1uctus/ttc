@@ -11,7 +11,7 @@ requires-python = ">=3.12"
 dependencies = [
   "click>=8.4.2,<9.0",
   "numpy>=2.5.2,<3.0.0",
-  "spacy>=3.8.15,<4.0",
+  "spacy>=3.8.16,<4.0",
   "ru_core_news_sm @ https://github.com/explosion/spacy-models/releases/download/ru_core_news_sm-3.8.0/ru_core_news_sm-3.8.0.tar.gz"
 ]
 
