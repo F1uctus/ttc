@@ -74,5 +74,7 @@ ignore = ["E741"]
 known-third-party = ["datasets"]
 
 [tool.pytest.ini_options]
+# adapters/ clones ship their own tests package
+testpaths = ["tests"]
 markers = ["train: training-stack tests (need the train dependency group)"]
 addopts = "-m 'not train'"
