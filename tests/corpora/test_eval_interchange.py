@@ -16,7 +16,7 @@ def cc():
 
 def test_evaluate_interchange_doc(cc):
     doc = next(convert(FIXTURES / "sample.txt"))
-    # give the doc qtypes so the breakdown has something to group
+    # qtypes for the breakdown
     doc.replicas[0].qtype = "explicit"
     doc.replicas[1].qtype = "explicit"
     report = evaluate_interchange_doc(cc, doc)

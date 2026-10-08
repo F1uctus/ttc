@@ -20,8 +20,7 @@ def test_convert_mini_novel():
     assert r1.qtype == "explicit" and r2.qtype == "anaphoric"
     names = {c.id: c.name for c in doc.characters}
     assert names[r1.speaker] == "Emma"
-    assert r1.addressee == r2.speaker  # Harriet
-    # referring expression text located near the quote -> cue span
+    assert r1.addressee == r2.speaker
     assert doc.text[r1.cue.start : r1.cue.end] == "said Emma"
     assert r2.cue is None  # "nan" referring expression
     assert any(doc.text[m.start : m.end] == "she" for m in doc.mentions)

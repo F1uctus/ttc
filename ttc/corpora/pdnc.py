@@ -1,14 +1,4 @@
-"""PDNC adapter: per-novel quotation/character CSVs -> interchange docs.
-
-https://github.com/Priya22/project-dialogism-novel-corpus — annotations are
-CC-BY-NC-4.0 (research/eval OK; flag before any commercial model release).
-
-Real-release schema (verified 2026-07-04): ``quotation_info.csv`` columns
-quoteID, quoteText, subQuotationList, quoteByteSpans, speaker, addressees,
-quoteType, referringExpression (text, may be "nan"), mentionTextsList,
-mentionSpansList, mentionEntitiesList (both nested per sub-quotation).
-All shipped novel texts are pure ASCII, so byte offsets == char offsets.
-"""
+"""PDNC adapter: per-novel quotation and character CSVs to interchange docs."""
 
 import ast
 import csv

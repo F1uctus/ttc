@@ -17,7 +17,6 @@ def test_convert_mini_work():
     r1, r2, r3 = doc.replicas
     assert doc.text[r1.start : r1.end] == '"Stop,"'
     assert doc.text[r1.cue.start : r1.cue.end] == "said"
-    # each distinct entity span string becomes a character
     names = {c.id: c.name for c in doc.characters}
     assert names[r1.speaker] == "Mr. Bennet"
     assert names[r1.addressee] == "his wife"

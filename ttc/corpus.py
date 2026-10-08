@@ -1,17 +1,4 @@
-"""Parsing and serialization of the annotated-text corpus format.
-
-A corpus file consists of two or three sections separated by a line of dashes:
-
-    <raw text>
-    --------------------
-    <Actor>::<Replica text>          (one line per replica, in document order)
-    --------------------             (optional third section)
-    <Canonical> = <alias> | <alias>  (one line per character; '#' starts a comment)
-
-The alias section lets gold annotations use several surface forms for the
-same character (e.g. "Ясна = принцесса | светлость") while being scored
-as one identity.
-"""
+"""Parsing and serialization of the annotated corpus format."""
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -92,11 +79,7 @@ def serialize_corpus_file(
     pairs: list[tuple[str, str]],
     aliases: dict[str, list[str]] | None = None,
 ) -> str:
-    """Inverse of :func:`parse_corpus_content`.
-
-    ``aliases`` maps a canonical name to its alias list (the readable
-    one-line-per-character form, not the flat lookup dict).
-    """
+    """Inverse of parse_corpus_content; aliases maps a canonical name to its aliases."""
     parts = [text.strip(), DELIMITER]
     parts += [f"{actor}::{replica}" for actor, replica in pairs]
     if aliases:

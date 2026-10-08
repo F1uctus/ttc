@@ -1,11 +1,4 @@
-"""JY-QuotePlus adapter: per-quote context JSON (zh, prose).
-
-Real-release format (verified 2026-07-04): one JSON list of 8,144 items,
-each carrying the quote, a context window, and labels
-说话人-mention/说话人-entity (speaker), 听者-entity (addressees),
-线索 (cue text), 方式 (mode). There is no global chapter text, so every
-item becomes its own CorpusDoc with ``text = context``.
-"""
+"""JY-QuotePlus adapter: per-quote context JSON (zh, prose), one doc per quote."""
 
 import json
 import warnings

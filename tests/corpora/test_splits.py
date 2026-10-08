@@ -4,7 +4,7 @@ from ttc.corpora.splits import split_of
 def test_split_deterministic_and_roughly_proportional():
     ids = [f"pdnc/novel/{i}" for i in range(1000)]
     first = [split_of(i) for i in ids]
-    assert first == [split_of(i) for i in ids]  # deterministic
+    assert first == [split_of(i) for i in ids]
     heldout = first.count("heldout")
     assert 120 <= heldout <= 280  # ~20% of 1000, generous tolerance
 

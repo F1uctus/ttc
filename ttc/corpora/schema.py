@@ -1,9 +1,4 @@
-"""Unified multilingual interchange schema: one JSON object per document.
-
-All offsets are character offsets into ``text``. ``speaker``/``Mention.char``
-values reference ``Character.id`` entries; ``speaker is None`` means the
-replica has no identifiable speaker (narrator noise, crowd, etc.).
-"""
+"""Interchange schema: one JSON object per document, char offsets into text."""
 
 import json
 from collections.abc import Iterable, Iterator
@@ -29,13 +24,7 @@ class Replica:
     qtype: str | None = None
     cue: Cue | None = None
     mode: str | None = None
-    """Utterance category — how it is voiced, not who says it.
-
-    ``"speech"`` (spoken dialogue) or ``"thought"`` (internal monologue) so
-    far; ``None`` when the source does not distinguish. A thought is a
-    speaker-owned utterance a TTS engine still voices (possibly with a
-    different engine/voice than speech), so it is kept, never dropped.
-    """
+    """"speech", "thought" or "indirect"; None when the source does not say."""
 
 
 @dataclass

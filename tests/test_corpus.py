@@ -75,7 +75,7 @@ def test_round_trip():
     assert cf.text == text
     assert cf.pairs == pairs
     assert cf.aliases == {"принцесса": "ясна", "светлость": "ясна"}
-    # serialization is stable
+  
     assert serialize_corpus_file(cf.text, cf.pairs, {"Ясна": ["принцесса", "светлость"]}) == content
 
 

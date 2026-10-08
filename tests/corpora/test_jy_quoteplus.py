@@ -9,7 +9,7 @@ FIXTURES = Path(__file__).parent / "fixtures" / "jy_quoteplus"
 
 def test_convert_mini_items():
     docs = list(convert(FIXTURES))
-    assert len(docs) == 2  # one doc per quote item
+    assert len(docs) == 2
     d1, d2 = docs
     assert d1.lang == "zh" and d1.source == "jy_quoteplus"
     assert validate(d1) == [] and validate(d2) == []
@@ -20,6 +20,6 @@ def test_convert_mini_items():
     assert names1[r1.speaker] == "郭靖" and names2[r2.speaker] == "黄蓉"
     assert names1[r1.addressee] == "黄蓉"
     assert d1.text[r1.cue.start : r1.cue.end] == "说道"
-    # speaker mention located before the quote
+  
     assert d1.text[d1.mentions[0].start : d1.mentions[0].end] == "郭靖"
     assert_matches_golden(docs, FIXTURES / "golden.jsonl")

@@ -1,12 +1,4 @@
-"""Gold audit gate: the RU gold set must pass before training uses it.
-
-Two layers:
-- mechanical: schema validation of the converted docs + unlocatable-replica
-  detection (the native adapter warns; here they become hard findings);
-- disagreement mining: run the rule pipeline over each gold file and flag
-  prediction/annotation mismatches, ranked (high confidence = the pipeline
-  predicted a concrete actor that contradicts gold, not merely None).
-"""
+"""Gold audit: schema checks plus rule-pipeline disagreement mining."""
 
 import warnings
 from dataclasses import dataclass, field

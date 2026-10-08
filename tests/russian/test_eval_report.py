@@ -1,10 +1,4 @@
-"""Aggregate accuracy floors over the annotated corpus.
-
-These are ratchets, not targets: raise a floor after a confirmed
-improvement, never lower one to make a regression pass.
-The formatted report is printed so `pytest -s` (or a failure) shows
-per-split metrics.
-"""
+"""Aggregate accuracy floors over the annotated corpus."""
 
 from pathlib import Path
 from typing import Final

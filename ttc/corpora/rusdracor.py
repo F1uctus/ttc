@@ -1,10 +1,4 @@
-"""RusDraCor adapter: TEI-P5 plays -> interchange docs (ru, drama).
-
-Text layout: for every <sp>, the speaker label line (if present) is kept,
-followed by the utterance paragraphs; the replica span covers the spoken
-text only, and the label becomes a Mention of the speaking character.
-Cast metadata (annotations) is CC0; play texts are mostly public domain.
-"""
+"""RusDraCor adapter: TEI-P5 plays to interchange docs (ru, drama)."""
 
 import json
 import urllib.request

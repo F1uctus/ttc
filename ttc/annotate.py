@@ -1,13 +1,4 @@
-"""Browser-based annotation tool for expanding the test corpus.
-
-Runs the pipeline over a raw text, then serves a single local web page
-where each extracted replica carries its predicted speaker; the human
-corrects mistakes by clicking a name in the character palette (or keys
-1-9), accepts correct predictions with Enter, and saves the result
-directly in the corpus format understood by :mod:`ttc.corpus`.
-
-Stdlib only — no dependencies beyond ttc itself.
-"""
+"""Browser annotation tool that saves replicas in the ttc corpus format."""
 
 import json
 import threading
@@ -28,16 +19,11 @@ PALETTE_LIMIT = 15
 
 
 def build_payload(cc, text: str, prefill: dict[str, str] | None = None) -> dict:
-    """Extract replicas + predicted speakers and a character palette.
-
-    ``prefill`` maps replica text -> actor for re-annotation of an
-    existing corpus file; it overrides pipeline predictions.
-    """
+    """Replicas with predicted or prefilled speakers, plus a character palette."""
     dialogue = cc.extract_dialogue(text)
     play = cc.connect_play(dialogue)
     doc = dialogue.doc
-    # \n -> " " replacement is length-preserving, so span offsets
-    # index directly into the original text.
+    # the newline replacement is length-preserving: spans index the text
     assert len(doc.text) == len(text), "doc/text offset invariant broken"
 
     replicas = []
@@ -59,8 +45,7 @@ def build_payload(cc, text: str, prefill: dict[str, str] | None = None) -> dict:
 
     in_replica = {i for r in play.replicas for i in range(r.start, r.end)}
     for token in doc:
-        # candidate names come from author speech: inside a replica a
-        # name is usually the addressee, not the speaker
+        # names inside replicas are usually addressees
         if token.i in in_replica:
             continue
         if token.pos_ == "PROPN" or token.ent_type_ == "PER":

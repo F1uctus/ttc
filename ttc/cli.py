@@ -45,11 +45,9 @@ def cli():
 def eval_corpus(
     paths, model, by_file, show_errors, unblind_heldout, as_json, jsonl_paths
 ):
-    """Measure extraction/attribution accuracy on annotated corpus PATHS.
+    """Measure extraction and attribution accuracy on annotated corpus PATHS.
 
-    PATHS are corpus .txt files or directories of them; defaults to
-    tests/russian/texts/{tune,heldout} relative to the current directory.
-    Pass --jsonl to evaluate interchange corpora (with a qtype breakdown).
+    Defaults to tests/russian/texts/{tune,heldout}; --jsonl reads interchange corpora.
     """
     from ttc.eval import aggregate, evaluate_paths, format_report
 
@@ -197,7 +195,7 @@ def corpus_stats(jsonl):
 @click.option("--skip-disagreements", is_flag=True, help="Mechanical checks only.")
 @click.option("--model", type=MODEL_SIZES, default=None, help="spaCy model size.")
 def corpus_audit(paths, report_path, skip_disagreements, model):
-    """Audit native RU gold before it is used as training seed."""
+    """Audit native RU gold corpus files."""
     from ttc.corpora.audit import audit_native, format_report
 
     cc = None
@@ -226,8 +224,7 @@ def corpus_audit(paths, report_path, skip_disagreements, model):
 def annotate(text_file: Path, out: Path, model, port: int):
     """Annotate TEXT_FILE speakers in the browser, prefilled by the pipeline.
 
-    TEXT_FILE is raw text, or an existing corpus file to re-annotate
-    (its gold pairs are used as the prefill instead of predictions).
+    An existing corpus file is re-annotated with its gold pairs as prefill.
     """
     from ttc.annotate import run
 

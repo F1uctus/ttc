@@ -1,16 +1,4 @@
-"""DROC adapter: UIMA CAS XMI -> interchange docs (de, prose).
-
-Real-release format (Würzburg DROC-Release, verified 2026-07-04): each
-fragment is an XMI file with a ``cas:Sofa`` holding the text and standoff
-annotations. ``type:NamedEntity`` mentions carry ``Name`` and a coref
-cluster ``ID``; ``type:DirectSpeech`` spans carry ``Speaker``/``SpokenTo``
-that reference a NamedEntity by its ``xmi:id`` (→ cluster → character).
-Every speaker-owned utterance becomes a replica carrying a ``mode``:
-spoken dialogue is ``"speech"`` and internal monologue is ``"thought"`` —
-both are voiced by TTS (a thought is owned by its speaker), so neither is
-dropped. Bare ``name`` mentions are the only skipped category. 90
-canonical fragments live under ``droc/DROC-xmi/``.
-"""
+"""DROC adapter: UIMA CAS XMI to interchange docs (de, prose)."""
 
 from collections.abc import Iterator
 from pathlib import Path
@@ -22,8 +10,7 @@ CAS = "{http:///uima/cas.ecore}"
 TYPE = "{http:///de/uniwue/kalimachos/coref/type.ecore}"
 XMI_ID = "{http://www.omg.org/XMI}id"
 
-# DROC Category -> interchange Replica.mode. Owned utterances only; a bare
-# "name" mention is not an utterance and is skipped.
+# DROC Category -> Replica.mode; bare name mentions are skipped
 CATEGORY_MODE = {
     "directspeech": "speech",
     "fictionalspeech": "speech",
@@ -75,7 +62,7 @@ def parse_xmi(xml_text: str, doc_id: str) -> CorpusDoc:
     for ds in root.iter(f"{TYPE}DirectSpeech"):
         category = (ds.get("Category") or "directspeech").lower()
         mode = CATEGORY_MODE.get(category)
-        if mode is None:  # e.g. "name" — not a spoken/thought utterance
+        if mode is None:  # e.g. a bare name mention
             continue
         begin_s, end_s = ds.get("begin"), ds.get("end")
         if begin_s is None or end_s is None:

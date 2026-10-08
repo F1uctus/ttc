@@ -1,9 +1,4 @@
-"""Deterministic tune/heldout assignment for non-native corpora.
-
-Native RU gold keeps its directory-based split (tests/russian/texts/*);
-everything else is split by a stable hash of doc_id so that re-running
-a conversion never migrates a document across splits.
-"""
+"""Deterministic tune/heldout split of non-native corpora by doc_id hash."""
 
 import hashlib
 

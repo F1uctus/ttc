@@ -19,7 +19,7 @@ def test_parse_mini_play():
     assert len(doc.replicas) == 2
     assert doc.replicas[0].speaker == "gorodnichij"
     assert doc.text[doc.replicas[1].start : doc.replicas[1].end] == "Как ревизор?"
-    # speaker labels are in text and emitted as mentions
+  
     assert doc.mentions[0].char == "gorodnichij"
     assert doc.text[doc.mentions[0].start : doc.mentions[0].end].startswith(
         "Городничий"

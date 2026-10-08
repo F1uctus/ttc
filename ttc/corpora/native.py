@@ -1,8 +1,4 @@
-"""Adapter for the native ttc annotated-corpus format (see ttc/corpus.py).
-
-This is the `ttc annotate` output format and the RU gold storage format,
-so it doubles as the INCEpTION-replacement ingestion path.
-"""
+"""Adapter for the native ttc annotated-corpus format (see ttc/corpus.py)."""
 
 import re
 import warnings

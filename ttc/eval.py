@@ -1,13 +1,4 @@
-"""Accuracy evaluation of the pipeline against the annotated corpus.
-
-Metrics per file and micro-averaged:
-
-- extraction precision / recall — how well predicted replica texts match
-  the gold replica sequence (order-preserving exact-text alignment);
-- attribution accuracy — share of *matched* replicas whose predicted
-  actor equals the gold actor (after alias canonicalization);
-- end-to-end accuracy — correctly attributed replicas / all gold replicas.
-"""
+"""Accuracy evaluation: extraction P/R, attribution and end-to-end accuracy."""
 
 import time
 from dataclasses import dataclass, field
@@ -73,12 +64,7 @@ class FileReport(Counters):
 
 
 def pred_actor_key(actor: Span | None, aliases: dict[str, str]) -> str:
-    """Canonicalize a predicted actor span.
-
-    Predictions are often inflected surface forms («Ясну»), so when the
-    surface form has no alias entry, the span lemma is also tried before
-    giving up.
-    """
+    """Canonicalize a predicted actor span, falling back to its lemma."""
     if actor is None or not len(actor):
         return UNATTRIBUTED
     surface = normalize_name(str(actor))
@@ -123,12 +109,7 @@ def evaluate_file(cc, cf: CorpusFile) -> FileReport:
 
 
 def evaluate_interchange_doc(cc, doc) -> FileReport:
-    """Evaluate attribution on one interchange doc (gold = doc.replicas).
-
-    ``doc`` is a :class:`ttc.corpora.schema.CorpusDoc`. Gold speakers are
-    canonicalized through the doc's own character/alias table; results are
-    additionally broken down per PDNC-style quotation type (qtype).
-    """
+    """Evaluate attribution on one interchange doc with a per-qtype breakdown."""
     started = time.perf_counter()
     dialogue = cc.extract_dialogue(doc.text)
     play = cc.connect_play(dialogue)

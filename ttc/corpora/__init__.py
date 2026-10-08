@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from ttc.corpora.schema import CorpusDoc
 
 ADAPTERS: dict[str, str] = {
-    # source name -> module path; modules expose convert(path) -> Iterator[CorpusDoc]
+    # modules expose convert(path) -> Iterator[CorpusDoc]
     "native": "ttc.corpora.native",
     "rusdracor": "ttc.corpora.rusdracor",
     "pdnc": "ttc.corpora.pdnc",
