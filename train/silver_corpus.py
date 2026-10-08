@@ -1,0 +1,213 @@
+"""RU silver corpus from public-domain prose in RafaelUI/russian_literature."""
+
+import json
+import re
+from collections.abc import Callable, Iterable, Iterator
+from pathlib import Path
+
+from train.silver import silver_label
+from ttc.corpora.schema import CorpusDoc, to_dict, validate
+
+DATASET = "RafaelUI/russian_literature"
+DASH = ("\N{EM DASH}", "\N{EN DASH}")
+
+
+def load_ru_prose(
+    authors: Iterable[str] | None = None,
+    round_robin: bool = True,
+) -> Iterator[tuple[str, str]]:
+    """Yield (doc_id, text) for prose works, one author per pass if round_robin."""
+    from collections import OrderedDict
+
+    from datasets import load_dataset
+
+    keep = {a.lower() for a in authors} if authors else None
+    ds = load_dataset(DATASET, split="train")
+    by_author: OrderedDict[str, list[tuple[str, str]]] = OrderedDict()
+    for i, row in enumerate(ds):
+        if row.get("type") != "prose":
+            continue
+        author = (row.get("author") or "unknown").lower()
+        if keep and author not in keep:
+            continue
+        text = row.get("text") or ""
+        if text.strip():
+            by_author.setdefault(author, []).append((f"{author}/{i}", text))
+
+    if not round_robin:
+        for works in by_author.values():
+            yield from works
+        return
+    iterators = {a: iter(works) for a, works in by_author.items()}
+    while iterators:
+        for author in list(iterators):
+            try:
+                yield next(iterators[author])
+            except StopIteration:
+                del iterators[author]
+
+
+def _dialogue_lines(chunk: str) -> int:
+    return sum(1 for ln in chunk.splitlines() if ln.lstrip()[:1] in DASH)
+
+
+def _blocks(text: str, max_block: int) -> Iterator[str]:
+    """Paragraphs, with oversized ones split on single newlines."""
+    for para in re.split(r"\n\s*\n", text):
+        para = para.strip()
+        if not para:
+            continue
+        if len(para) <= max_block:
+            yield para
+            continue
+        buf: list[str] = []
+        size = 0
+        for line in para.split("\n"):
+            if buf and size + len(line) > max_block:
+                yield "\n".join(buf)
+                buf, size = [], 0
+            buf.append(line)
+            size += len(line) + 1
+        if buf:
+            yield "\n".join(buf)
+
+
+def dialogue_chunks(
+    text: str,
+    target_chars: int = 2000,
+    min_dialogue_lines: int = 2,
+    max_chars: int | None = None,
+) -> Iterator[str]:
+    """Dialogue chunks of about target_chars, at most max_chars, never mid-line."""
+    cap = max_chars or target_chars * 2
+    buf: list[str] = []
+    size = 0
+
+    def ready() -> str | None:
+        chunk = "\n\n".join(buf)
+        return chunk if _dialogue_lines(chunk) >= min_dialogue_lines else None
+
+    for block in _blocks(text, cap):
+        if buf and size + len(block) > cap:
+            if (chunk := ready()) is not None:
+                yield chunk
+            buf, size = [], 0
+        buf.append(block)
+        size += len(block)
+        if size >= target_chars:
+            if (chunk := ready()) is not None:
+                yield chunk
+            buf, size = [], 0
+    if buf and (chunk := ready()) is not None:
+        yield chunk
+
+
+def build_silver_corpus(
+    sources: Iterable[tuple[str, str]],
+    out_path: Path,
+    llm: Callable[[str], list[dict]],
+    cc,
+    max_docs: int = 50,
+    target_chars: int = 2000,
+    min_attributed: int = 2,
+    chunks_per_work: int = 3,
+    max_consecutive_failures: int = 6,
+    on_doc: Callable[[CorpusDoc], None] | None = None,
+) -> dict[str, int]:
+    """Silver-label dialogue chunks into interchange JSONL and return run stats."""
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    kept = replicas = attributed = issues = failures = 0
+    consecutive = 0
+    with out_path.open("w", encoding="utf-8") as out:
+        for doc_id, text in sources:
+            taken = 0
+            for ci, chunk in enumerate(
+                dialogue_chunks(_normalize_newlines(text), target_chars)
+            ):
+                if taken >= chunks_per_work or kept >= max_docs:
+                    break
+                try:
+                    doc = next(
+                        silver_label(
+                            [chunk], llm, cc, doc_id_prefix=f"silver/{doc_id}/{ci}"
+                        )
+                    )
+                except Exception:  # noqa: BLE001  # provider or network failure
+                    failures += 1
+                    consecutive += 1
+                    if consecutive >= max_consecutive_failures:
+                        break
+                    continue
+                consecutive = 0
+                n_attr = sum(1 for r in doc.replicas if r.speaker)
+                if n_attr < min_attributed:
+                    continue
+                issues += len(validate(doc))
+                out.write(json.dumps(to_dict(doc), ensure_ascii=False) + "\n")
+                out.flush()
+                kept += 1
+                taken += 1
+                replicas += len(doc.replicas)
+                attributed += n_attr
+                if on_doc:
+                    on_doc(doc)
+            if kept >= max_docs or consecutive >= max_consecutive_failures:
+                break
+    return {
+        "docs": kept,
+        "replicas": replicas,
+        "attributed": attributed,
+        "issues": issues,
+        "failures": failures,
+    }
+
+
+def _normalize_newlines(text: str) -> str:
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def main() -> None:
+    import argparse
+
+    import ttc
+    from train.silver import agent_cli_llm, mixed_llm, openrouter_llm
+
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument(
+        "--backend", choices=["mixed", "openrouter", "agent"], default="mixed"
+    )
+    ap.add_argument("--model", default=None)
+    ap.add_argument("--authors", nargs="*", default=None)
+    ap.add_argument("--max-docs", type=int, default=50)
+    ap.add_argument("--target-chars", type=int, default=2000)
+    ap.add_argument("--chunks-per-work", type=int, default=3)
+    args = ap.parse_args()
+
+    cc = ttc.load("ru", pipeline="rules")
+    if args.backend == "mixed":
+        llm = mixed_llm(cc, agent_model=args.model or "auto")
+    elif args.backend == "openrouter":
+        llm = openrouter_llm(cc, model=args.model) if args.model else openrouter_llm(cc)
+    else:
+        llm = agent_cli_llm(cc, model=args.model or "composer-2.5")
+
+    def progress(doc: CorpusDoc) -> None:
+        a = sum(1 for r in doc.replicas if r.speaker)
+        print(f"  + {doc.doc_id}: {a}/{len(doc.replicas)} attributed", flush=True)
+
+    stats = build_silver_corpus(
+        load_ru_prose(args.authors),
+        args.out,
+        llm,
+        cc,
+        max_docs=args.max_docs,
+        target_chars=args.target_chars,
+        chunks_per_work=args.chunks_per_work,
+        on_doc=progress,
+    )
+    print(f"silver corpus -> {args.out}: {stats}")
+
+
+if __name__ == "__main__":
+    main()

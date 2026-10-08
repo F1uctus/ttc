@@ -27,7 +27,7 @@ class RussianConversationClassifier(ConversationClassifier):
     language: Language
     token_matchers: dict[TokenMatcherClass, Matcher]
 
-    def __init__(self, model_size: str | None = None):
+    def __init__(self, model_size: str | None = None, pipeline: str = "auto"):
         super().__init__()
         size = model_size or os.environ.get("TTC_RU_MODEL", "lg")
         try:
@@ -64,6 +64,17 @@ class RussianConversationClassifier(ConversationClassifier):
             if not Span.has_extension(name):
                 Span.set_extension(name, **ext)
 
+        from ttc.ml.packages import find_model_package
+
+        self.package = None if pipeline == "rules" else find_model_package("ru")
+        if pipeline == "auto":
+            self.pipeline_mode = "hybrid" if self.package else "rules"
+        elif pipeline in ("learned", "hybrid") and self.package is None:
+            warnings.warn(f"pipeline={pipeline!r} requested but no model package found")
+            self.pipeline_mode = "rules"
+        else:
+            self.pipeline_mode = pipeline
+
     def extract_dialogue(self, text: str) -> Dialogue:
         # 1. store newline indices in the separate text metadata
         # 2. pass the text to spacy with newlines completely removed/replaced with space
@@ -78,4 +89,8 @@ class RussianConversationClassifier(ConversationClassifier):
         )
 
     def connect_play(self, dialogue: Dialogue) -> Play:
-        return classify_actors(self.language, dialogue)
+        if self.pipeline_mode == "rules" or self.package is None:
+            return classify_actors(self.language, dialogue)
+        from ttc.ml.ranker import connect_play_learned
+
+        return connect_play_learned(self, dialogue, mode=self.pipeline_mode)

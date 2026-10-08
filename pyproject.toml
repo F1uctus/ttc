@@ -37,6 +37,18 @@ dev = [
   "genbadge[coverage]>=1.1.3",
   "coverage-plot @ git+https://github.com/F1uctus/coverage-plot.git",
   "pytest-cov>=7.1.0",
+  "onnx>=1.23.2",
+  "onnxruntime>=1.30.0",
+  "tokenizers>=0.22.2",
+]
+train = [
+  "torch>=2.14.1",
+  "transformers>=4.57.6",
+  "datasets>=5.0.1",
+  "optimum[onnxruntime]>=2.1.0",
+  "simalign>=0.4",
+  # needed by the MiniLM (XLM-R) tokenizer
+  "sentencepiece>=0.2.2",
 ]
 
 [project.scripts]
@@ -45,7 +57,7 @@ ttc = "ttc.cli:cli"
 [tool.black]
 line-length = 88
 # the .py suffix keeps black off data fixtures
-include = '/(tests|ttc)/.*\.pyi?$'
+include = '/(tests|ttc|train)/.*\.pyi?$'
 
 [tool.ruff]
 extend-exclude = ["*.ipynb"]
@@ -56,3 +68,13 @@ ignore = ["E741"]
 [tool.ruff.lint.per-file-ignores]
 # Enum members are singletons, not shared mutable state
 "ttc/language/russian/token_patterns.py" = ["RUF012"]
+
+[tool.ruff.lint.isort]
+# a local datasets/ dir must not make the package first-party
+known-third-party = ["datasets"]
+
+[tool.pytest.ini_options]
+# adapters/ clones ship their own tests package
+testpaths = ["tests"]
+markers = ["train: training-stack tests (need the train dependency group)"]
+addopts = "-m 'not train'"
