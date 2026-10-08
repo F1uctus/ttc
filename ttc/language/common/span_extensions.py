@@ -1,19 +1,20 @@
+from collections.abc import Callable
 from functools import wraps
-from typing import Dict, Callable, Literal, Any, Union, TypeVar, cast
+from typing import Any, Literal, TypeVar, cast
 
-from spacy.tokens import Token, Span
+from spacy.tokens import Span, Token
 
 from ttc.language.common.token_extensions import (
+    as_span,
+    contains_near,
     has_newline,
     non_word,
-    contains_near,
-    as_span,
 )
 
 ExtensionKind = Literal["method", "getter", "default"]
 Ext = TypeVar("Ext", bound=Callable[..., Any])
 
-EXTENSIONS: Dict[Callable, ExtensionKind] = {}
+EXTENSIONS: dict[Callable, ExtensionKind] = {}
 
 
 def span_extension(kind: ExtensionKind, default_value: Any = None):
@@ -35,7 +36,7 @@ def span_extension(kind: ExtensionKind, default_value: Any = None):
 
 
 @span_extension("method")
-def line_breaks_between(a: Union[Span, Token], b: Union[Span, Token]) -> int:
+def line_breaks_between(a: Span | Token, b: Span | Token) -> int:
     if isinstance(a, Token):
         a = as_span(a)
     if isinstance(b, Token):
@@ -48,7 +49,7 @@ def line_breaks_between(a: Union[Span, Token], b: Union[Span, Token]) -> int:
 
 
 @span_extension("method")
-def expand_line_start(self: Union[Span, Token]):
+def expand_line_start(self: Span | Token):
     if isinstance(self, Token):
         self = as_span(self)
     if not self:
@@ -119,7 +120,7 @@ def fills_line(self: Span) -> bool:
 
 
 @span_extension("getter")
-def line_above(doclike: Union[Span, Token]):
+def line_above(doclike: Span | Token):
     return trim_non_word(
         expand_line_start(doclike.doc[expand_line_start(doclike).start - 1])
     )

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
+  <teiHeader>
+    <profileDesc><particDesc><listPerson>
+      <person xml:id="gorodnichij" sex="MALE"><persName>Городничий</persName></person>
+      <person xml:id="anna" sex="FEMALE"><persName>Анна Андреевна</persName></person>
+    </listPerson></particDesc></profileDesc>
+  </teiHeader>
+  <text><body><div type="act">
+    <sp who="#gorodnichij">
+      <speaker>Городничий.</speaker>
+      <p>Я пригласил вас, господа, с тем, чтобы сообщить пренеприятное известие.</p>
+    </sp>
+    <sp who="#anna">
+      <speaker>Анна Андреевна.</speaker>
+      <p>Как ревизор?</p>
+    </sp>
+  </div></body></text>
+</TEI>

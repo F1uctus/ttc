@@ -1,50 +1,52 @@
-from typing import Optional, List, Callable, Union, Dict, Generator, Final
+import sys
 from collections import Counter
+from collections.abc import Callable, Generator
+from itertools import chain, pairwise
+from typing import Final
 
-from itertools import chain
 from spacy import Language
 from spacy.matcher import DependencyMatcher
 from spacy.symbols import (  # type: ignore
-    VERB,
+    ADJ,
     AUX,
-    PRON,
-    PROPN,
+    DET,
     NOUN,
     NUM,
-    ADJ,
-    DET,
-    obj,
-    obl,
+    PRON,
+    PROPN,
+    VERB,
     acl,
     advcl,
+    obj,
+    obl,
     parataxis,
 )
-from spacy.tokens import Token, Span
+from spacy.tokens import Span, Token
 
-from ttc.iterables import iter_by_triples, flatten
+from ttc.iterables import flatten, iter_by_triples
 from ttc.language import Dialogue, Play
-from ttc.language.types import Morph
+from ttc.language.common.constants import HYPHENS as HYPHENS_STR
 from ttc.language.common.span_extensions import (
-    is_parenthesized,
-    fills_line,
-    line_breaks_between,
-    expand_line_start,
-    expand_line_end,
-    trim_non_word,
     contiguous,
+    expand_line_end,
+    expand_line_start,
+    fills_line,
+    is_parenthesized,
     line_above,
+    line_breaks_between,
+    trim_non_word,
 )
 from ttc.language.common.token_extensions import (
-    noun_chunk,
-    morph_equals,
     morph_distance,
+    morph_equals,
+    noun_chunk,
 )
-from ttc.language.russian.token_extensions import is_copula
-from ttc.language.russian.constants import REFERRAL_PRON, PRON_MORPHS
-from ttc.language.common.constants import HYPHENS as HYPHENS_STR
+from ttc.language.russian.constants import PRON_MORPHS, REFERRAL_PRON
 from ttc.language.russian.dependency_patterns import (
     VOICE_TO_AMOD,
 )
+from ttc.language.russian.token_extensions import is_copula
+from ttc.language.types import Morph
 
 Gender: Final[Morph] = "Gender"
 Number: Final[Morph] = "Number"
@@ -102,10 +104,10 @@ def is_pronoun_vague(token: Token) -> bool:
     pron_types = set(token.morph.get("PronType", []))
     if "Prs" in pron_types:
         return False
-    return True if pron_types or token.pos == PRON else False
+    return bool(pron_types or token.pos == PRON)
 
 
-def is_generic_person_noun(span: Optional[Span]) -> bool:
+def is_generic_person_noun(span: Span | None) -> bool:
     if not span or span.root.pos != NOUN:
         return False
     lemma = span.root.lemma_.lower()
@@ -113,7 +115,9 @@ def is_generic_person_noun(span: Optional[Span]) -> bool:
 
 
 def is_inanimate(span: Span) -> bool:
-    return span_has_animacy(span, ANIMACY_INAN) and not span_has_animacy(span, ANIMACY_ANIM)
+    return span_has_animacy(span, ANIMACY_INAN) and not span_has_animacy(
+        span, ANIMACY_ANIM
+    )
 
 
 def expand_hyphenated_span(span: Span) -> Span:
@@ -166,9 +170,7 @@ def has_second_person(span: Span) -> bool:
 
 
 def has_imperative(span: Span) -> bool:
-    return any(
-        t.pos in {VERB, AUX} and "Imp" in t.morph.get("Mood", []) for t in span
-    )
+    return any(t.pos in {VERB, AUX} and "Imp" in t.morph.get("Mood", []) for t in span)
 
 
 def has_specific_role(span: Span) -> bool:
@@ -194,7 +196,7 @@ def is_vague_head(span: Span) -> bool:
     return False
 
 
-def find_appositive_descriptor(span: Span) -> Optional[Token]:
+def find_appositive_descriptor(span: Span) -> Token | None:
     for t in span:
         if t.dep_ == "appos" and t.pos in {NOUN, PROPN, ADJ}:
             return t
@@ -243,19 +245,21 @@ def is_pronoun_like(token: Token) -> bool:
     return token.pos == ADJ and token.lemma_.startswith("сам")
 
 
-def is_pronoun_span(span: Optional[Span]) -> bool:
+def is_pronoun_span(span: Span | None) -> bool:
     return bool(span) and is_pronoun_like(span.root)
 
 
-def is_vague_actor(span: Optional[Span]) -> bool:
+def is_vague_actor(span: Span | None) -> bool:
     if not span:
         return False
     if span.root.pos == ADJ and not has_noun_or_propn(span):
-        return bool(span.root.morph.get("PronType", []) or span.root.morph.get("NumType", []))
+        return bool(
+            span.root.morph.get("PronType", []) or span.root.morph.get("NumType", [])
+        )
     return is_vague_head(span)
 
 
-def is_indefinite_actor(span: Optional[Span]) -> bool:
+def is_indefinite_actor(span: Span | None) -> bool:
     if not span:
         return False
     if is_vague_actor(span):
@@ -269,7 +273,7 @@ def is_brief_reply(span: Span) -> bool:
     return sum(t.is_alpha for t in span) <= 2
 
 
-def actor_key(span: Optional[Span]) -> str:
+def actor_key(span: Span | None) -> str:
     if not span:
         return ""
     if any(t.pos == PROPN or t.ent_type_ == "PER" for t in span):
@@ -282,7 +286,7 @@ def actor_key(span: Optional[Span]) -> str:
     return span.text.lower()
 
 
-def is_human_like(span: Optional[Span]) -> bool:
+def is_human_like(span: Span | None) -> bool:
     if not span:
         return False
     if any(t.ent_type_ == "PER" for t in span):
@@ -303,11 +307,11 @@ def has_voice_intro(replica: Span) -> bool:
     return False
 
 
-def refined_noun_chunk(token: Union[Token, Span]) -> Span:
+def refined_noun_chunk(token: Token | Span) -> Span:
     return normalize_span(expand_hyphenated_span(noun_chunk(token)))
 
 
-def best_candidate(candidates: List[Token]) -> Optional[Span]:
+def best_candidate(candidates: list[Token]) -> Span | None:
     if not candidates:
         return None
 
@@ -320,7 +324,7 @@ def best_candidate(candidates: List[Token]) -> Optional[Span]:
             if is_human_like(span) or not is_inanimate(span)
         ]
 
-    scored: List[tuple] = []
+    scored: list[tuple] = []
     for c, span in prepared:
         alpha_len = sum(t.is_alpha for t in span)
         length_score = min(alpha_len, 3)
@@ -335,8 +339,10 @@ def best_candidate(candidates: List[Token]) -> Optional[Span]:
             score -= 3
         if not is_ref(c):
             score += 3
-        if c.pos == PROPN or c.ent_type_ == "PER" or any(
-            t.ent_type_ == "PER" for t in span
+        if (
+            c.pos == PROPN
+            or c.ent_type_ == "PER"
+            or any(t.ent_type_ == "PER" for t in span)
         ):
             score += 3
         if c.dep_ == "appos":
@@ -366,14 +372,12 @@ def ref_matches(ref: Token, target: Token) -> bool:
     return morph_distance(target, ref, Gender, Number, Tense) < 2
 
 
-def is_ref(noun: Union[Span, Token]):
+def is_ref(noun: Span | Token):
     if isinstance(noun, Token):
         if noun.pos == PRON:
             return True
         if noun.lemma_ in REFERRAL_PRON:
-            if noun.pos == NOUN and ANIMACY_ANIM in noun.morph:
-                return False
-            return True
+            return not (noun.pos == NOUN and ANIMACY_ANIM in noun.morph)
         return False
     if any(t.pos == PRON for t in noun):
         return True
@@ -384,8 +388,8 @@ def is_ref(noun: Union[Span, Token]):
     return bool(dm(noun_chunk(noun)))
 
 
-def top_verbs(span: Span, replica: Span) -> List[Token]:
-    verbs: List[Token] = []
+def top_verbs(span: Span, replica: Span) -> list[Token]:
+    verbs: list[Token] = []
     for t in span:
         if (
             t.pos == VERB
@@ -433,11 +437,11 @@ def potential_actors(verb: Token, replica: Span) -> Generator[Token, None, None]
 
 
 def morph_aligns_with(target: Token) -> Callable[[Token], bool]:
-    def aligned_gender(tk) -> Optional[str]:
+    def aligned_gender(tk) -> str | None:
         t = noun_chunk(tk)
         if len(t) == 1:
             return [*t.root.morph.get(Gender, []), None][0]
-        morphs: Dict[str, str] = next(
+        morphs: dict[str, str] = next(
             (
                 v
                 for tk in reversed(t)
@@ -458,11 +462,11 @@ def morph_aligns_with(target: Token) -> Callable[[Token], bool]:
     )
 
 
-def resolve_recent_actor(play: Play, ref: Token) -> Optional[Span]:
+def resolve_recent_actor(play: Play, ref: Token) -> Span | None:
     matcher = morph_aligns_with(ref)
     fallback = None
     named_fallback = None
-    named_keys: List[str] = []
+    named_keys: list[str] = []
     for actor in reversed(list(play.actors)):
         if not actor or is_ref(actor):
             continue
@@ -587,14 +591,14 @@ def resolve_noun_case(play: Play, actor: Span) -> Span:
     return actor
 
 
-def recent_named_actor(play: Play) -> Optional[Span]:
+def recent_named_actor(play: Play) -> Span | None:
     for actor in reversed(list(play.actors)):
         if actor and any(t.pos == PROPN or t.ent_type_ == "PER" for t in actor):
             return actor
     return None
 
 
-def find_named_antecedent(span: Span, ref: Token) -> Optional[Span]:
+def find_named_antecedent(span: Span, ref: Token) -> Span | None:
     matcher = morph_aligns_with(ref)
     for token in reversed(span):
         if token.pos in {PROPN, NOUN, ADJ} and matcher(token):
@@ -620,7 +624,7 @@ def find_named_antecedent(span: Span, ref: Token) -> Optional[Span]:
     return None
 
 
-def is_known_actor(play: Play, actor: Optional[Span]) -> bool:
+def is_known_actor(play: Play, actor: Span | None) -> bool:
     if not actor:
         return False
     key = actor_key(actor)
@@ -666,11 +670,7 @@ def mentions_actor_as_subject(span: Span, actor: Span) -> bool:
     for t in span:
         if "nsubj" in t.dep_ and t.lemma_ in actor_lemmas:
             return True
-        if (
-            t.dep_ == "appos"
-            and t.lemma_ in actor_lemmas
-            and "nsubj" in t.head.dep_
-        ):
+        if t.dep_ == "appos" and t.lemma_ in actor_lemmas and "nsubj" in t.head.dep_:
             return True
     return False
 
@@ -682,13 +682,17 @@ def mentions_actor_as_verbal_subject(span: Span, actor: Span) -> bool:
     if not actor_lemmas:
         return False
     for t in span:
-        if "nsubj" in t.dep_ and t.lemma_ in actor_lemmas:
-            if t.head.pos == VERB and not t.head._.is_copula:
-                return True
+        if (
+            "nsubj" in t.dep_
+            and t.lemma_ in actor_lemmas
+            and t.head.pos == VERB
+            and not t.head._.is_copula
+        ):
+            return True
     return False
 
 
-def reference_resolution_context(bounds: List[Span]) -> Generator[Span, None, None]:
+def reference_resolution_context(bounds: list[Span]) -> Generator[Span, None, None]:
     """Yields all the spans between `bounds`, from bottom to the top.
     Each span is split into sentences, if needed.
     """
@@ -697,7 +701,7 @@ def reference_resolution_context(bounds: List[Span]) -> Generator[Span, None, No
     doc = bounds[0].doc
     bounds = sorted(bounds, key=lambda sp: sp.start, reverse=True) + [doc[0:0]]
     # Read context pieces between bounds
-    for r_bound, l_bound in zip(bounds, bounds[1:]):
+    for r_bound, l_bound in pairwise(bounds):
         if not (bet := trim_non_word(doc[l_bound.end : r_bound.start])):
             continue
         split_idxs = sorted(
@@ -713,7 +717,7 @@ def reference_resolution_context(bounds: List[Span]) -> Generator[Span, None, No
             continue
         if trailing := doc.char_span(split_idxs[0] + 1, bet.end_char):
             yield trailing
-        for ri, li in zip(split_idxs, split_idxs[1:]):
+        for ri, li in pairwise(split_idxs):
             if middle := doc.char_span(li + 1, ri):
                 yield middle
         if leading := doc.char_span(bet.start_char, split_idxs[-1]):
@@ -725,16 +729,16 @@ def actor_search(
     play: Play,
     replica: Span,
     *,
-    ref_chain: Optional[List[Token]] = None,
+    ref_chain: list[Token] | None = None,
     resolve_refs: bool = True,
     prefer_recent_actor: bool = False,
-) -> Optional[Span]:
+) -> Span | None:
     if ref_chain is None:
         ref_chain = []
     ref = ref_chain[-1] if ref_chain else None
     ref_matcher = morph_aligns_with(ref) if ref else lambda _: True
 
-    def finalize_actor(actor: Optional[Span]) -> Optional[Span]:
+    def finalize_actor(actor: Span | None) -> Span | None:
         if not actor:
             return None
         actor = resolve_role_actor(play, actor, prefer_recent_actor=prefer_recent_actor)
@@ -755,10 +759,11 @@ def actor_search(
         ):
             return None
         if prefer_recent_actor and not is_human_like(actor):
-            allows_role = (
-                actor.root.pos in {ADJ, NUM, DET}
-                and mentions_actor_as_subject(span, actor)
-            )
+            allows_role = actor.root.pos in {
+                ADJ,
+                NUM,
+                DET,
+            } and mentions_actor_as_subject(span, actor)
             allows_name_like = (
                 actor.root.pos != PRON
                 and actor.root.is_alpha
@@ -766,24 +771,38 @@ def actor_search(
                 and len(actor.root.text) > 1
                 and mentions_actor_as_subject(span, actor)
             )
-            if not allows_role and not allows_name_like and not (
-                mentions_actor_with_speech_verb(span, actor)
-                or mentions_actor_with_copula(span, actor)
+            if (
+                not allows_role
+                and not allows_name_like
+                and not (
+                    mentions_actor_with_speech_verb(span, actor)
+                    or mentions_actor_with_copula(span, actor)
+                )
             ):
                 return None
         if is_pronoun_span(actor):
-            if prefer_recent_actor and (above := line_above(replica)):
-                if named := find_named_antecedent(above, actor.root):
-                    return resolve_named_case(play, named, force=True)
+            if (
+                prefer_recent_actor
+                and (above := line_above(replica))
+                and (named := find_named_antecedent(above, actor.root))
+            ):
+                return resolve_named_case(play, named, force=True)
             if resolved := resolve_recent_actor(play, actor.root):
                 return resolve_named_case(play, resolved, force=True)
             if not is_nominative(actor.root):
                 return None
         base_actor = actor
         actor = resolve_noun_case(play, actor)
-        if prefer_recent_actor and is_generic_person_noun(base_actor) and actor == base_actor:
+        if (
+            prefer_recent_actor
+            and is_generic_person_noun(base_actor)
+            and actor == base_actor
+        ):
             candidate = None
-            if play.last_replica and line_breaks_between(play.last_replica, replica) == 1:
+            if (
+                play.last_replica
+                and line_breaks_between(play.last_replica, replica) == 1
+            ):
                 candidate = play.penult()
             if not candidate:
                 candidate = play.last_actor
@@ -850,9 +869,12 @@ def actor_search(
         ):
             return finalize_actor(refined_noun_chunk(pronoun_subjects[0]))
         if not non_ref_spans or all(not is_human_like(s) for s in non_ref_spans):
-            if prefer_recent_actor and (above := line_above(replica)):
-                if named := find_named_antecedent(above, pronoun_subjects[0]):
-                    return resolve_named_case(play, named, force=True)
+            if (
+                prefer_recent_actor
+                and (above := line_above(replica))
+                and (named := find_named_antecedent(above, pronoun_subjects[0]))
+            ):
+                return resolve_named_case(play, named, force=True)
             resolved = resolve_recent_actor(play, pronoun_subjects[0])
             if resolved and (
                 is_human_like(resolved)
@@ -891,7 +913,9 @@ def actor_search(
 
     # Reference resolution
     if resolve_refs:
-        m_refs = [] if (has_strong_non_ref and not ref) else list(filter(is_ref, matching))
+        m_refs = (
+            [] if (has_strong_non_ref and not ref) else list(filter(is_ref, matching))
+        )
         m_verbs = list(filter(ref_matcher, root_verbs))
         person = m_refs[0].morph.get("Person", []) if m_refs else []
         if (
@@ -926,7 +950,7 @@ def actor_search(
             + ([] if ref else ([replica] if replica else []))
             + [span]
         )
-        cached_ctx: List[Span] = []
+        cached_ctx: list[Span] = []
         for word in ref_roots:
             if bound := play.reference(word):
                 return bound
@@ -946,7 +970,9 @@ def actor_search(
                     candidate = refined_noun_chunk(ante)
                     if word.pos == PRON and not (
                         is_human_like(candidate)
-                        or any(t.pos == PROPN or t.ent_type_ == "PER" for t in candidate)
+                        or any(
+                            t.pos == PROPN or t.ent_type_ == "PER" for t in candidate
+                        )
                         or any(t.lemma_ == "голос" for t in candidate)
                     ):
                         ref_chain.pop()
@@ -987,7 +1013,7 @@ def classify_actors(
     doc = dialogue.doc
 
     for p_replica, replica, n_replica in iter_by_triples(dialogue.replicas):
-        ref_chain: List[Token] = []
+        ref_chain: list[Token] = []
         # On the same line as prev replica
         if (
             p_replica
@@ -1003,8 +1029,10 @@ def classify_actors(
             and fills_line(replica)
             and line_breaks_between(replica, p_replica) == 1
         ):
-            if p_replica._.is_after_author_starting and p_replica in p and has_voice_intro(
-                p_replica
+            if (
+                p_replica._.is_after_author_starting
+                and p_replica in p
+                and has_voice_intro(p_replica)
             ):
                 p[replica] = p[p_replica]
                 continue
@@ -1022,7 +1050,9 @@ def classify_actors(
                     and above.start == p_replica.start
                     and above.end == p_replica.end
                 )
-                and not (p_replica.text.strip().endswith("?") and is_brief_reply(replica))
+                and not (
+                    p_replica.text.strip().endswith("?") and is_brief_reply(replica)
+                )
                 and p[p_replica]
                 and any(t.pos == PROPN or t.ent_type_ == "PER" for t in p[p_replica])
                 and any(t.pos == PROPN or t.ent_type_ == "PER" for t in above)
@@ -1040,13 +1070,11 @@ def classify_actors(
             if penult := p.penult():
                 # Line has no author speech => speakers alternation
                 actor = penult
-                if (
-                    p_replica
-                    and has_imperative(replica)
-                    and has_imperative(p_replica)
-                ):
+                if p_replica and has_imperative(replica) and has_imperative(p_replica):
                     actor = p[p_replica]
-                if replica._.is_unannotated_alternation and (above := line_above(replica)):
+                if replica._.is_unannotated_alternation and (
+                    above := line_above(replica)
+                ):
                     if p_replica:
                         p_trim = trim_non_word(p_replica)
                         if above.start == p_trim.start and above.end == p_trim.end:
@@ -1088,28 +1116,35 @@ def classify_actors(
                 ):
                     p[replica] = p[p_replica]
                     continue
-                if replica._.is_unannotated_alternation and not any(
-                    "nsubj" in t.dep_ for t in replica
+                if (
+                    replica._.is_unannotated_alternation
+                    and not any("nsubj" in t.dep_ for t in replica)
+                    and (
+                        has_second_person(replica)
+                        or any(is_reflexive_pronoun(t) for t in replica)
+                    )
                 ):
-                    if has_second_person(replica) or any(
-                        is_reflexive_pronoun(t) for t in replica
-                    ):
-                        p[replica] = p[p_replica]
-                        continue
-                if replica._.is_unannotated_alternation and (above := line_above(p_replica)):
-                    if not (
+                    p[replica] = p[p_replica]
+                    continue
+                if (
+                    replica._.is_unannotated_alternation
+                    and (above := line_above(p_replica))
+                    and not (
                         p_replica._.start_line_no == above._.start_line_no
                         and p_replica._.end_line_no == above._.end_line_no
-                    ):
-                        if actor := actor_search(
+                    )
+                    and (
+                        actor := actor_search(
                             above,
                             p,
                             replica,
                             ref_chain=ref_chain,
                             prefer_recent_actor=True,
-                        ):
-                            p[replica] = actor
-                            continue
+                        )
+                    )
+                ):
+                    p[replica] = actor
+                    continue
                 leading = doc[
                     min(p_replica.start, p_replica.sent.start) - 2 : p_replica.start
                 ]
@@ -1175,7 +1210,11 @@ def classify_actors(
                     if not clipped:
                         continue
                     candidate = actor_search(
-                        clipped, p, replica, ref_chain=ref_chain, prefer_recent_actor=True
+                        clipped,
+                        p,
+                        replica,
+                        ref_chain=ref_chain,
+                        prefer_recent_actor=True,
                     )
                     if candidate and (
                         is_human_like(candidate)
@@ -1187,23 +1226,25 @@ def classify_actors(
                             and mentions_actor_as_subject(clipped, candidate)
                         )
                     ):
-                        if any(
-                            t.pos == PROPN or t.ent_type_ == "PER" for t in clipped
-                        ):
+                        if any(t.pos == PROPN or t.ent_type_ == "PER" for t in clipped):
                             actor = candidate
                             break
                         if fallback is None:
                             fallback = candidate
                 if not actor and len(sents) > 1:
-                    if any(
-                        t.pos == PROPN or t.ent_type_ == "PER" for t in search_span
-                    ):
-                        actor = actor_search(search_span, p, replica, ref_chain=ref_chain)
+                    if any(t.pos == PROPN or t.ent_type_ == "PER" for t in search_span):
+                        actor = actor_search(
+                            search_span, p, replica, ref_chain=ref_chain
+                        )
                     else:
                         actor = fallback
             else:
                 actor = actor_search(
-                    search_span, p, replica, ref_chain=ref_chain, prefer_recent_actor=True
+                    search_span,
+                    p,
+                    replica,
+                    ref_chain=ref_chain,
+                    prefer_recent_actor=True,
                 )
 
             p[replica] = (actor, ref_chain)
@@ -1230,13 +1271,15 @@ def classify_actors(
             prev_penult = p.penult()
             prev_actor = p[p_replica] if (p_replica and p_replica in p) else None
             p[replica] = (
-                (actor := actor_search(
-                    search_span,
-                    p,
-                    replica,
-                    ref_chain=ref_chain,
-                    prefer_recent_actor=True,
-                )),
+                (
+                    actor := actor_search(
+                        search_span,
+                        p,
+                        replica,
+                        ref_chain=ref_chain,
+                        prefer_recent_actor=True,
+                    )
+                ),
                 ref_chain,
             )
             if (
@@ -1248,27 +1291,34 @@ def classify_actors(
                 and prev_penult
                 and actor_key(prev_penult) != actor_key(prev_actor)
                 and actor.root.pos not in {ADJ, NUM, DET}
-                and any(
-                    t.pos == PROPN or t.ent_type_ == "PER" for t in prev_penult
-                )
+                and any(t.pos == PROPN or t.ent_type_ == "PER" for t in prev_penult)
                 and not any(t.pos == PROPN or t.ent_type_ == "PER" for t in actor)
             ):
                 p[replica] = prev_penult
             if not p[replica]:
-                if (above := line_above(replica)) and not (
-                    p_replica
-                    and p_replica._.start_line_no == above._.start_line_no
-                    and p_replica._.end_line_no == above._.end_line_no
+                if (
+                    (above := line_above(replica))
+                    and not (
+                        p_replica
+                        and p_replica._.start_line_no == above._.start_line_no
+                        and p_replica._.end_line_no == above._.end_line_no
+                    )
+                    and (
+                        candidate := actor_search(
+                            above,
+                            p,
+                            replica,
+                            ref_chain=ref_chain,
+                            prefer_recent_actor=True,
+                        )
+                    )
+                    and (
+                        is_human_like(candidate)
+                        or mentions_actor_with_speech_verb(above, candidate)
+                        or mentions_actor_as_verbal_subject(above, candidate)
+                    )
                 ):
-                    if candidate := actor_search(
-                        above, p, replica, ref_chain=ref_chain, prefer_recent_actor=True
-                    ):
-                        if (
-                            is_human_like(candidate)
-                            or mentions_actor_with_speech_verb(above, candidate)
-                            or mentions_actor_as_verbal_subject(above, candidate)
-                        ):
-                            p[replica] = candidate
+                    p[replica] = candidate
                 if not p[replica] and prev_penult:
                     # Author speech is present, but it has
                     # no reference to the actor => actor alternation
@@ -1287,13 +1337,15 @@ def classify_actors(
             prev_penult = p.penult()
             prev_actor = p[p_replica] if (p_replica and p_replica in p) else None
             p[replica] = (
-                (actor := actor_search(
-                    search_span,
-                    p,
-                    replica,
-                    ref_chain=ref_chain,
-                    prefer_recent_actor=True,
-                )),
+                (
+                    actor := actor_search(
+                        search_span,
+                        p,
+                        replica,
+                        ref_chain=ref_chain,
+                        prefer_recent_actor=True,
+                    )
+                ),
                 ref_chain,
             )
             if (
@@ -1305,27 +1357,34 @@ def classify_actors(
                 and prev_penult
                 and actor_key(prev_penult) != actor_key(prev_actor)
                 and actor.root.pos not in {ADJ, NUM, DET}
-                and any(
-                    t.pos == PROPN or t.ent_type_ == "PER" for t in prev_penult
-                )
+                and any(t.pos == PROPN or t.ent_type_ == "PER" for t in prev_penult)
                 and not any(t.pos == PROPN or t.ent_type_ == "PER" for t in actor)
             ):
                 p[replica] = prev_penult
             if not p[replica]:
-                if (above := line_above(replica)) and not (
-                    p_replica
-                    and p_replica._.start_line_no == above._.start_line_no
-                    and p_replica._.end_line_no == above._.end_line_no
+                if (
+                    (above := line_above(replica))
+                    and not (
+                        p_replica
+                        and p_replica._.start_line_no == above._.start_line_no
+                        and p_replica._.end_line_no == above._.end_line_no
+                    )
+                    and (
+                        candidate := actor_search(
+                            above,
+                            p,
+                            replica,
+                            ref_chain=ref_chain,
+                            prefer_recent_actor=True,
+                        )
+                    )
+                    and (
+                        is_human_like(candidate)
+                        or mentions_actor_with_speech_verb(above, candidate)
+                        or mentions_actor_as_verbal_subject(above, candidate)
+                    )
                 ):
-                    if candidate := actor_search(
-                        above, p, replica, ref_chain=ref_chain, prefer_recent_actor=True
-                    ):
-                        if (
-                            is_human_like(candidate)
-                            or mentions_actor_with_speech_verb(above, candidate)
-                            or mentions_actor_as_verbal_subject(above, candidate)
-                        ):
-                            p[replica] = candidate
+                    p[replica] = candidate
                 if not p[replica] and prev_penult:
                     # Author speech is present, but it has
                     # no reference to the actor => actor alternation
@@ -1352,9 +1411,7 @@ def classify_actors(
             if len(sents := list(search_span.sents)) > 1:
                 search_span = sents[-1]
 
-            actor = actor_search(
-                search_span, p, replica, prefer_recent_actor=True
-            )
+            actor = actor_search(search_span, p, replica, prefer_recent_actor=True)
             full_span_has_animate = any(
                 t.pos == NOUN and ANIMACY_ANIM in t.morph for t in full_search_span
             )
@@ -1387,7 +1444,9 @@ def classify_actors(
                         or mentions_actor_with_copula(clipped, candidate)
                         or is_known_actor(p, candidate)
                     ):
-                        if full_span_has_animate and not span_has_animate_noun(candidate):
+                        if full_span_has_animate and not span_has_animate_noun(
+                            candidate
+                        ):
                             if fallback is None:
                                 fallback = candidate
                             continue
@@ -1439,7 +1498,11 @@ def classify_actors(
                 and (penult := p.penult())
             ):
                 actor = penult
-            if not actor and replica._.is_unannotated_alternation and (penult := p.penult()):
+            if (
+                not actor
+                and replica._.is_unannotated_alternation
+                and (penult := p.penult())
+            ):
                 actor = penult
             if actor and span_is_collective(actor) and (penult := p.penult()):
                 actor = penult
@@ -1451,6 +1514,6 @@ def classify_actors(
 
         else:
             p[replica] = None
-            print("MISS", replica)  # TODO: handle
+            print("MISS", replica, file=sys.stderr)  # TODO: handle
 
     return p

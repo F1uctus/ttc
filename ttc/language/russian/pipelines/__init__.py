@@ -2,7 +2,7 @@ from spacy import Language
 
 import ttc.language.russian.pipelines.line_numerator as line_number_marker
 import ttc.language.russian.pipelines.mispredictions_corrector as mis_corrector
-import ttc.language.russian.pipelines.sentencizer as sentencizer
+from ttc.language.russian.pipelines import sentencizer
 
 
 def register_for(lang: Language) -> None:

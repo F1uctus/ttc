@@ -9,9 +9,9 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-  "click>=8.0,<9.0",
-  "numpy>=1.24.0,<2.0.0",
-  "spacy>=3.8,<4.0",
+  "click>=8.5.0,<9.0",
+  "numpy>=2.5.3,<3.0.0",
+  "spacy>=3.8.16,<4.0",
   "ru_core_news_sm @ https://github.com/explosion/spacy-models/releases/download/ru_core_news_sm-3.8.0/ru_core_news_sm-3.8.0.tar.gz"
 ]
 
@@ -29,14 +29,14 @@ large_models_ru = [
   "ru_core_news_lg @ https://github.com/explosion/spacy-models/releases/download/ru_core_news_lg-3.8.0/ru_core_news_lg-3.8.0.tar.gz"
 ]
 dev = [
-  "pytest>=7.2.1",
-  "jupyter>=1.0.0",
-  "ty",
-  "black>=23.1",
-  "ruff>=0.0.275",
-  "coverage-badge",
+  "pytest>=9.1.1",
+  "jupyter>=1.1.1",
+  "ty>=0.0.85",
+  "black>=26.10.0",
+  "ruff>=0.16.10",
+  "genbadge[coverage]>=1.1.3",
   "coverage-plot @ git+https://github.com/F1uctus/coverage-plot.git",
-  "pytest-cov>=7.0.0",
+  "pytest-cov>=7.1.0",
 ]
 
 [project.scripts]
@@ -44,15 +44,20 @@ ttc = "ttc.cli:cli"
 
 [tool.black]
 line-length = 88
-include = '''
-(
-  /(
-      tests
-    | ttc
-  )
-)
-'''
+# Must keep the `.py` suffix: `include` replaces Black's default file filter,
+# so a bare directory pattern also matches the JSON/CSV/text corpus fixtures
+# under tests/ and rewrites them as if they were Python.
+include = '/(tests|ttc)/.*\.pyi?$'
 
 [tool.ruff]
 extend-exclude = ["*.ipynb"]
-lint.ignore = ["E741"]
+
+[tool.ruff.lint]
+ignore = ["E741"]
+
+[tool.ruff.lint.per-file-ignores]
+# The flagged attributes are Enum members holding spaCy token patterns, not
+# shared mutable state: Enum members are singletons, so RUF012's rationale
+# does not apply, and its suggested `ClassVar` annotation would tell type
+# checkers these are not members at all.
+"ttc/language/russian/token_patterns.py" = ["RUF012"]

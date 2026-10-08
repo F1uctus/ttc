@@ -1,0 +1,3 @@
+"quoteID","quoteText","subQuotationList","quoteByteSpans","speaker","addressees","quoteType","referringExpression","mentionTextsList","mentionSpansList","mentionEntitiesList"
+"Q1","""Come here,""","['""Come here,""']","[[0, 12]]","Emma","['Harriet']","Explicit","said Emma","[[]]","[[]]","[[]]"
+"Q2","""I am glad,""","['""I am glad,""']","[[41, 53]]","Harriet","['Emma']","Anaphoric","nan","[['she']]","[[[54, 57]]]","[[['Harriet']]]"
