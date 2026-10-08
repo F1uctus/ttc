@@ -43,7 +43,7 @@ def build_examples(
     window_before: int = 1000,
     window_after: int = 200,
     allow_unaudited: bool = False,
-    audit_report: Path | None = Path("docs/corpus-audit-tune.md"),
+    audit_report: Path | None = Path("build/corpus-audit-tune.md"),
     seed: int = 20260704,
 ) -> dict[str, int]:
     rng = random.Random(seed)
