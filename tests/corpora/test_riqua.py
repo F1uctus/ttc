@@ -13,11 +13,13 @@ def test_convert_mini_work():
     doc = docs[0]
     assert doc.lang == "en" and doc.source == "riqua"
     assert validate(doc) == []
-    assert len(doc.replicas) == 2
-    r1, r2 = doc.replicas
+    assert len(doc.replicas) == 3
+    r1, r2, r3 = doc.replicas
     assert doc.text[r1.start : r1.end] == '"Stop,"'
     assert doc.text[r1.cue.start : r1.cue.end] == "said"
-    speakers = {c.id: c.name for c in doc.characters}
-    assert speakers[r1.speaker] == "Mr. Bennet"
-    assert speakers[r2.speaker] == "she"
+    names = {c.id: c.name for c in doc.characters}
+    assert names[r1.speaker] == "Mr. Bennet"
+    assert names[r1.addressee] == "his wife"
+    assert names[r2.speaker] == "she"
+    assert (r1.mode, r2.mode, r3.mode) == ("speech", "speech", "indirect")
     assert_matches_golden(docs, FIXTURES / "golden.jsonl")

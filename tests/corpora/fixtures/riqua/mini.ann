@@ -1,10 +1,17 @@
-T1	Quote 0 7	"Stop,"
+T1	Quotation 0 7	"Stop,"
 T2	Cue 8 12	said
 T3	Entity 13 23	Mr. Bennet
-T4	Quote 37 64	"You delight in vexing me,"
-T5	Cue 65 69	said
-T6	Entity 70 73	she
-R1	Speaker Arg1:T1 Arg2:T3
-R2	CueOf Arg1:T1 Arg2:T2
-R3	Speaker Arg1:T4 Arg2:T6
-R4	CueOf Arg1:T4 Arg2:T5
+T4	Entity 27 35	his wife
+T5	Quotation 37 64	"You delight in vexing me,"
+T6	Cue 65 69	said
+T7	Entity 70 73	she
+T8	Entity 75 78	She
+T9	Cue 79 83	said
+T10	Quotation 89 119	he never thought of her nerves
+R1	Speaker Arg1:T3 Arg2:T1	
+R2	Addressee Arg1:T4 Arg2:T1	
+R3	Cueing Arg1:T2 Arg2:T1	
+R4	Speaker Arg1:T7 Arg2:T5	
+R5	Cueing Arg1:T6 Arg2:T5	
+R6	Speaker Arg1:T8 Arg2:T10	
+R7	Cueing Arg1:T9 Arg2:T10	
