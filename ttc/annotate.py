@@ -243,7 +243,7 @@ def run_server(text: str, payload: dict, out_path: Path, port: int) -> None:
     ).encode("utf-8")
 
     class Handler(BaseHTTPRequestHandler):
-        def log_message(self, *args):  # keep the terminal quiet
+        def log_message(self, format: str, *args: object) -> None:  # stay quiet
             pass
 
         def _respond(self, code: int, body: bytes, content_type: str):
