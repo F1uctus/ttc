@@ -17,8 +17,8 @@ We aim to achieve the following goals:
 
 - Better accuracy on the actor classification task.
   Replica extraction is ~99% precision/recall; actor attribution is
-  ~70% end-to-end on held-out texts (~100% on the tuned-against set) —
-  see [docs/eval-log.md](docs/eval-log.md) and run `ttc eval` to measure;
+  ~70% end-to-end on held-out texts (~100% on the tuned-against set);
+  run `ttc eval` to measure;
 - A larger annotated corpus (`ttc annotate` opens a browser tool
   prefilled with pipeline predictions — see
   [tests/russian/texts/README.md](tests/russian/texts/README.md));

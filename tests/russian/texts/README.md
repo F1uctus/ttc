@@ -22,8 +22,7 @@ character — e.g. `Ясна = принцесса | светлость`. Parser/
   `ttc eval tests/russian/texts/tune --by-file --errors`.
 - **`heldout/` is for aggregate numbers only.** Never read its per-replica
   errors while tuning (`ttc eval` refuses `--errors` on it), never write a
-  rule to fix a specific held-out mistake. Record aggregates per milestone
-  in `docs/eval-log.md`.
+  rule to fix a specific held-out mistake. Record aggregates per milestone.
 - **One source book belongs to exactly one split** — style and character
   names leak. (Grandfathered exception: Sanderson Stormlight excerpts exist
   in both; do not add more cross-split books.)
