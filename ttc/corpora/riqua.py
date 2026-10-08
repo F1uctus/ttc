@@ -1,14 +1,11 @@
-"""RiQuA adapter: brat-style standoff quotes/cues/entities (en, prose).
-
-RiQuA has no canonical character table — speaker entities are text spans.
-Characters are synthesized per distinct entity surface string; mention
-spans are emitted for every entity occurrence linked to a quote.
-"""
+"""RiQuA adapter: brat standoff quotations, cues and entities (en, prose)."""
 
 from collections.abc import Iterator
 from pathlib import Path
 
 from ttc.corpora.schema import Character, CorpusDoc, Cue, Mention, Replica
+
+QUOTE_MARKS = "\"'\N{LEFT DOUBLE QUOTATION MARK}\N{LEFT SINGLE QUOTATION MARK}"
 
 
 def _parse_ann(ann_text: str):
@@ -47,12 +44,12 @@ def parse_work(txt: Path, ann: Path) -> CorpusDoc:
     speaker_of: dict[str, str] = {}
     addressee_of: dict[str, str] = {}
     cue_of: dict[str, Cue] = {}
-    for kind, quote_id, arg_id in relations:
-        if kind.lower() in ("speaker", "speakerof"):
+    for kind, arg_id, quote_id in relations:
+        if kind == "Speaker":
             speaker_of[quote_id] = char_for(arg_id)
-        elif kind.lower() in ("addressee", "addresseeof"):
+        elif kind == "Addressee":
             addressee_of[quote_id] = char_for(arg_id)
-        elif kind.lower() in ("cue", "cueof"):
+        elif kind == "Cueing":
             _, start, end = spans[arg_id]
             cue_of[quote_id] = Cue(start, end)
 
@@ -64,9 +61,10 @@ def parse_work(txt: Path, ann: Path) -> CorpusDoc:
             addressee_of.get(tid),
             None,
             cue_of.get(tid),
+            "speech" if text[start:end].lstrip()[:1] in QUOTE_MARKS else "indirect",
         )
         for tid, (kind, start, end) in sorted(spans.items(), key=lambda kv: kv[1][1])
-        if kind == "Quote"
+        if kind == "Quotation"
     ]
     return CorpusDoc(
         doc_id=f"riqua/{txt.stem}",
