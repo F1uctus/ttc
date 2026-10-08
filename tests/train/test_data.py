@@ -134,3 +134,33 @@ def test_same_line_uses_consistent_coordinates(tmp_path: Path):
     # ru mentions sit on other lines than the replicas
     assert ru and all(c["same_line"] == 0 for c in ru)
     assert all(isinstance(c["dist"], float) for c in cands)
+
+
+def test_pairs_stay_within_reach(tmp_path: Path):
+    import json
+
+    from train.data import build_examples
+    from ttc.corpora.schema import Character, CorpusDoc, Mention, write_jsonl
+
+    text = "Ann met Bob. " + "x" * 5000 + " Ann left."
+    doc = CorpusDoc(
+        doc_id="far",
+        lang="en",
+        domain="prose",
+        source="pdnc",
+        license="test",
+        text=text,
+        replicas=[],
+        characters=[Character("a", "Ann"), Character("b", "Bob")],
+        mentions=[
+            Mention(0, 3, "a"),
+            Mention(8, 11, "b"),
+            Mention(text.rindex("Ann"), text.rindex("Ann") + 3, "a"),
+        ],
+    )
+    src = tmp_path / "far.jsonl"
+    write_jsonl([doc], src)
+    build_examples([src], tmp_path / "out", pair_reach=100)
+    pairs = [json.loads(line) for line in (tmp_path / "out" / "pair.jsonl").open()]
+    assert pairs and all(p["label"] == 0 for p in pairs)
+    assert max(len(p["text"]) for p in pairs) < 1500

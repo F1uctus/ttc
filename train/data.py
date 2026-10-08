@@ -45,6 +45,7 @@ def build_examples(
     allow_unaudited: bool = False,
     audit_report: Path | None = Path("build/corpus-audit-tune.md"),
     seed: int = 20260704,
+    pair_reach: int = 1000,
 ) -> dict[str, int]:
     rng = random.Random(seed)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -66,8 +67,14 @@ def build_examples(
 
             # pair head: positive iff both mentions share a character
             for i, a in enumerate(mentions):
-                same = [b for b in mentions[i + 1 :] if b.char == a.char]
-                diff = [b for b in mentions[i + 1 :] if b.char != a.char]
+                near = []
+                for b in mentions[i + 1 :]:
+                    if b.start - a.start > pair_reach:
+                        break
+                    if b.end - a.start <= pair_reach:
+                        near.append(b)
+                same = [b for b in near if b.char == a.char]
+                diff = [b for b in near if b.char != a.char]
                 for b in same[:1] + rng.sample(diff, min(NEG_PER_POS, len(diff))):
                     text, rel = _window(
                         doc, a.start, b.end, window_before, window_after
