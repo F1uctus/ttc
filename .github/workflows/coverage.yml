@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - new-heuristics
   pull_request:
     branches:
       - main
@@ -28,7 +27,8 @@ jobs:
           python-version: "3.13"
 
       - name: Install dependencies
-        run: uv sync --all-groups
+        # --no-group train fails where the group is undefined
+        run: uv sync --group dev --group large_models_ru
 
       - name: Run tests
         run: uv run pytest --cov=ttc --cov-report=xml
