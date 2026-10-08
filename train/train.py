@@ -92,6 +92,12 @@ def _step(model, tok, task: str, ex: dict, device) -> torch.Tensor:
     )
 
 
+def _append_run_log(out_dir: Path, line: str) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    with (out_dir / "eval-log.md").open("a", encoding="utf-8") as f:
+        f.write(line)
+
+
 def run(
     config_path: Path, stage: str, out_dir: Path, overrides: dict | None = None
 ) -> Path:
@@ -99,7 +105,11 @@ def run(
     cfg = load_config(config_path, overrides)
     if cfg["training"].get("mode", "cached") == "cached":
         return train_heads_cached(
-            Path(cfg["data"]["examples_dir"]).parent / "cache", cfg, out_dir, stage
+            Path(cfg["data"]["examples_dir"]).parent / "cache",
+            cfg,
+            out_dir,
+            stage,
+            overrides,
         )
     set_seeds(cfg["training"]["seed"])
     device = cfg["training"]["device"]
@@ -192,11 +202,11 @@ def run(
         ),
         encoding="utf-8",
     )
-    with open("docs/eval-log.md", "a", encoding="utf-8") as f:
-        f.write(
-            f"\n- train {stage} @ {commit}: "
-            f"losses {json.dumps(dict(losses))}, mix {json.dumps(mix)}\n"
-        )
+    _append_run_log(
+        out_dir,
+        f"\n- train {stage} @ {commit}: "
+        f"losses {json.dumps(dict(losses))}, mix {json.dumps(mix)}\n",
+    )
     return stage_dir / "model.pt"
 
 
@@ -206,7 +216,9 @@ def _infer_dim(cache_dir: Path) -> int:
     return (load_task(cache_dir, "candidate")["X"].shape[1] - 2) // 2
 
 
-def train_heads_cached(cache_dir: Path, cfg, out_dir: Path, stage: str) -> Path:
+def train_heads_cached(
+    cache_dir: Path, cfg, out_dir: Path, stage: str, overrides: dict | None = None
+) -> Path:
     from train.cache import load_task
     from train.mix import temperature_weights
     from train.model import CachedHeads
@@ -214,6 +226,21 @@ def train_heads_cached(cache_dir: Path, cfg, out_dir: Path, stage: str) -> Path:
     set_seeds(cfg["training"]["seed"])
     dim = cfg["encoder"]["dim"] or _infer_dim(cache_dir)
     heads = CachedHeads(dim, cfg["heads"]["hidden"])
+    # like the live loop: stage sources and steps, previous stage heads
+    stage_cfg = cfg["stages"].get(stage, {})
+    sources = set(stage_cfg.get("sources") or [])
+    order = cfg["stages"]["order"]
+    if (
+        stage in order
+        and (prev_i := order.index(stage)) > 0
+        and (prev_heads := out_dir / order[prev_i - 1] / "heads.pt").exists()
+    ):
+        heads.load_state_dict(torch.load(prev_heads))
+    steps = int(
+        (overrides or {}).get(
+            "training.steps", stage_cfg.get("steps", cfg["training"]["steps"])
+        )
+    )
     opt = torch.optim.AdamW(heads.parameters(), lr=cfg["training"]["lr"])
     t = cfg["mixing"]["temperature"]
     rng = np.random.default_rng(cfg["training"]["seed"])
@@ -223,13 +250,19 @@ def train_heads_cached(cache_dir: Path, cfg, out_dir: Path, stage: str) -> Path:
     for task in TASKS:
         by_src = defaultdict(list)
         for i, s in enumerate(data[task]["source"]):
-            by_src[str(s)].append(i)
+            if not sources or str(s) in sources:
+                by_src[str(s)].append(i)
         idx[task] = by_src
     weights = {
         task: temperature_weights({s: len(v) for s, v in idx[task].items()}, t)
         for task in TASKS
         if idx[task]
     }
+    if not weights:
+        raise RuntimeError(
+            f"no cached examples for stage {stage!r} "
+            f"(sources {sorted(sources)}) in {cache_dir}"
+        )
 
     def sample(task: str) -> int:
         srcs = list(weights[task])
@@ -240,7 +273,7 @@ def train_heads_cached(cache_dir: Path, cfg, out_dir: Path, stage: str) -> Path:
     bs = cfg["training"]["batch_size"]
     losses: dict[str, float] = defaultdict(float)
     heads.train()
-    for step in range(int(cfg["training"]["steps"])):
+    for step in range(steps):
         task = task_cycle[step % len(task_cycle)]
         opt.zero_grad()
         loss = _cached_loss(heads, task, data[task], [sample(task) for _ in range(bs)])
@@ -274,8 +307,9 @@ def train_heads_cached(cache_dir: Path, cfg, out_dir: Path, stage: str) -> Path:
         ),
         encoding="utf-8",
     )
-    with open("docs/eval-log.md", "a", encoding="utf-8") as f:
-        f.write(f"\n- train {stage} (cached) @ {commit}: losses {dict(losses)}\n")
+    _append_run_log(
+        out_dir, f"\n- train {stage} (cached) @ {commit}: losses {dict(losses)}\n"
+    )
     return stage_dir / "heads.pt"
 
 
