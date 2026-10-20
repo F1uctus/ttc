@@ -3031,8 +3031,8 @@ dev = [
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
-    { name = "ruff", specifier = ">=0.17.0" },
-    { name = "ty", specifier = ">=0.0.86" },
+    { name = "ruff", specifier = ">=0.17.1" },
+    { name = "ty", specifier = ">=0.0.89" },
 ]
 large-models-ru = [
     { name = "ru-core-news-lg", url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_lg-3.8.0/ru_core_news_lg-3.8.0.tar.gz" },
