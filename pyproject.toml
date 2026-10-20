@@ -31,9 +31,9 @@ large_models_ru = [
 dev = [
   "pytest>=9.1.1",
   "jupyter>=1.1.1",
-  "ty>=0.0.86",
+  "ty>=0.0.89",
   "black>=26.10.1",
-  "ruff>=0.17.0",
+  "ruff>=0.17.1",
   "genbadge[coverage]>=1.1.3",
   "coverage-plot @ git+https://github.com/F1uctus/coverage-plot.git",
   "pytest-cov>=7.1.0",
